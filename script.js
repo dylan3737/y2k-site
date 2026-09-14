@@ -236,20 +236,87 @@
       btn.style.fontWeight = 'bold';
     }
 
-   // --- Guestbook (Formspree Integration) ---
-const FORMSPREE_ID = 'xppzvlrz'; // Replace with your Formspree ID
-const FORMSPREE_ENDPOINT = `https://formspree.io/f/${FORMSPREE_ID}`;
+   // --- Guestbook & Song Suggestions (Supabase-backed, shared & public) ---
+   // 1. Create a free project at supabase.com
+   // 2. Run the two SQL setup blocks (create tables, then enable RLS + public policies)
+   // 3. Paste your Project URL and anon public key below.
+   //    The anon key is meant to be public — it's safe in client-side code as
+   //    long as your Row Level Security policies are set correctly.
+const SUPABASE_URL = 'https://busaiboomhpoxlevjzre.supabase.co/rest/v1/'; // e.g. https://xxxxxxxx.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c2FpYm9vbWhwb3hsZXZqenJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MTIwNTEsImV4cCI6MjEwNDk4ODA1MX0.tEDOOKt84bPUX3rs5ji3Z__auPgLhuFWwF74tMo9sVc';
 
-const guestbookForm = document.getElementById('guestbookForm');
-const guestNameInput = document.getElementById('guestName');
-const guestMessageInput = document.getElementById('guestMessage');
-const guestbookSubmitBtn = document.getElementById('guestbookSubmit');
-const guestbookStatus = document.getElementById('guestbookStatus');
+const supabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+const supabaseClient = (supabaseConfigured && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function formatEntryTime(isoString) {
+  try {
+    return new Date(isoString).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  } catch (err) {
+    return '';
+  }
+}
+
+function renderEntryList(container, entries, emptyMessage, renderItem) {
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!entries || entries.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'guestbook-empty';
+    empty.textContent = emptyMessage;
+    container.appendChild(empty);
+    return;
+  }
+
+  entries.forEach(entry => {
+    container.insertAdjacentHTML('beforeend', renderItem(entry));
+  });
+}
+
+// --- Guestbook ---
+const guestbookForm = document.getElementById('guestbookForm');
+const guestNameInput = document.getElementById('guestName');
+const guestMessageInput = document.getElementById('guestMessage');
+const guestbookSubmitBtn = document.getElementById('guestbookSubmit');
+const guestbookStatus = document.getElementById('guestbookStatus');
+const guestbookEntriesEl = document.getElementById('guestbookEntries');
+
+function renderGuestbookEntry(entry) {
+  return `
+    <div class="guestbook-entry">
+      <div class="guestbook-entry-name">${escapeHTML(entry.name)}</div>
+      <div class="guestbook-entry-message">${escapeHTML(entry.message)}</div>
+      <div class="guestbook-entry-time">${formatEntryTime(entry.created_at)}</div>
+    </div>`;
+}
+
+async function loadGuestbookEntries() {
+  if (!supabaseClient) {
+    renderEntryList(guestbookEntriesEl, [], 'Guestbook isn\'t connected yet — check back soon!', renderGuestbookEntry);
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from('guestbook_entries')
+    .select('name, message, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Failed to load guestbook entries:', error);
+    renderEntryList(guestbookEntriesEl, [], 'Couldn\'t load entries right now.', renderGuestbookEntry);
+    return;
+  }
+  renderEntryList(guestbookEntriesEl, data, 'No public messages yet — be the first to sign!', renderGuestbookEntry);
 }
 
 if (guestbookForm) {
@@ -260,29 +327,29 @@ if (guestbookForm) {
     const message = guestMessageInput.value.trim();
     if (!name || !message) return;
 
+    if (!supabaseClient) {
+      guestbookStatus.textContent = 'Guestbook isn\'t connected yet.';
+      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
+      return;
+    }
+
     guestbookSubmitBtn.disabled = true;
     guestbookStatus.textContent = 'Signing…';
 
     try {
-      const response = await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ name, message })
-      });
+      const { error } = await supabaseClient
+        .from('guestbook_entries')
+        .insert({ name, message });
 
-      if (response.ok) {
-        guestNameInput.value = '';
-        guestMessageInput.value = '';
-        guestbookStatus.textContent = '★ Thank you for signing!';
-      } else {
-        guestbookStatus.textContent = 'Failed to submit. Please try again.';
-      }
+      if (error) throw error;
+
+      guestNameInput.value = '';
+      guestMessageInput.value = '';
+      guestbookStatus.textContent = '★ Thank you for signing!';
+      loadGuestbookEntries();
     } catch (err) {
       console.error('Submission error:', err);
-      guestbookStatus.textContent = 'Error submitting entry.';
+      guestbookStatus.textContent = 'Failed to submit. Please try again.';
     } finally {
       guestbookSubmitBtn.disabled = false;
       setTimeout(() => {
@@ -291,12 +358,42 @@ if (guestbookForm) {
     }
   });
 }
-// --- Song Suggestion Formspree Integration ---
+
+// --- Song Suggestions ---
 const songForm = document.getElementById('songForm');
 const songNameInput = document.getElementById('songName');
 const songNotesInput = document.getElementById('songNotes');
 const songSubmitBtn = document.getElementById('songSubmit');
 const songStatus = document.getElementById('songStatus');
+const songSuggestionsEl = document.getElementById('songSuggestionsList');
+
+function renderSongEntry(entry) {
+  return `
+    <div class="guestbook-entry">
+      <div class="guestbook-entry-name">${escapeHTML(entry.song)}</div>
+      <div class="guestbook-entry-message">${escapeHTML(entry.notes)}</div>
+      <div class="guestbook-entry-time">${formatEntryTime(entry.created_at)}</div>
+    </div>`;
+}
+
+async function loadSongSuggestions() {
+  if (!supabaseClient) {
+    renderEntryList(songSuggestionsEl, [], 'Song suggestions aren\'t connected yet — check back soon!', renderSongEntry);
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from('song_suggestions')
+    .select('song, notes, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Failed to load song suggestions:', error);
+    renderEntryList(songSuggestionsEl, [], 'Couldn\'t load suggestions right now.', renderSongEntry);
+    return;
+  }
+  renderEntryList(songSuggestionsEl, data, 'No suggestions yet — be the first!', renderSongEntry);
+}
 
 if (songForm) {
   songForm.addEventListener('submit', async (e) => {
@@ -306,29 +403,29 @@ if (songForm) {
     const notes = songNotesInput.value.trim();
     if (!song || !notes) return;
 
+    if (!supabaseClient) {
+      songStatus.textContent = 'Song suggestions aren\'t connected yet.';
+      setTimeout(() => { songStatus.textContent = ''; }, 4000);
+      return;
+    }
+
     songSubmitBtn.disabled = true;
     songStatus.textContent = 'Sending…';
 
     try {
-      const response = await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ formType: 'Song Suggestion', song, notes })
-      });
+      const { error } = await supabaseClient
+        .from('song_suggestions')
+        .insert({ song, notes });
 
-      if (response.ok) {
-        songNameInput.value = '';
-        songNotesInput.value = '';
-        songStatus.textContent = '★ Song suggestion sent!';
-      } else {
-        songStatus.textContent = 'Failed to send. Please try again.';
-      }
+      if (error) throw error;
+
+      songNameInput.value = '';
+      songNotesInput.value = '';
+      songStatus.textContent = '★ Song suggestion sent!';
+      loadSongSuggestions();
     } catch (err) {
       console.error('Submission error:', err);
-      songStatus.textContent = 'Error sending suggestion.';
+      songStatus.textContent = 'Failed to send. Please try again.';
     } finally {
       songSubmitBtn.disabled = false;
       setTimeout(() => {
@@ -337,6 +434,9 @@ if (songForm) {
     }
   });
 }
+
+loadGuestbookEntries();
+loadSongSuggestions();
     // WebGL Fluid Solver Initialization
     const canvas = document.getElementById('canvas');
     const themeBtn = document.getElementById('themeBtn');

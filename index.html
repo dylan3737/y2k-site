@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   
 </head>
 <body>
@@ -204,9 +205,9 @@
     <div class="guestbook-status" id="guestbookStatus" role="status" aria-live="polite"></div>
   </form>
   <div class="guestbook-entries" id="guestbookEntries">
-    <p class="guestbook-empty">No public messages yet — be the first to sign!</p>
+    <p class="guestbook-empty">Loading entries…</p>
   </div>
-  <p class="guestbook-note">Entries are sent directly via Formspree. Please don't post anything private.</p>
+  <p class="guestbook-note">Entries are public and visible to every visitor. Please don't post anything private.</p>
 </div>
 <!-- Song Suggestion Section -->
       <div class="modal-section" id="songSuggestion">
@@ -221,6 +222,10 @@
           <button type="submit" class="guestbook-submit" id="songSubmit">Send Suggestion</button>
           <div class="guestbook-status" id="songStatus" role="status" aria-live="polite"></div>
         </form>
+        <div class="guestbook-entries" id="songSuggestionsList">
+          <p class="guestbook-empty">Loading suggestions…</p>
+        </div>
+        <p class="guestbook-note">Suggestions are public and visible to every visitor.</p>
       </div>
       <!-- Contact Section -->
       <div class="modal-section" id="contact">
