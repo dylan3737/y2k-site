@@ -707,7 +707,7 @@
   <!-- Retro Marquee Header Banner -->
   <div class="retro-ticker">
     <div class="ticker-text">
-      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: TODAY ★ NOW PLAYING: CHILL LO-FI ★ LEAVE A MESSAGE IN THE GUESTBOOK! ★
+      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: TODAY ★ LEAVE A MESSAGE IN THE GUESTBOOK! ★ LEAVE A SONG! ★
     </div>
   </div>
 
@@ -747,7 +747,7 @@
         <span>5. Pixel Rain</span>
         <span class="playlist-item-duration">SYNTH</span>
       </div>
-      <a class="playlist-suggestion-link" href="mailto:contact@dylandyal.com?subject=Playlist%20Song%20Suggestion&amp;body=I%27d%20love%20to%20hear%20your%20playlist%20song%20suggestion%21%20">♫ LEAVE A SONG</a>
+      <button type="button" class="playlist-suggestion-link" style="background:none; border:none; width:100%; text-align:center; cursor:pointer;" onclick="openModal('songSuggestion')">♫ LEAVE A SONG</button>
     </div>
   </div>
 
@@ -887,6 +887,20 @@
   </div>
   <p class="guestbook-note">Entries are sent directly via Formspree. Please don't post anything private.</p>
 </div>
+<!-- Song Suggestion Section -->
+      <div class="modal-section" id="songSuggestion">
+        <h2 class="modal-title" id="songSuggestion-heading">[ SUGGEST A SONG ]</h2>
+        <form class="guestbook-form" id="songForm">
+          <label for="songName" style="font-size: 0.75rem; color: var(--muted-text);">Song / Artist Name</label>
+          <input type="text" id="songName" name="song" placeholder="e.g. Tycho - Awake" required />
+          
+          <label for="songNotes" style="font-size: 0.75rem; color: var(--muted-text);">Why should it be added?</label>
+          <textarea id="songNotes" name="notes" placeholder="Gives cool late night retro vibes..." required></textarea>
+          
+          <button type="submit" class="guestbook-submit" id="songSubmit">Send Suggestion</button>
+          <div class="guestbook-status" id="songStatus" role="status" aria-live="polite"></div>
+        </form>
+      </div>
       <!-- Contact Section -->
       <div class="modal-section" id="contact">
         <h2 class="modal-title" id="contact-heading">[ CONTACT ]</h2>
@@ -908,22 +922,22 @@
     // Playlist Track Config
     const playlistData = [
       { 
-        title: "Synth Synthwave (Generated)", 
+        title: "Lo-Fi Chill", 
+        artist: "Web Audio Synth", 
+        type: "synth",
+        preset: "lofi"
+      },
+      { 
+        title: "Synthwave Sunset", 
         artist: "Web Audio Synth", 
         type: "synth",
         preset: "synthwave"
       },
       { 
-        title: "Chiptune Ambient (Generated)", 
+        title: "Retro Groove", 
         artist: "Web Audio Synth", 
         type: "synth",
-        preset: "chiptune"
-      },
-      { 
-        title: "Classic Piano", 
-        artist: "Wikimedia Audio", 
-        type: "url",
-        src: "https://upload.wikimedia.org/wikipedia/commons/2/21/Symphony_No._5_in_C_minor%2C_Op._67_-_I._Allegro_con_brio.ogg" 
+        preset: "retrogroove"
       },
       { 
         title: "Night Drive", 
@@ -955,7 +969,7 @@
       }
     }
 
-    function playSynthNote(freq, type = 'sine', duration = 1.5) {
+    function playSynthNote(freq, type = 'sine', duration = 1.2, gainValue = 0.15) {
       if (!audioCtx) return;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -963,7 +977,7 @@
       osc.type = type;
       osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
 
       osc.connect(gain);
@@ -977,34 +991,53 @@
       stopSynthLoop();
       initAudioContext();
 
-      const scales = {
-        synthwave: [261.63, 329.63, 392.00, 493.88, 523.25], // C Major 7th
-        chiptune: [220.00, 261.63, 329.63, 392.00, 440.00],   // A Minor
-        nightdrive: [220.00, 261.63, 293.66, 329.63, 392.00],  // A Minor
-        pixelrain: [261.63, 311.13, 349.23, 392.00, 466.16]   // C Minor
+      // Distinct melody scale maps and speeds for each track
+      const trackConfigs = {
+        lofi: {
+          notes: [261.63, 329.63, 392.00, 493.88, 440.00, 392.00, 329.63, 293.66], // Jazzy C Major 7th
+          oscType: 'sine',
+          speed: 550,
+          hasBass: true
+        },
+        synthwave: {
+          notes: [220.00, 261.63, 329.63, 440.00, 392.00, 246.94, 293.66, 392.00], // Moody minor progression
+          oscType: 'sawtooth',
+          speed: 350,
+          hasBass: true
+        },
+        retrogroove: {
+          notes: [130.81, 261.63, 164.81, 329.63, 196.00, 392.00, 220.00, 440.00], // Upbeat octave-skipping funk
+          oscType: 'triangle',
+          speed: 220,
+          hasBass: false
+        },
+        nightdrive: {
+          notes: [174.61, 220.00, 261.63, 349.23, 329.63, 261.63], // Atmospheric synth pulse
+          oscType: 'sawtooth',
+          speed: 400,
+          hasBass: true
+        },
+        pixelrain: {
+          notes: [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 880.00, 783.99], // Fast ascending chiptune
+          oscType: 'square',
+          speed: 150,
+          hasBass: false
+        }
       };
 
-      const notes = scales[preset] || scales.synthwave;
+      const config = trackConfigs[preset] || trackConfigs.lofi;
       let step = 0;
 
       synthInterval = setInterval(() => {
-        const freq = notes[step % notes.length];
-        const oscillatorTypes = {
-          synthwave: 'triangle',
-          chiptune: 'square',
-          nightdrive: 'sawtooth',
-          pixelrain: 'square'
-        };
-        const oscType = oscillatorTypes[preset] || oscillatorTypes.synthwave;
-        playSynthNote(freq, oscType, 1.2);
+        const freq = config.notes[step % config.notes.length];
+        playSynthNote(freq, config.oscType, config.speed / 500, 0.12);
         
-        // Add a soft bass tone on alternating beats
-        if (step % 2 === 0) {
-          playSynthNote(freq / 2, 'sine', 2.0);
+        if (config.hasBass && step % 2 === 0) {
+          playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.18);
         }
 
         step++;
-      }, 600);
+      }, config.speed);
     }
 
     function stopSynthLoop() {
@@ -1013,7 +1046,6 @@
         synthInterval = null;
       }
     }
-
     // Audio DOM Elements
     const audioPlayer = document.getElementById('audioPlayer');
     const musicWidgetWrapper = document.getElementById('musicWidgetWrapper');
@@ -1176,6 +1208,52 @@ if (guestbookForm) {
       guestbookSubmitBtn.disabled = false;
       setTimeout(() => {
         guestbookStatus.textContent = '';
+      }, 4000);
+    }
+  });
+}
+// --- Song Suggestion Formspree Integration ---
+const songForm = document.getElementById('songForm');
+const songNameInput = document.getElementById('songName');
+const songNotesInput = document.getElementById('songNotes');
+const songSubmitBtn = document.getElementById('songSubmit');
+const songStatus = document.getElementById('songStatus');
+
+if (songForm) {
+  songForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const song = songNameInput.value.trim();
+    const notes = songNotesInput.value.trim();
+    if (!song || !notes) return;
+
+    songSubmitBtn.disabled = true;
+    songStatus.textContent = 'Sending…';
+
+    try {
+      const response = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ formType: 'Song Suggestion', song, notes })
+      });
+
+      if (response.ok) {
+        songNameInput.value = '';
+        songNotesInput.value = '';
+        songStatus.textContent = '★ Song suggestion sent!';
+      } else {
+        songStatus.textContent = 'Failed to send. Please try again.';
+      }
+    } catch (err) {
+      console.error('Submission error:', err);
+      songStatus.textContent = 'Error sending suggestion.';
+    } finally {
+      songSubmitBtn.disabled = false;
+      setTimeout(() => {
+        songStatus.textContent = '';
       }, 4000);
     }
   });
