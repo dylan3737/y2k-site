@@ -361,6 +361,23 @@
       color: var(--muted-text);
     }
 
+    .playlist-suggestion-link {
+      display: block;
+      margin-top: 4px;
+      padding: 8px;
+      border-top: 1px dashed var(--nav-border);
+      color: var(--accent-cyan);
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.65rem;
+      text-align: center;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .playlist-suggestion-link:hover {
+      color: var(--accent-pink);
+    }
+
     /* Navigation Bar */
     nav.bottom-nav {
       display: flex;
@@ -722,6 +739,15 @@
         <span>3. Retro Groove</span>
         <span class="playlist-item-duration">MP3</span>
       </div>
+      <div class="playlist-item" data-index="3">
+        <span>4. Night Drive</span>
+        <span class="playlist-item-duration">SYNTH</span>
+      </div>
+      <div class="playlist-item" data-index="4">
+        <span>5. Pixel Rain</span>
+        <span class="playlist-item-duration">SYNTH</span>
+      </div>
+      <a class="playlist-suggestion-link" href="mailto:contact@dylandyal.com?subject=Playlist%20Song%20Suggestion&amp;body=I%27d%20love%20to%20hear%20your%20playlist%20song%20suggestion%21%20">♫ LEAVE A SONG</a>
     </div>
   </div>
 
@@ -784,9 +810,9 @@
         </div>
       </div>
 
-      <!-- Tumblr Style Blog Section -->
+      <!-- Blog Feed Section -->
       <div class="modal-section" id="blog">
-        <h2 class="modal-title" id="blog-heading">[ TUMBLR FEED ]</h2>
+        <h2 class="modal-title" id="blog-heading">[ FEED ]</h2>
 
         <div class="tumblr-post">
           <p>Spent the weekend rewriting the fluid sim's pressure solver. Dropped it from 20 Jacobi iterations to something that adapts based on how powerful your device is — same look, way less battery drain on phones.</p>
@@ -898,6 +924,18 @@
         artist: "Wikimedia Audio", 
         type: "url",
         src: "https://upload.wikimedia.org/wikipedia/commons/2/21/Symphony_No._5_in_C_minor%2C_Op._67_-_I._Allegro_con_brio.ogg" 
+      },
+      { 
+        title: "Night Drive", 
+        artist: "Web Audio Synth", 
+        type: "synth",
+        preset: "nightdrive"
+      },
+      { 
+        title: "Pixel Rain", 
+        artist: "Web Audio Synth",
+        type: "synth",
+        preset: "pixelrain"
       }
     ];
 
@@ -941,7 +979,9 @@
 
       const scales = {
         synthwave: [261.63, 329.63, 392.00, 493.88, 523.25], // C Major 7th
-        chiptune: [220.00, 261.63, 329.63, 392.00, 440.00]   // A Minor
+        chiptune: [220.00, 261.63, 329.63, 392.00, 440.00],   // A Minor
+        nightdrive: [220.00, 261.63, 293.66, 329.63, 392.00],  // A Minor
+        pixelrain: [261.63, 311.13, 349.23, 392.00, 466.16]   // C Minor
       };
 
       const notes = scales[preset] || scales.synthwave;
@@ -949,7 +989,13 @@
 
       synthInterval = setInterval(() => {
         const freq = notes[step % notes.length];
-        const oscType = preset === 'chiptune' ? 'square' : 'triangle';
+        const oscillatorTypes = {
+          synthwave: 'triangle',
+          chiptune: 'square',
+          nightdrive: 'sawtooth',
+          pixelrain: 'square'
+        };
+        const oscType = oscillatorTypes[preset] || oscillatorTypes.synthwave;
         playSynthNote(freq, oscType, 1.2);
         
         // Add a soft bass tone on alternating beats
