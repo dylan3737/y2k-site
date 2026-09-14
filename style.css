@@ -677,12 +677,15 @@
     }
     .project-link:hover { text-decoration: underline; }
 /* Container Positioning */
+/* Update this block in style.css */
 .ghost-pet {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9999;
-  display: flex;
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 999999 !important; /* Ensure it stays above desktop navbars/sidebars */
+  display: flex !important;
   flex-direction: column;
   align-items: center;
   font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
@@ -691,8 +694,8 @@
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
+  max-width: 200px;
 }
-
 /* Y2K Speech Bubble */
 .ghost-bubble {
   background: #ffffcc;

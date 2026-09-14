@@ -867,17 +867,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDragging = false;
   let offsetX = 0, offsetY = 0;
 
-  function startDrag(clientX, clientY) {
-    isDragging = true;
-    const rect = container.getBoundingClientRect();
-    offsetX = clientX - rect.left;
-    offsetY = clientY - rect.top;
-    
-    container.style.bottom = 'auto';
-    container.style.right = 'auto';
-    container.style.left = rect.left + 'px';
-    container.style.top = rect.top + 'px';
-  }
+function startDrag(clientX, clientY) {
+  if (!clientX || !clientY) return; // Prevents desktop flash-and-disappear bug
+  
+  isDragging = true;
+  const rect = container.getBoundingClientRect();
+  offsetX = clientX - rect.left;
+  offsetY = clientY - rect.top;
+  
+  container.style.bottom = 'auto';
+  container.style.right = 'auto';
+  container.style.left = rect.left + 'px';
+  container.style.top = rect.top + 'px';
+}
 
   function moveDrag(clientX, clientY) {
     if (!isDragging) return;
