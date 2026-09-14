@@ -238,6 +238,67 @@
 
     </div>
   </div>
+  <!-- Y2K Ghost Magician Pet -->
+<div id="ghost-pet-container" class="ghost-pet">
+  <!-- Speech Bubble -->
+  <div id="ghost-speech" class="ghost-bubble">✨ Drag me anywhere!</div>
+
+  <!-- Exact Graphic Match SVG -->
+  <div id="ghost-character" class="ghost-body">
+    <svg width="120" height="130" viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Soft Outer Teal Glow -->
+        <filter id="ambientGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+
+        <!-- Intense Cyan Neon Glow -->
+        <filter id="cyanNeon" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      <!-- Ambient Glow Behind Ghost Head -->
+      <path d="M 30 45 C 30 20, 90 20, 90 45 L 90 85 C 90 85, 80 98, 72 88 C 64 78, 58 98, 50 88 C 42 78, 34 98, 28 85 Z" fill="#00ffff" opacity="0.15" filter="url(#ambientGlow)" />
+
+      <!-- Deep Purple Nightcap / Droopy Wizard Hat -->
+      <path d="M 38 42 C 40 18, 62 10, 72 16 C 78 20, 68 28, 62 30 C 62 30, 75 38, 82 42 Z" fill="#2d1b54" />
+      <circle cx="73" cy="17" r="6.5" fill="#ffcc00" />
+
+      <!-- Smooth Rounded Ghost Body -->
+      <path d="M 30 45 
+               C 30 20, 90 20, 90 45 
+               L 90 85 
+               C 90 85, 81 100, 72 88 
+               C 63 76, 57 100, 50 88 
+               C 43 76, 35 100, 28 85 Z" 
+            fill="#b8cad8" />
+
+      <!-- Floating Independent Cyan Eyes -->
+      <g class="floating-eyes">
+        <circle cx="50" cy="55" r="4.5" fill="#00ffff" filter="url(#cyanNeon)" />
+        <circle cx="70" cy="55" r="4.5" fill="#00ffff" filter="url(#cyanNeon)" />
+      </g>
+
+      <!-- Floating Color-Changing Orb on Left -->
+      <circle class="color-orb-svg" cx="20" cy="68" r="7.5" filter="url(#cyanNeon)" />
+    </svg>
+  </div>
+
+  <!-- Interactive Actions -->
+  <div class="ghost-actions">
+    <button onclick="ghostAction('spell')">✨ Spell</button>
+    <button onclick="ghostAction('mana')">🧪 Mana</button>
+    <button onclick="ghostAction('summon')">🦇 Summon</button>
+    <button onclick="ghostAction('dance')">💃 Dance</button>
+    <button onclick="ghostAction('vanish')">💨 Vanish</button>
+  </div>
+</div>
   <script src="script.js"></script>
 </body>
 </html>

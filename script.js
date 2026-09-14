@@ -853,3 +853,134 @@ if (songForm) {
     if (webglAvailable) {
       update();
     }
+
+// Global State
+let manaLevel = 100;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('ghost-pet-container');
+  const ghostBody = document.getElementById('ghost-character');
+  
+  if (!container || !ghostBody) return;
+
+  // --- DRAGGABLE LOGIC ---
+  let isDragging = false;
+  let offsetX = 0, offsetY = 0;
+
+  function startDrag(clientX, clientY) {
+    isDragging = true;
+    const rect = container.getBoundingClientRect();
+    offsetX = clientX - rect.left;
+    offsetY = clientY - rect.top;
+    
+    container.style.bottom = 'auto';
+    container.style.right = 'auto';
+    container.style.left = rect.left + 'px';
+    container.style.top = rect.top + 'px';
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!isDragging) return;
+    container.style.left = (clientX - offsetX) + 'px';
+    container.style.top = (clientY - offsetY) + 'px';
+  }
+
+  function stopDrag() {
+    isDragging = false;
+  }
+
+  // Mouse Listeners
+  ghostBody.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+  document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup', stopDrag);
+
+  // Touch Listeners
+  ghostBody.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    startDrag(touch.clientX, touch.clientY);
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    moveDrag(touch.clientX, touch.clientY);
+  });
+  document.addEventListener('touchend', stopDrag);
+});
+
+// --- ACTIONS ---
+function ghostAction(type) {
+  const speech = document.getElementById('ghost-speech');
+  const ghost = document.getElementById('ghost-character');
+
+  ghost.classList.remove('dancing', 'mana-glow');
+
+  if (type === 'spell') {
+    if (manaLevel < 20) {
+      speech.innerText = "❌ Out of Mana! Feed me mana first!";
+      return;
+    }
+    manaLevel -= 20;
+    speech.innerText = `✨ Abracadabra! (Mana: ${manaLevel}%)`;
+    spawnSparkles();
+
+  } else if (type === 'mana') {
+    manaLevel = Math.min(100, manaLevel + 40);
+    speech.innerText = `🧪 *Gulp!* Restored! (Mana: ${manaLevel}%)`;
+    ghost.classList.add('mana-glow');
+
+  } else if (type === 'summon') {
+    speech.innerText = "🦇 I summoned a spooky friend!";
+    spawnSingleParticle('🦇');
+
+  } else if (type === 'dance') {
+    speech.innerText = "💃 Party like it's 1999!";
+    ghost.classList.add('dancing');
+    setTimeout(() => ghost.classList.remove('dancing'), 2500);
+
+  } else if (type === 'vanish') {
+    speech.innerText = "💨 Disappearing act!";
+    ghost.style.opacity = "0";
+    setTimeout(() => {
+      ghost.style.opacity = "1";
+      speech.innerText = "👻 Peekaboo!";
+    }, 2000);
+  }
+}
+
+// --- PARTICLES ---
+function spawnSparkles() {
+  const ghost = document.getElementById('ghost-character');
+  const rect = ghost.getBoundingClientRect();
+  const icons = ['✨', '⭐', '🌟', '🔮', '💫'];
+
+  for (let i = 0; i < 8; i++) {
+    const sparkle = document.createElement('div');
+    sparkle.className = 'magic-sparkle';
+    sparkle.innerText = icons[Math.floor(Math.random() * icons.length)];
+    
+    const dx = (Math.random() - 0.5) * 120 + 'px';
+    const dy = (Math.random() - 0.5) * 120 + 'px';
+    
+    sparkle.style.setProperty('--dx', dx);
+    sparkle.style.setProperty('--dy', dy);
+    sparkle.style.left = (rect.left + rect.width / 2) + 'px';
+    sparkle.style.top = (rect.top + rect.height / 2) + 'px';
+
+    document.body.appendChild(sparkle);
+    setTimeout(() => sparkle.remove(), 1000);
+  }
+}
+
+function spawnSingleParticle(emoji) {
+  const ghost = document.getElementById('ghost-character');
+  const rect = ghost.getBoundingClientRect();
+  const p = document.createElement('div');
+  p.className = 'magic-sparkle';
+  p.innerText = emoji;
+  p.style.setProperty('--dx', '60px');
+  p.style.setProperty('--dy', '-80px');
+  p.style.left = (rect.left + rect.width / 2) + 'px';
+  p.style.top = (rect.top + rect.height / 2) + 'px';
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), 1000);
+}

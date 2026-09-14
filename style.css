@@ -676,3 +676,143 @@
       text-decoration: none;
     }
     .project-link:hover { text-decoration: underline; }
+/* Container Positioning */
+.ghost-pet {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+  user-select: none;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Y2K Speech Bubble */
+.ghost-bubble {
+  background: #ffffcc;
+  border: 2px solid #000;
+  box-shadow: 3px 3px 0px #000;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+  max-width: 170px;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Main Body Canvas & Drag Cursor */
+.ghost-body {
+  position: relative;
+  cursor: grab;
+  animation: floatBody 3.8s infinite ease-in-out;
+  transition: opacity 0.4s ease;
+}
+
+.ghost-body:active {
+  cursor: grabbing;
+}
+
+.ghost-body svg {
+  display: block;
+  overflow: visible;
+}
+
+/* Independent Motion Layers */
+.floating-eyes {
+  animation: floatEyes 2.2s infinite ease-in-out;
+}
+
+.color-orb-svg {
+  animation: orbColorCycle 4s infinite linear, floatOrb 2.6s infinite ease-in-out;
+}
+
+/* Keyframe Animations */
+@keyframes floatBody {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1.5deg); }
+}
+
+@keyframes floatEyes {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3.5px); }
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes orbColorCycle {
+  0% { fill: #00ffff; }
+  33% { fill: #ff00ff; }
+  66% { fill: #ffd700; }
+  100% { fill: #00ffff; }
+}
+
+/* Action Effects */
+@keyframes danceAnim {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-12deg) translateY(-8px); }
+  50% { transform: scale(0.9) rotate(12deg) translateY(0px); }
+  75% { transform: scale(1.1) rotate(-12deg) translateY(-8px); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes manaPulse {
+  0% { filter: drop-shadow(0 0 2px #00ffff) scale(1); }
+  50% { filter: drop-shadow(0 0 16px #00ffff) scale(1.12); }
+  100% { filter: drop-shadow(0 0 2px #00ffff) scale(1); }
+}
+
+.dancing { animation: danceAnim 0.6s infinite !important; }
+.mana-glow { animation: manaPulse 0.8s ease-in-out 2 !important; }
+
+/* Sparkles */
+.magic-sparkle {
+  position: fixed;
+  pointer-events: none;
+  font-size: 20px;
+  z-index: 10000;
+  animation: sparkleFade 1s forwards ease-out;
+}
+
+@keyframes sparkleFade {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); }
+}
+
+/* Retro Menu Buttons */
+.ghost-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 10px;
+  max-width: 200px;
+}
+
+.ghost-actions button {
+  background: #ff79c6;
+  color: #fff;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px #000;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.ghost-actions button:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
