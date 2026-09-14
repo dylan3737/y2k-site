@@ -867,28 +867,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDragging = false;
   let offsetX = 0, offsetY = 0;
 
-function startDrag(clientX, clientY) {
-  if (!clientX || !clientY) return; // Prevents desktop flash-and-disappear bug
-  
-  isDragging = true;
-  const rect = container.getBoundingClientRect();
-  offsetX = clientX - rect.left;
-  offsetY = clientY - rect.top;
-  
-  container.style.bottom = 'auto';
-  container.style.right = 'auto';
-  container.style.left = rect.left + 'px';
-  container.style.top = rect.top + 'px';
-}
+  function startDrag(clientX, clientY) {
+    // Use a type/NaN check, not truthiness — clientX/clientY of 0 (top-left
+    // corner of the screen) is a perfectly valid coordinate but is falsy,
+    // which was silently cancelling drags that started there.
+    if (typeof clientX !== 'number' || typeof clientY !== 'number' || Number.isNaN(clientX) || Number.isNaN(clientY)) return;
+
+    isDragging = true;
+    interactionPause = true;
+    const rect = container.getBoundingClientRect();
+    offsetX = clientX - rect.left;
+    offsetY = clientY - rect.top;
+
+    pos.x = rect.left;
+    pos.y = rect.top;
+    setPosition(pos.x, pos.y);
+    ghostBody.classList.add('is-moving');
+  }
 
   function moveDrag(clientX, clientY) {
     if (!isDragging) return;
-    container.style.left = (clientX - offsetX) + 'px';
-    container.style.top = (clientY - offsetY) + 'px';
+    const b = getBounds();
+    pos.x = clamp(clientX - offsetX, b.minX, b.maxX);
+    pos.y = clamp(clientY - offsetY, b.minY, b.maxY);
+    setPosition(pos.x, pos.y);
   }
 
   function stopDrag() {
+    if (!isDragging) return;
     isDragging = false;
+    interactionPause = false;
+    ghostBody.classList.remove('is-moving');
+    // Resume roaming from wherever the pet was dropped.
+    pickNewTarget();
   }
 
   // Mouse Listeners
@@ -896,17 +907,115 @@ function startDrag(clientX, clientY) {
   document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
   document.addEventListener('mouseup', stopDrag);
 
-  // Touch Listeners
+  // Touch Listeners — preventDefault (with passive:false) so dragging the
+  // pet doesn't also scroll the page on mobile.
   ghostBody.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     startDrag(touch.clientX, touch.clientY);
-  });
+  }, { passive: true });
+
   document.addEventListener('touchmove', (e) => {
     if (!isDragging) return;
+    e.preventDefault();
     const touch = e.touches[0];
     moveDrag(touch.clientX, touch.clientY);
-  });
+  }, { passive: false });
+
   document.addEventListener('touchend', stopDrag);
+
+  // Pause roaming while the pointer is over the pet so its action buttons
+  // stay put and are easy to click.
+  container.addEventListener('mouseenter', () => { interactionPause = true; });
+  container.addEventListener('mouseleave', () => { if (!isDragging) interactionPause = false; });
+
+  // --- ROAMING LOGIC ---
+  // The pet wanders the viewport on its own, pausing whenever it's being
+  // dragged or hovered, and respects prefers-reduced-motion.
+  let pos = { x: 0, y: 0 };
+  let target = { x: 0, y: 0 };
+  let interactionPause = false;
+  let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function clamp(val, min, max) {
+    if (max < min) return min; // viewport smaller than the pet — pin it
+    return Math.min(Math.max(val, min), max);
+  }
+
+  function getBounds() {
+    const rect = container.getBoundingClientRect();
+    const margin = 12;
+    return {
+      minX: margin,
+      minY: margin,
+      maxX: window.innerWidth - rect.width - margin,
+      maxY: window.innerHeight - rect.height - margin
+    };
+  }
+
+  function setPosition(x, y) {
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    container.style.bottom = 'auto';
+    container.style.right = 'auto';
+  }
+
+  function pickNewTarget() {
+    const b = getBounds();
+    target.x = b.minX + Math.random() * Math.max(0, b.maxX - b.minX);
+    target.y = b.minY + Math.random() * Math.max(0, b.maxY - b.minY);
+  }
+
+  function roamStep() {
+    if (!roamEnabled) return;
+
+    if (!isDragging && !interactionPause) {
+      const dx = target.x - pos.x;
+      const dy = target.y - pos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 4) {
+        // Idle for a moment at each waypoint before choosing the next one.
+        ghostBody.classList.remove('is-moving');
+        setTimeout(() => { if (roamEnabled) pickNewTarget(); }, 1500 + Math.random() * 2500);
+        target = { ...pos }; // hold still until the timeout fires
+      } else {
+        ghostBody.classList.add('is-moving');
+        const speed = Math.min(1.1, dist * 0.04);
+        pos.x += (dx / dist) * speed;
+        pos.y += (dy / dist) * speed;
+        setPosition(pos.x, pos.y);
+
+        const svg = ghostBody.querySelector('svg');
+        if (svg && Math.abs(dx) > 2) {
+          svg.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+        }
+      }
+    }
+
+    requestAnimationFrame(roamStep);
+  }
+
+  function startRoaming() {
+    const rect = container.getBoundingClientRect();
+    pos.x = rect.left;
+    pos.y = rect.top;
+    setPosition(pos.x, pos.y);
+
+    if (!roamEnabled) return; // stay put but remain draggable
+
+    pickNewTarget();
+    requestAnimationFrame(roamStep);
+  }
+
+  // Keep the pet on-screen if the window is resized/rotated.
+  window.addEventListener('resize', () => {
+    const b = getBounds();
+    pos.x = clamp(pos.x, b.minX, b.maxX);
+    pos.y = clamp(pos.y, b.minY, b.maxY);
+    setPosition(pos.x, pos.y);
+  });
+
+  startRoaming();
 });
 
 // --- ACTIONS ---

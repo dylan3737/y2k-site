@@ -680,10 +680,10 @@
 /* Update this block in style.css */
 .ghost-pet {
   position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  top: auto !important;
-  left: auto !important;
+  bottom: 20px;
+  right: 20px;
+  top: auto;
+  left: auto;
   z-index: 999999 !important; /* Ensure it stays above desktop navbars/sidebars */
   display: flex !important;
   flex-direction: column;
@@ -727,6 +727,12 @@
 .ghost-body svg {
   display: block;
   overflow: visible;
+  transition: transform 0.35s ease;
+}
+
+/* Dragging/roaming disables the idle float bob so movement reads cleanly */
+.ghost-body.is-moving {
+  animation-play-state: paused;
 }
 
 /* Independent Motion Layers */
