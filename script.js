@@ -1,3 +1,6 @@
+(function () {
+  'use strict';
+
 // Playlist Track Config
     const playlistData = [
       { 
@@ -236,6 +239,13 @@
       btn.style.fontWeight = 'bold';
     }
 
+    // Delegate like-button clicks from a single listener instead of wiring
+    // up an inline onclick (and a global function) per button.
+    document.addEventListener('click', (e) => {
+      const likeBtn = e.target.closest('.like-btn');
+      if (likeBtn) likePost(likeBtn);
+    });
+
    // --- Guestbook & Song Suggestions (Supabase-backed, shared & public) ---
    // 1. Create a free project at supabase.com
    // 2. Run the two SQL setup blocks (create tables, then enable RLS + public policies)
@@ -290,6 +300,7 @@ const guestMessageInput = document.getElementById('guestMessage');
 const guestbookSubmitBtn = document.getElementById('guestbookSubmit');
 const guestbookStatus = document.getElementById('guestbookStatus');
 const guestbookEntriesEl = document.getElementById('guestbookEntries');
+const guestHoneypotInput = document.getElementById('guestWebsite');
 
 function renderGuestbookEntry(entry) {
   return `
@@ -326,6 +337,17 @@ if (guestbookForm) {
     const name = guestNameInput.value.trim();
     const message = guestMessageInput.value.trim();
     if (!name || !message) return;
+
+    // Honeypot: a hidden field real visitors can't see or fill in. If it has
+    // a value, this is almost certainly a bot — pretend to succeed so it
+    // doesn't learn to look for a different signal, but skip the insert.
+    if (guestHoneypotInput && guestHoneypotInput.value.trim() !== '') {
+      guestNameInput.value = '';
+      guestMessageInput.value = '';
+      guestbookStatus.textContent = '★ Thank you for signing!';
+      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
+      return;
+    }
 
     if (!supabaseClient) {
       guestbookStatus.textContent = 'Guestbook isn\'t connected yet.';
@@ -366,6 +388,7 @@ const songNotesInput = document.getElementById('songNotes');
 const songSubmitBtn = document.getElementById('songSubmit');
 const songStatus = document.getElementById('songStatus');
 const songSuggestionsEl = document.getElementById('songSuggestionsList');
+const songHoneypotInput = document.getElementById('songWebsite');
 
 function renderSongEntry(entry) {
   return `
@@ -402,6 +425,15 @@ if (songForm) {
     const song = songNameInput.value.trim();
     const notes = songNotesInput.value.trim();
     if (!song || !notes) return;
+
+    // Honeypot: see the matching comment in the guestbook handler above.
+    if (songHoneypotInput && songHoneypotInput.value.trim() !== '') {
+      songNameInput.value = '';
+      songNotesInput.value = '';
+      songStatus.textContent = '★ Song suggestion sent!';
+      setTimeout(() => { songStatus.textContent = ''; }, 4000);
+      return;
+    }
 
     if (!supabaseClient) {
       songStatus.textContent = 'Song suggestions aren\'t connected yet.';
@@ -918,6 +950,14 @@ loadSongSuggestions();
       });
     });
 
+    // Any other element that wants to open a modal section (e.g. the
+    // "LEAVE A SONG" link inside the playlist dropdown) just needs a
+    // data-open-modal attribute — no inline onclick or global function.
+    document.addEventListener('click', (e) => {
+      const trigger = e.target.closest('[data-open-modal]');
+      if (trigger) openModal(trigger.dataset.openModal);
+    });
+
     closeModalBtn.addEventListener('click', closeModalDialog);
     modalContainer.addEventListener('click', (e) => {
       if (e.target === modalContainer) closeModalDialog();
@@ -1115,6 +1155,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setPosition(pos.x, pos.y);
   });
 
+  // Ghost action buttons (Spell/Mana/Summon/Dance/Vanish) use data-ghost-action
+  // attributes rather than inline onclick, so delegate from the container.
+  container.addEventListener('click', (e) => {
+    const actionBtn = e.target.closest('[data-ghost-action]');
+    if (actionBtn) ghostAction(actionBtn.dataset.ghostAction);
+  });
+
   startRoaming();
 });
 
@@ -1195,3 +1242,4 @@ function spawnSingleParticle(emoji) {
   document.body.appendChild(p);
   setTimeout(() => p.remove(), 1000);
 }
+})();

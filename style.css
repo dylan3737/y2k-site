@@ -141,10 +141,10 @@
       pointer-events: none;
       z-index: 999;
       font-size: 14px;
-      animation: sparkleFade 0.8s linear forwards;
+      animation: trailSparkleFade 0.8s linear forwards;
     }
 
-    @keyframes sparkleFade {
+    @keyframes trailSparkleFade {
       0% { opacity: 1; transform: scale(1) rotate(0deg) translateY(0); }
       100% { opacity: 0; transform: scale(0.2) rotate(180deg) translateY(15px); }
     }
@@ -563,6 +563,20 @@
     .setup-item p {
       font-size: 0.82rem;
       color: var(--muted-text);
+    }
+
+    /* Honeypot field for the guestbook/song forms — hidden from sighted users
+       and screen readers, but still present in the DOM for simple bots that
+       auto-fill every input to find. */
+    .hp-field {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      left: -9999px;
     }
 
     /* Guestbook */

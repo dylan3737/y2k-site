@@ -69,7 +69,7 @@
         <span>5. Pixel Rain</span>
         <span class="playlist-item-duration">SYNTH</span>
       </div>
-      <button type="button" class="playlist-suggestion-link" style="background:none; border:none; width:100%; text-align:center; cursor:pointer;" onclick="openModal('songSuggestion')">♫ LEAVE A SONG</button>
+      <button type="button" class="playlist-suggestion-link" style="background:none; border:none; width:100%; text-align:center; cursor:pointer;" data-open-modal="songSuggestion">♫ LEAVE A SONG</button>
     </div>
   </div>
 
@@ -142,7 +142,7 @@
           <span class="tumblr-tag">#shaders</span>
           <span class="tumblr-tag">#performance</span>
           <div>
-            <button class="like-btn" onclick="likePost(this)">♥ <span class="like-count">42</span> notes</button>
+            <button class="like-btn">♥ <span class="like-count">42</span> notes</button>
           </div>
         </div>
 
@@ -151,7 +151,7 @@
           <span class="tumblr-tag">#myspace</span>
           <span class="tumblr-tag">#retro</span>
           <div>
-            <button class="like-btn" onclick="likePost(this)">♥ <span class="like-count">128</span> notes</button>
+            <button class="like-btn">♥ <span class="like-count">128</span> notes</button>
           </div>
         </div>
 
@@ -160,7 +160,7 @@
           <span class="tumblr-tag">#guestbook</span>
           <span class="tumblr-tag">#update</span>
           <div>
-            <button class="like-btn" onclick="likePost(this)">♥ <span class="like-count">17</span> notes</button>
+            <button class="like-btn">♥ <span class="like-count">17</span> notes</button>
           </div>
         </div>
       </div>
@@ -200,7 +200,14 @@
     
     <label for="guestMessage" style="font-size: 0.75rem; color: var(--muted-text);">Message</label>
     <textarea id="guestMessage" name="message" maxlength="280" placeholder="Leave a note..." required></textarea>
-    
+
+    <!-- Honeypot: real visitors never see or fill this in. Bots that
+         auto-fill every field will, so we quietly reject the submission. -->
+    <div class="hp-field" aria-hidden="true">
+      <label for="guestWebsite">Website</label>
+      <input type="text" id="guestWebsite" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
     <button type="submit" class="guestbook-submit" id="guestbookSubmit">Sign the guestbook</button>
     <div class="guestbook-status" id="guestbookStatus" role="status" aria-live="polite"></div>
   </form>
@@ -214,11 +221,18 @@
         <h2 class="modal-title" id="songSuggestion-heading">[ SUGGEST A SONG ]</h2>
         <form class="guestbook-form" id="songForm">
           <label for="songName" style="font-size: 0.75rem; color: var(--muted-text);">Song / Artist Name</label>
-          <input type="text" id="songName" name="song" placeholder="e.g. Tycho - Awake" required />
+          <input type="text" id="songName" name="song" maxlength="100" placeholder="e.g. Tycho - Awake" required />
           
           <label for="songNotes" style="font-size: 0.75rem; color: var(--muted-text);">Why should it be added?</label>
-          <textarea id="songNotes" name="notes" placeholder="Gives cool late night retro vibes..." required></textarea>
-          
+          <textarea id="songNotes" name="notes" maxlength="280" placeholder="Gives cool late night retro vibes..." required></textarea>
+
+          <!-- Honeypot: real visitors never see or fill this in. Bots that
+               auto-fill every field will, so we quietly reject the submission. -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="songWebsite">Website</label>
+            <input type="text" id="songWebsite" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
           <button type="submit" class="guestbook-submit" id="songSubmit">Send Suggestion</button>
           <div class="guestbook-status" id="songStatus" role="status" aria-live="polite"></div>
         </form>
@@ -297,11 +311,11 @@
 
   <!-- Interactive Actions -->
   <div class="ghost-actions">
-    <button onclick="ghostAction('spell')">✨ Spell</button>
-    <button onclick="ghostAction('mana')">🧪 Mana</button>
-    <button onclick="ghostAction('summon')">🦇 Summon</button>
-    <button onclick="ghostAction('dance')">💃 Dance</button>
-    <button onclick="ghostAction('vanish')">💨 Vanish</button>
+    <button data-ghost-action="spell">✨ Spell</button>
+    <button data-ghost-action="mana">🧪 Mana</button>
+    <button data-ghost-action="summon">🦇 Summon</button>
+    <button data-ghost-action="dance">💃 Dance</button>
+    <button data-ghost-action="vanish">💨 Vanish</button>
   </div>
 </div>
   <script src="script.js"></script>
