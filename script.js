@@ -216,6 +216,37 @@
       });
     });
 
+    // Click bullseye
+    const prefersReducedMotionClick = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function spawnBullseye(clientX, clientY) {
+      if (prefersReducedMotionClick) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'bullseye';
+      wrap.style.left = clientX + 'px';
+      wrap.style.top = clientY + 'px';
+
+      const colors = ['#ff71ce', '#01cdfe', '#05ffa1', '#fffb96'];
+      const scales = [2.6, 4.0, 5.6];
+      const delays = ['0ms', '70ms', '140ms'];
+      scales.forEach((scale, i) => {
+        const ring = document.createElement('span');
+        ring.className = 'bullseye-ring';
+        ring.style.setProperty('--ring-scale', String(scale));
+        ring.style.setProperty('--ring-delay', delays[i]);
+        ring.style.setProperty('--ring-color', colors[i % colors.length]);
+        wrap.appendChild(ring);
+      });
+      const dot = document.createElement('span');
+      dot.className = 'bullseye-dot';
+      wrap.appendChild(dot);
+      document.body.appendChild(wrap);
+      setTimeout(() => wrap.remove(), 850);
+    }
+    window.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      spawnBullseye(e.clientX, e.clientY);
+    });
+
     // Glitter Sparkle Trail Effect
     const sparkles = ['✦', '★', '✧', '❄', '✨'];
     window.addEventListener('mousemove', (e) => {
@@ -252,7 +283,7 @@
    // 3. Paste your Project URL and anon public key below.
    //    The anon key is meant to be public — it's safe in client-side code as
    //    long as your Row Level Security policies are set correctly.
-const SUPABASE_URL = 'https://busaiboomhpoxlevjzre.supabase.co/rest/v1/'; // e.g. https://xxxxxxxx.supabase.co
+const SUPABASE_URL = 'https://busaiboomhpoxlevjzre.supabase.co'; // project root — not /rest/v1/
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c2FpYm9vbWhwb3hsZXZqenJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MTIwNTEsImV4cCI6MjEwNDk4ODA1MX0.tEDOOKt84bPUX3rs5ji3Z__auPgLhuFWwF74tMo9sVc';
 
 const supabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
@@ -264,6 +295,39 @@ function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+const SUBMIT_COOLDOWN_MS = 45000;
+const lastSubmitAt = { guestbook: 0, song: 0 };
+const recentPayloads = { guestbook: '', song: '' };
+
+function looksLikeSpam(text) {
+  const value = (text || '').trim();
+  if (value.length < 2) return 'Please write a little more.';
+  if (/(.)\1{8,}/.test(value)) return 'That looks like filler — try a real message.';
+  const urls = value.match(/https?:\/\/|www\.|\.com\b|\.net\b|\.xyz\b|\.ru\b/gi) || [];
+  if (urls.length >= 2) return 'Too many links — keep it to a note, not a promo.';
+  const lower = value.toLowerCase();
+  const spamTokens = ['crypto pump', 'casino', 'viagra', 'cialis', 'loan approval', 'seo backlink', 'telegram.me'];
+  if (spamTokens.some(token => lower.includes(token))) return 'That message was blocked.';
+  return null;
+}
+
+function canSubmit(kind, payloadKey) {
+  const now = Date.now();
+  if (now - lastSubmitAt[kind] < SUBMIT_COOLDOWN_MS) {
+    const wait = Math.ceil((SUBMIT_COOLDOWN_MS - (now - lastSubmitAt[kind])) / 1000);
+    return `Please wait ${wait}s before sending another note.`;
+  }
+  if (recentPayloads[kind] && recentPayloads[kind] === payloadKey) {
+    return 'You already sent that.';
+  }
+  return null;
+}
+
+function markSubmitted(kind, payloadKey) {
+  lastSubmitAt[kind] = Date.now();
+  recentPayloads[kind] = payloadKey;
 }
 
 function formatEntryTime(isoString) {
@@ -338,6 +402,21 @@ if (guestbookForm) {
     const message = guestMessageInput.value.trim();
     if (!name || !message) return;
 
+    const spamReason = looksLikeSpam(name) || looksLikeSpam(message);
+    if (spamReason) {
+      guestbookStatus.textContent = spamReason;
+      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
+      return;
+    }
+
+    const payloadKey = name.toLowerCase() + '\n' + message.toLowerCase();
+    const rateReason = canSubmit('guestbook', payloadKey);
+    if (rateReason) {
+      guestbookStatus.textContent = rateReason;
+      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
+      return;
+    }
+
     // Honeypot: a hidden field real visitors can't see or fill in. If it has
     // a value, this is almost certainly a bot — pretend to succeed so it
     // doesn't learn to look for a different signal, but skip the insert.
@@ -367,6 +446,7 @@ if (guestbookForm) {
 
       guestNameInput.value = '';
       guestMessageInput.value = '';
+      markSubmitted('guestbook', payloadKey);
       guestbookStatus.textContent = '★ Thank you for signing!';
       loadGuestbookEntries();
     } catch (err) {
@@ -426,6 +506,21 @@ if (songForm) {
     const notes = songNotesInput.value.trim();
     if (!song || !notes) return;
 
+    const spamReason = looksLikeSpam(song) || looksLikeSpam(notes);
+    if (spamReason) {
+      songStatus.textContent = spamReason;
+      setTimeout(() => { songStatus.textContent = ''; }, 4000);
+      return;
+    }
+
+    const payloadKey = song.toLowerCase() + '\n' + notes.toLowerCase();
+    const rateReason = canSubmit('song', payloadKey);
+    if (rateReason) {
+      songStatus.textContent = rateReason;
+      setTimeout(() => { songStatus.textContent = ''; }, 4000);
+      return;
+    }
+
     // Honeypot: see the matching comment in the guestbook handler above.
     if (songHoneypotInput && songHoneypotInput.value.trim() !== '') {
       songNameInput.value = '';
@@ -453,6 +548,7 @@ if (songForm) {
 
       songNameInput.value = '';
       songNotesInput.value = '';
+      markSubmitted('song', payloadKey);
       songStatus.textContent = '★ Song suggestion sent!';
       loadSongSuggestions();
     } catch (err) {
