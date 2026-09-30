@@ -817,10 +817,9 @@
   animation: blink 5.4s infinite;
 }
 
-.rune-ring {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: runeSpin 14s linear infinite;
+.saturn {
+  stroke-dasharray: 12 8;
+  animation: ringMarch 8s linear infinite;
 }
 
 .hat-star {
@@ -829,10 +828,16 @@
   animation: starTwinkle 2.4s ease-in-out infinite;
 }
 
-.wand {
+.antenna {
   transform-box: fill-box;
-  transform-origin: 70% 100%;
-  animation: wandBob 2.8s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  animation: wandBob 2.6s ease-in-out infinite;
+}
+
+.tail {
+  transform-box: fill-box;
+  transform-origin: 100% 40%;
+  animation: tailSway 2.4s ease-in-out infinite;
 }
 
 .color-orb-svg { animation: orbColorCycle 4s infinite linear; }
@@ -847,8 +852,13 @@
   91%, 95% { opacity: 1; }
 }
 
-@keyframes runeSpin {
-  to { transform: rotate(360deg); }
+@keyframes ringMarch {
+  to { stroke-dashoffset: -140; }
+}
+
+@keyframes tailSway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(12deg); }
 }
 
 @keyframes starTwinkle {
@@ -892,11 +902,11 @@
 }
 
 .dancing { animation: danceAnim 0.55s infinite !important; }
-.dancing .rune-ring { animation-duration: 1.1s; }
+.dancing .saturn { animation-duration: 0.7s; }
 .mana-glow { animation: manaPulse 0.7s ease-in-out 2 !important; }
 .ghost-body.is-gone { animation: poofOut 0.45s ease forwards !important; }
 .ghost-body.is-back { animation: popIn 0.4s ease !important; }
-.ghost-body.casting .wand { animation: wandBob 0.2s linear 3; }
+.ghost-body.casting .antenna { animation: wandBob 0.18s linear 4; }
 
 .magic-sparkle,
 .cast-ring,
@@ -1007,9 +1017,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rune-ring,
+  .saturn,
   .hat-star,
-  .wand,
+  .antenna,
+  .tail,
   .eyelid,
   .familiar,
   .ghost-body,

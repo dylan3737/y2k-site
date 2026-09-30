@@ -265,31 +265,19 @@
 
     </div>
   </div>
-  <!-- Y2K Ghost Magician Pet -->
+  <!-- Little pet druid -->
 <div id="ghost-pet-container" class="ghost-pet">
-  <div id="ghost-speech" class="ghost-bubble">✨ Drag me anywhere!</div>
+  <div id="ghost-speech" class="ghost-bubble">✦ drag me. i'm rooting.</div>
 
   <div id="ghost-character" class="ghost-body">
     <svg class="ghost-svg" viewBox="0 0 160 180" width="132" height="148" aria-hidden="true">
       <defs>
-        <linearGradient id="sheetGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#f4fbff"/>
-          <stop offset="55%" stop-color="#c5d7e6"/>
-          <stop offset="100%" stop-color="#8ea8be"/>
+        <linearGradient id="cloakGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3cb56a"/>
+          <stop offset="100%" stop-color="#14633a"/>
         </linearGradient>
-        <linearGradient id="hatGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#4a2d86"/>
-          <stop offset="100%" stop-color="#1a0d33"/>
-        </linearGradient>
-        <filter id="cyanNeon" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="2.2" result="blur"/>
-          <feMerge>
-            <feMergeNode in="blur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="4" result="blur"/>
+        <filter id="cyanNeon" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="1.6" result="blur"/>
           <feMerge>
             <feMergeNode in="blur"/>
             <feMergeNode in="SourceGraphic"/>
@@ -297,73 +285,87 @@
         </filter>
       </defs>
 
-      <g class="rune-ring">
-        <ellipse cx="82" cy="164" rx="40" ry="9" fill="none" stroke="#01cdfe" stroke-width="1.6" stroke-dasharray="5 4"/>
-        <ellipse cx="82" cy="164" rx="26" ry="5.5" fill="none" stroke="#ff71ce" stroke-width="1.2" stroke-dasharray="2 3"/>
-        <circle cx="82" cy="164" r="2" fill="#fffb96"/>
+      <g class="tail">
+        <ellipse cx="28" cy="132" rx="14" ry="7" fill="#5ed67f" stroke="#102616" stroke-width="2.2" transform="rotate(-36 28 132)"/>
+        <path d="M34 136 L24 128" fill="none" stroke="#14633a" stroke-width="1.6" stroke-linecap="round"/>
       </g>
 
-      <path class="cape" d="M48 96 C28 112, 24 146, 40 158 C54 142, 70 156, 82 150 C96 158, 112 142, 126 158 C142 144, 138 110, 116 94 Z" fill="#1a1036"/>
+      <path d="M50 108
+               C42 108, 30 132, 36 160
+               C50 172, 110 172, 124 160
+               C130 132, 118 108, 110 108
+               L100 98
+               C92 108, 68 108, 60 98 Z"
+            fill="url(#cloakGrad)" stroke="#102616" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M70 118 Q80 132 90 118 Q96 132 104 122" fill="none" stroke="#8ee7a8" stroke-width="2" stroke-linecap="round"/>
 
-      <path class="ghost-sheet" d="M46 78
-               C46 40, 118 40, 118 78
-               L118 132
-               C118 132, 108 152, 96 136
-               C84 120, 76 154, 66 136
-               C56 118, 46 154, 38 132 Z" fill="url(#sheetGrad)" filter="url(#softGlow)"/>
-      <path d="M58 58 C70 48, 96 50, 108 66" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+      <ellipse cx="48" cy="86" rx="9" ry="16" fill="#b7e58a" stroke="#102616" stroke-width="2.4" transform="rotate(-24 48 86)"/>
+      <ellipse cx="112" cy="86" rx="9" ry="16" fill="#b7e58a" stroke="#102616" stroke-width="2.4" transform="rotate(24 112 86)"/>
 
-      <circle cx="62" cy="108" r="5" fill="#ff71ce" opacity="0.35"/>
-      <circle cx="104" cy="108" r="5" fill="#ff71ce" opacity="0.35"/>
-      <path d="M72 112 Q82 120 94 112" fill="none" stroke="#5d7390" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="80" cy="92" r="34" fill="#d5f5aa" stroke="#102616" stroke-width="3"/>
+      <path d="M50 86
+               C54 52, 68 40, 80 38
+               C92 40, 106 52, 110 86
+               C98 70, 90 66, 80 66
+               C70 66, 62 70, 50 86 Z"
+            fill="#1f8a48" stroke="#102616" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M62 62 Q80 50 98 62" fill="none" stroke="#8ee7a8" stroke-width="2" stroke-linecap="round"/>
 
-      <g class="eyes">
-        <g class="eye" transform="translate(66 92)">
-          <ellipse cx="0" cy="0" rx="9" ry="10" fill="#102033"/>
-          <g class="eye-pupil">
-            <circle cx="0" cy="0" r="4.2" fill="#00ffff" filter="url(#cyanNeon)"/>
-            <circle cx="-1.4" cy="-1.6" r="1.4" fill="#ffffff"/>
-          </g>
-        </g>
-        <g class="eye" transform="translate(98 92)">
-          <ellipse cx="0" cy="0" rx="9" ry="10" fill="#102033"/>
-          <g class="eye-pupil">
-            <circle cx="0" cy="0" r="4.2" fill="#00ffff" filter="url(#cyanNeon)"/>
-            <circle cx="-1.4" cy="-1.6" r="1.4" fill="#ffffff"/>
-          </g>
-        </g>
-        <g class="eyelids">
-          <ellipse class="eyelid" cx="66" cy="92" rx="9.5" ry="10.5" fill="#d5e4ef"/>
-          <ellipse class="eyelid" cx="98" cy="92" rx="9.5" ry="10.5" fill="#d5e4ef"/>
-        </g>
+      <g class="hat-star" transform="translate(108 58)">
+        <circle cx="-5.5" cy="0" r="3.6" fill="#ff71ce"/>
+        <circle cx="5.5" cy="0" r="3.6" fill="#ff71ce"/>
+        <circle cx="0" cy="-5.5" r="3.6" fill="#ff71ce"/>
+        <circle cx="0" cy="5.5" r="3.6" fill="#ff71ce"/>
+        <circle r="2.8" fill="#fff6a8" stroke="#102616" stroke-width="1.4"/>
       </g>
 
-      <path d="M52 74 C48 34, 78 12, 104 22 C118 28, 108 46, 96 50 C112 54, 128 70, 120 82 L54 84 Z" fill="url(#hatGrad)"/>
-      <path d="M54 80 H120" stroke="#ffcc00" stroke-width="3" stroke-linecap="round"/>
-      <g transform="translate(104 20)">
-        <g class="hat-star">
-          <polygon points="0,-8 2.2,-2.4 8,-2 3.4,1.6 5,7.4 0,4.2 -5,7.4 -3.4,1.6 -8,-2 -2.2,-2.4" fill="#fffb96" filter="url(#cyanNeon)"/>
+      <g class="eye" transform="translate(68 98)">
+        <circle r="7" fill="#102616"/>
+        <g class="eye-pupil">
+          <circle r="3.3" fill="#14301c"/>
+          <circle cx="-1.1" cy="-1.2" r="1.15" fill="#e9ffe4"/>
         </g>
       </g>
+      <g class="eye" transform="translate(92 98)">
+        <circle r="7" fill="#102616"/>
+        <g class="eye-pupil">
+          <circle r="3.3" fill="#14301c"/>
+          <circle cx="-1.1" cy="-1.2" r="1.15" fill="#e9ffe4"/>
+        </g>
+      </g>
+      <g class="eyelids">
+        <ellipse class="eyelid" cx="68" cy="98" rx="7.4" ry="7.6" fill="#d5f5aa"/>
+        <ellipse class="eyelid" cx="92" cy="98" rx="7.4" ry="7.6" fill="#d5f5aa"/>
+      </g>
 
-      <g class="wand">
-        <line x1="30" y1="118" x2="16" y2="86" stroke="#2a1b4a" stroke-width="3" stroke-linecap="round"/>
-        <circle class="color-orb-svg" cx="14" cy="80" r="8" filter="url(#cyanNeon)"/>
-        <circle cx="14" cy="80" r="3" fill="#ffffff" opacity="0.85"/>
+      <circle cx="56" cy="108" r="4" fill="#ff8ab8" opacity="0.55"/>
+      <circle cx="104" cy="108" r="4" fill="#ff8ab8" opacity="0.55"/>
+      <path d="M72 112 Q80 118 88 112" fill="none" stroke="#245c30" stroke-width="2.2" stroke-linecap="round"/>
+
+      <ellipse cx="98" cy="128" rx="7" ry="8" fill="#e09a45" stroke="#102616" stroke-width="2"/>
+      <path d="M91 125 Q98 117 105 125" fill="#6a4024" stroke="#102616" stroke-width="1.4"/>
+
+      <ellipse cx="64" cy="166" rx="12" ry="6" fill="#5a3820" stroke="#102616" stroke-width="2.2"/>
+      <ellipse cx="98" cy="166" rx="12" ry="6" fill="#5a3820" stroke="#102616" stroke-width="2.2"/>
+
+      <g class="antenna">
+        <path d="M124 162 C132 124, 118 92, 126 58" fill="none" stroke="#6a3d22" stroke-width="5" stroke-linecap="round"/>
+        <path d="M126 74 C142 66, 146 52, 132 48" fill="none" stroke="#1f8a48" stroke-width="3" stroke-linecap="round"/>
+        <ellipse class="color-orb-svg" cx="126" cy="48" rx="9" ry="5.5" fill="#7dffb2" stroke="#102616" stroke-width="2" transform="rotate(-28 126 48)" filter="url(#cyanNeon)"/>
       </g>
     </svg>
   </div>
 
-  <div class="ghost-mana" id="ghostMana" role="meter" aria-label="Mana" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+  <div class="ghost-mana" id="ghostMana" role="meter" aria-label="Dew" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
     <span id="ghostManaFill"></span>
   </div>
 
   <div class="ghost-actions">
-    <button data-ghost-action="spell">✨ Spell</button>
-    <button data-ghost-action="mana">🧪 Mana</button>
-    <button data-ghost-action="summon">🦇 Summon</button>
+    <button data-ghost-action="spell">🌿 Grow</button>
+    <button data-ghost-action="mana">💧 Dew</button>
+    <button data-ghost-action="summon">🌸 Sprout</button>
     <button data-ghost-action="dance">💃 Dance</button>
-    <button data-ghost-action="vanish">💨 Vanish</button>
+    <button data-ghost-action="vanish">🍃 Hide</button>
   </div>
 </div>
   <script src="script.js"></script>
