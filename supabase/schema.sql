@@ -12,7 +12,7 @@ begin
     where id in (2, 5, 6, 7, 8, 9, 10)
       and (
         message = 'temporary security probe, delete me'
-        or (name = 'x' and message ~ '^a{2,280}$')
+        or (name = 'x' and message ~ '^a+$' and char_length(message) between 2 and 280)
       );
   end if;
 
