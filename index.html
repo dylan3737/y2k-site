@@ -270,88 +270,82 @@
   <div id="ghost-speech" class="ghost-bubble">✦ drag me. i'm rooting.</div>
 
   <div id="ghost-character" class="ghost-body">
-    <svg class="ghost-svg" viewBox="0 0 160 180" width="132" height="148" aria-hidden="true">
+    <svg class="ghost-svg" viewBox="0 0 160 180" width="150" height="168" aria-hidden="true">
       <defs>
         <linearGradient id="cloakGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#3cb56a"/>
-          <stop offset="100%" stop-color="#14633a"/>
+          <stop offset="0%" stop-color="#2f9a55"/>
+          <stop offset="100%" stop-color="#146338"/>
         </linearGradient>
-        <filter id="cyanNeon" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="1.6" result="blur"/>
-          <feMerge>
-            <feMergeNode in="blur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
       </defs>
 
-      <g class="tail">
-        <ellipse cx="28" cy="132" rx="14" ry="7" fill="#5ed67f" stroke="#102616" stroke-width="2.2" transform="rotate(-36 28 132)"/>
-        <path d="M34 136 L24 128" fill="none" stroke="#14633a" stroke-width="1.6" stroke-linecap="round"/>
+      <!-- robe -->
+      <path d="M50 104 Q80 116 110 104 L122 158 Q80 170 38 158 Z" fill="url(#cloakGrad)" stroke="#102616" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M58 124 H102" stroke="#d8f5a8" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="80" cy="124" r="4" fill="#e7c15a" stroke="#102616" stroke-width="1.6"/>
+
+      <!-- ears -->
+      <polygon points="46,78 34,50 60,70" fill="#c6ee96" stroke="#102616" stroke-width="3.5" stroke-linejoin="round"/>
+      <polygon points="114,78 126,50 100,70" fill="#c6ee96" stroke="#102616" stroke-width="3.5" stroke-linejoin="round"/>
+
+      <!-- head -->
+      <circle cx="80" cy="86" r="32" fill="#e4f8c4" stroke="#102616" stroke-width="4"/>
+
+      <!-- hood, sits on the forehead so the face stays open -->
+      <path d="M46 78 C46 34, 114 34, 114 78 C100 62, 60 62, 46 78 Z" fill="#145c32" stroke="#102616" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M58 66 Q80 54 102 66" fill="none" stroke="#8ee7a8" stroke-width="2.4" stroke-linecap="round"/>
+
+      <!-- flower on the hood -->
+      <g class="hat-star" transform="translate(108 46)">
+        <circle cx="-6" cy="0" r="4" fill="#ff71ce"/>
+        <circle cx="6" cy="0" r="4" fill="#ff71ce"/>
+        <circle cx="0" cy="-6" r="4" fill="#ff71ce"/>
+        <circle cx="0" cy="6" r="4" fill="#ff71ce"/>
+        <circle r="3.2" fill="#fff3a0" stroke="#102616" stroke-width="1.5"/>
       </g>
 
-      <path d="M50 108
-               C42 108, 30 132, 36 160
-               C50 172, 110 172, 124 160
-               C130 132, 118 108, 110 108
-               L100 98
-               C92 108, 68 108, 60 98 Z"
-            fill="url(#cloakGrad)" stroke="#102616" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M70 118 Q80 132 90 118 Q96 132 104 122" fill="none" stroke="#8ee7a8" stroke-width="2" stroke-linecap="round"/>
-
-      <ellipse cx="48" cy="86" rx="9" ry="16" fill="#b7e58a" stroke="#102616" stroke-width="2.4" transform="rotate(-24 48 86)"/>
-      <ellipse cx="112" cy="86" rx="9" ry="16" fill="#b7e58a" stroke="#102616" stroke-width="2.4" transform="rotate(24 112 86)"/>
-
-      <circle cx="80" cy="92" r="34" fill="#d5f5aa" stroke="#102616" stroke-width="3"/>
-      <path d="M50 86
-               C54 52, 68 40, 80 38
-               C92 40, 106 52, 110 86
-               C98 70, 90 66, 80 66
-               C70 66, 62 70, 50 86 Z"
-            fill="#1f8a48" stroke="#102616" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M62 62 Q80 50 98 62" fill="none" stroke="#8ee7a8" stroke-width="2" stroke-linecap="round"/>
-
-      <g class="hat-star" transform="translate(108 58)">
-        <circle cx="-5.5" cy="0" r="3.6" fill="#ff71ce"/>
-        <circle cx="5.5" cy="0" r="3.6" fill="#ff71ce"/>
-        <circle cx="0" cy="-5.5" r="3.6" fill="#ff71ce"/>
-        <circle cx="0" cy="5.5" r="3.6" fill="#ff71ce"/>
-        <circle r="2.8" fill="#fff6a8" stroke="#102616" stroke-width="1.4"/>
-      </g>
-
-      <g class="eye" transform="translate(68 98)">
-        <circle r="7" fill="#102616"/>
+      <!-- face -->
+      <g class="eye" transform="translate(66 92)">
+        <ellipse cx="0" cy="0" rx="8" ry="9" fill="#102616"/>
         <g class="eye-pupil">
-          <circle r="3.3" fill="#14301c"/>
-          <circle cx="-1.1" cy="-1.2" r="1.15" fill="#e9ffe4"/>
+          <circle r="3.1" fill="#f4ffe8"/>
+          <circle cx="1.2" cy="-1.1" r="1.15" fill="#102616"/>
         </g>
       </g>
-      <g class="eye" transform="translate(92 98)">
-        <circle r="7" fill="#102616"/>
+      <g class="eye" transform="translate(94 92)">
+        <ellipse cx="0" cy="0" rx="8" ry="9" fill="#102616"/>
         <g class="eye-pupil">
-          <circle r="3.3" fill="#14301c"/>
-          <circle cx="-1.1" cy="-1.2" r="1.15" fill="#e9ffe4"/>
+          <circle r="3.1" fill="#f4ffe8"/>
+          <circle cx="1.2" cy="-1.1" r="1.15" fill="#102616"/>
         </g>
       </g>
       <g class="eyelids">
-        <ellipse class="eyelid" cx="68" cy="98" rx="7.4" ry="7.6" fill="#d5f5aa"/>
-        <ellipse class="eyelid" cx="92" cy="98" rx="7.4" ry="7.6" fill="#d5f5aa"/>
+        <ellipse class="eyelid" cx="66" cy="92" rx="8.4" ry="9.4" fill="#e4f8c4"/>
+        <ellipse class="eyelid" cx="94" cy="92" rx="8.4" ry="9.4" fill="#e4f8c4"/>
+      </g>
+      <circle cx="52" cy="104" r="4.5" fill="#ff8ab8" opacity="0.7"/>
+      <circle cx="108" cy="104" r="4.5" fill="#ff8ab8" opacity="0.7"/>
+      <path d="M70 108 Q80 116 90 108" fill="none" stroke="#245c30" stroke-width="2.6" stroke-linecap="round"/>
+
+      <!-- sleeves and hands -->
+      <ellipse cx="40" cy="118" rx="14" ry="10" fill="#187243" stroke="#102616" stroke-width="3.5"/>
+      <ellipse cx="120" cy="118" rx="14" ry="10" fill="#187243" stroke="#102616" stroke-width="3.5"/>
+      <circle cx="30" cy="122" r="7" fill="#e4f8c4" stroke="#102616" stroke-width="3"/>
+      <circle cx="132" cy="120" r="7" fill="#e4f8c4" stroke="#102616" stroke-width="3"/>
+
+      <!-- boots -->
+      <ellipse cx="62" cy="162" rx="14" ry="7" fill="#6a3e22" stroke="#102616" stroke-width="3"/>
+      <ellipse cx="98" cy="162" rx="14" ry="7" fill="#6a3e22" stroke="#102616" stroke-width="3"/>
+
+      <!-- staff -->
+      <g class="antenna">
+        <path d="M138 158 L138 46" stroke="#6a3e22" stroke-width="6" stroke-linecap="round"/>
+        <path d="M138 52 C154 46, 156 34, 142 30" fill="none" stroke="#1f8a48" stroke-width="3.5" stroke-linecap="round"/>
+        <ellipse class="color-orb-svg" cx="136" cy="36" rx="11" ry="6.5" fill="#7dffb2" stroke="#102616" stroke-width="2.4" transform="rotate(-24 136 36)"/>
       </g>
 
-      <circle cx="56" cy="108" r="4" fill="#ff8ab8" opacity="0.55"/>
-      <circle cx="104" cy="108" r="4" fill="#ff8ab8" opacity="0.55"/>
-      <path d="M72 112 Q80 118 88 112" fill="none" stroke="#245c30" stroke-width="2.2" stroke-linecap="round"/>
-
-      <ellipse cx="98" cy="128" rx="7" ry="8" fill="#e09a45" stroke="#102616" stroke-width="2"/>
-      <path d="M91 125 Q98 117 105 125" fill="#6a4024" stroke="#102616" stroke-width="1.4"/>
-
-      <ellipse cx="64" cy="166" rx="12" ry="6" fill="#5a3820" stroke="#102616" stroke-width="2.2"/>
-      <ellipse cx="98" cy="166" rx="12" ry="6" fill="#5a3820" stroke="#102616" stroke-width="2.2"/>
-
-      <g class="antenna">
-        <path d="M124 162 C132 124, 118 92, 126 58" fill="none" stroke="#6a3d22" stroke-width="5" stroke-linecap="round"/>
-        <path d="M126 74 C142 66, 146 52, 132 48" fill="none" stroke="#1f8a48" stroke-width="3" stroke-linecap="round"/>
-        <ellipse class="color-orb-svg" cx="126" cy="48" rx="9" ry="5.5" fill="#7dffb2" stroke="#102616" stroke-width="2" transform="rotate(-28 126 48)" filter="url(#cyanNeon)"/>
+      <!-- loose leaf -->
+      <g class="tail">
+        <ellipse cx="22" cy="142" rx="13" ry="6.5" fill="#5ed67f" stroke="#102616" stroke-width="2.4" transform="rotate(-30 22 142)"/>
       </g>
     </svg>
   </div>
