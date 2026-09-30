@@ -1463,12 +1463,12 @@ function ghostAction(type) {
 
   if (type === 'spell') {
     if (manaLevel < 20) {
-      speech.textContent = 'Out of glow. Feed me first.';
+      speech.textContent = 'The circle is empty. Make a pact.';
       return;
     }
     manaLevel -= 20;
     syncMana();
-    speech.textContent = '✦ Boo. Glow ' + manaLevel + '%';
+    speech.textContent = '✦ Bound. Soul ' + manaLevel + '%';
     ghost.classList.add('casting');
     spawnCastRing();
     spawnSparkles();
@@ -1477,27 +1477,27 @@ function ghostAction(type) {
   } else if (type === 'mana') {
     manaLevel = Math.min(100, manaLevel + 40);
     syncMana();
-    speech.textContent = '🌙 Brighter. Glow ' + manaLevel + '%';
+    speech.textContent = '🕯️ Pact sealed. Soul ' + manaLevel + '%';
     ghost.classList.add('mana-glow');
 
   } else if (type === 'summon') {
-    speech.textContent = '👻 Someone else showed up.';
+    speech.textContent = '👻 They came when called.';
     spawnFamiliars();
 
   } else if (type === 'dance') {
-    speech.textContent = '💃 Float like it\'s 1999.';
+    speech.textContent = '🌀 The court answers.';
     ghost.classList.add('dancing');
     setTimeout(() => ghost.classList.remove('dancing'), 2800);
 
   } else if (type === 'vanish') {
-    speech.textContent = '💨 Fading out.';
+    speech.textContent = '💨 Sent back.';
     spawnSparkles();
     ghost.classList.add('is-gone');
     ghost.classList.remove('is-back');
     setTimeout(() => {
       ghost.classList.remove('is-gone');
       ghost.classList.add('is-back');
-      speech.textContent = '👻 Still here.';
+      speech.textContent = '👻 I remain.';
       setTimeout(() => ghost.classList.remove('is-back'), 450);
     }, 1500);
   }
@@ -1519,7 +1519,7 @@ function spawnCastRing() {
 function spawnFamiliars() {
   const host = document.getElementById('ghost-character');
   host.querySelectorAll('.familiar').forEach((node) => node.remove());
-  ['✨', '👻', '⭐'].forEach((emoji, i) => {
+  ['👻', '🔮', '👁️'].forEach((emoji, i) => {
     const el = document.createElement('span');
     el.className = 'familiar';
     el.textContent = emoji;
