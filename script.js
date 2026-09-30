@@ -129,7 +129,6 @@
       }
     }
     // Audio DOM Elements
-    const audioPlayer = document.getElementById('audioPlayer');
     const musicWidgetWrapper = document.getElementById('musicWidgetWrapper');
     const playBtn = document.getElementById('playBtn');
     const playlistToggleBtn = document.getElementById('playlistToggleBtn');
@@ -157,34 +156,14 @@
     function playTrack() {
       initAudioContext();
       const track = playlistData[currentTrackIndex];
-
-      if (track.type === 'synth') {
-        audioPlayer.pause();
-        startSynthLoop(track.preset);
-        isPlaying = true;
-        musicWidgetWrapper.classList.add('playing');
-        playBtn.innerText = '❚❚ PAUSE';
-      } else {
-        stopSynthLoop();
-        audioPlayer.src = track.src;
-        audioPlayer.play().then(() => {
-          isPlaying = true;
-          musicWidgetWrapper.classList.add('playing');
-          playBtn.innerText = '❚❚ PAUSE';
-        }).catch(err => {
-          console.error("Playback failed:", err);
-          // Fallback to internal synth if direct media blocked
-          startSynthLoop('synthwave');
-          isPlaying = true;
-          musicWidgetWrapper.classList.add('playing');
-          playBtn.innerText = '❚❚ PAUSE';
-        });
-      }
+      startSynthLoop(track.preset);
+      isPlaying = true;
+      musicWidgetWrapper.classList.add('playing');
+      playBtn.innerText = '❚❚ PAUSE';
     }
 
     function pauseTrack() {
       stopSynthLoop();
-      audioPlayer.pause();
       isPlaying = false;
       musicWidgetWrapper.classList.remove('playing');
       playBtn.innerText = '▶ PLAY';
@@ -215,6 +194,16 @@
         playTrack();
       });
     });
+
+    const lastUpdatedEl = document.getElementById('lastUpdated');
+    if (lastUpdatedEl) {
+      const updated = new Date(document.lastModified);
+      if (!Number.isNaN(updated.getTime())) {
+        lastUpdatedEl.textContent = updated.toLocaleDateString(undefined, {
+          month: 'short', day: 'numeric', year: 'numeric'
+        });
+      }
+    }
 
     // Click bullseye
     const prefersReducedMotionClick = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -249,7 +238,9 @@
 
     // Glitter Sparkle Trail Effect
     const sparkles = ['✦', '★', '✧', '❄', '✨'];
+    const prefersReducedSparkles = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.addEventListener('mousemove', (e) => {
+      if (prefersReducedSparkles) return;
       if (Math.random() < 0.25) {
         const span = document.createElement('span');
         span.className = 'sparkle';
@@ -262,13 +253,46 @@
       }
     });
 
-    // Tumblr Heart Like Handler
-    function likePost(btn) {
-      const countSpan = btn.querySelector('.like-count');
-      let currentLikes = parseInt(countSpan.innerText);
-      countSpan.innerText = currentLikes + 1;
-      btn.style.fontWeight = 'bold';
+    // Tumblr Heart Like Handler — one like per browser, remembered locally.
+    const LIKE_KEY = 'y2k-likes';
+
+    function readLikes() {
+      try {
+        return JSON.parse(localStorage.getItem(LIKE_KEY)) || {};
+      } catch (err) {
+        return {};
+      }
     }
+
+    function applyLikes() {
+      const likes = readLikes();
+      document.querySelectorAll('.like-btn').forEach((btn) => {
+        const countSpan = btn.querySelector('.like-count');
+        if (!countSpan) return;
+        const base = parseInt(countSpan.dataset.base, 10);
+        const on = !!likes[btn.dataset.post];
+        const start = Number.isNaN(base) ? 0 : base;
+        countSpan.textContent = String(start + (on ? 1 : 0));
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.style.fontWeight = on ? 'bold' : '';
+      });
+    }
+
+    function likePost(btn) {
+      const id = btn.dataset.post;
+      if (!id) return;
+      const likes = readLikes();
+      if (likes[id]) delete likes[id];
+      else likes[id] = true;
+      try {
+        localStorage.setItem(LIKE_KEY, JSON.stringify(likes));
+      } catch (err) {
+        // Private mode can reject storage; the toggle still applies this visit.
+      }
+      applyLikes();
+    }
+
+    applyLikes();
 
     // Delegate like-button clicks from a single listener instead of wiring
     // up an inline onclick (and a global function) per button.
@@ -451,7 +475,10 @@ if (guestbookForm) {
       loadGuestbookEntries();
     } catch (err) {
       console.error('Submission error:', err);
-      guestbookStatus.textContent = 'Failed to submit. Please try again.';
+      const msg = err && err.message;
+      guestbookStatus.textContent = msg && msg.indexOf('Too many notes') !== -1
+        ? 'Too many notes. Please wait a few minutes.'
+        : 'Failed to submit. Please try again.';
     } finally {
       guestbookSubmitBtn.disabled = false;
       setTimeout(() => {
@@ -553,7 +580,10 @@ if (songForm) {
       loadSongSuggestions();
     } catch (err) {
       console.error('Submission error:', err);
-      songStatus.textContent = 'Failed to send. Please try again.';
+      const msg = err && err.message;
+      songStatus.textContent = msg && msg.indexOf('Too many notes') !== -1
+        ? 'Too many notes. Please wait a few minutes.'
+        : 'Failed to send. Please try again.';
     } finally {
       songSubmitBtn.disabled = false;
       setTimeout(() => {
@@ -569,12 +599,20 @@ loadSongSuggestions();
     const canvas = document.getElementById('canvas');
     const themeBtn = document.getElementById('themeBtn');
 
+    const THEME_KEY = 'y2k-theme';
     const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-    let isDarkMode = !prefersLight;
+    let storedTheme = null;
+    try { storedTheme = localStorage.getItem(THEME_KEY); } catch (err) { storedTheme = null; }
+    let isDarkMode = storedTheme === 'light' ? false : storedTheme === 'dark' ? true : !prefersLight;
 
-    if (!isDarkMode) {
-      document.body.classList.add('light-mode');
+    function syncThemeButton() {
+      const light = !isDarkMode;
+      document.body.classList.toggle('light-mode', light);
+      themeBtn.setAttribute('aria-pressed', light ? 'true' : 'false');
+      themeBtn.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
     }
+
+    syncThemeButton();
 
     resizeCanvas();
 
@@ -627,6 +665,12 @@ loadSongSuggestions();
       fallbackBg.style.display = 'block';
     }
 
+    function showCssFallback() {
+      webglAvailable = false;
+      canvas.style.display = 'none';
+      if (fallbackBg) fallbackBg.style.display = 'block';
+    }
+
     const ext = webglAvailable ? {
       formatRGBA: gl.RGBA,
       halfFloat: (() => {
@@ -640,15 +684,36 @@ loadSongSuggestions();
       const shader = gl.createShader(type);
       gl.shaderSource(shader, source);
       gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
       return shader;
     }
 
     function createProgram(gl, vertexSource, fragmentSource) {
+      const vs = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+      const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+      if (!vs || !fs) return null;
       const program = gl.createProgram();
-      gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vertexSource));
-      gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fragmentSource));
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
       gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+      }
       return program;
+    }
+
+    function uniformMap(program, names) {
+      const map = {};
+      names.forEach((name) => {
+        map[name] = gl.getUniformLocation(program, name);
+      });
+      return map;
     }
 
     const baseVS = `
@@ -799,7 +864,63 @@ loadSongSuggestions();
     `;
 
     let splatProg, advectProg, curlProg, vorticityProg, divergenceProg, pressureProg, gradSubProg, displayProg;
+    let U = null;
     let dye, velocity, curl, divergence, pressure;
+
+    function createFBO(w, h, pixelType) {
+      gl.activeTexture(gl.TEXTURE0);
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, pixelType, null);
+
+      const fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (!ok) {
+        gl.deleteTexture(texture);
+        gl.deleteFramebuffer(fbo);
+        return null;
+      }
+      return {
+        texture, fbo, width: w, height: h,
+        attach(id) {
+          gl.activeTexture(gl.TEXTURE0 + id);
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          return id;
+        }
+      };
+    }
+
+    function createDoubleFBO(w, h, pixelType) {
+      let fbo1 = createFBO(w, h, pixelType);
+      let fbo2 = createFBO(w, h, pixelType);
+      if (!fbo1 || !fbo2) return null;
+      return {
+        get read() { return fbo1; },
+        set read(val) { fbo1 = val; },
+        get write() { return fbo2; },
+        set write(val) { fbo2 = val; },
+        swap() { const temp = fbo1; fbo1 = fbo2; fbo2 = temp; }
+      };
+    }
+
+    function allocTargets(pixelType) {
+      const next = {
+        dye: createDoubleFBO(config.DYE_RESOLUTION, config.DYE_RESOLUTION, pixelType),
+        velocity: createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
+        curl: createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
+        divergence: createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
+        pressure: createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType)
+      };
+      if (!next.dye || !next.velocity || !next.curl || !next.divergence || !next.pressure) return null;
+      return next;
+    }
 
     if (webglAvailable) {
       splatProg = createProgram(gl, baseVS, splatFS);
@@ -811,40 +932,37 @@ loadSongSuggestions();
       gradSubProg = createProgram(gl, baseVS, gradientSubtractFS);
       displayProg = createProgram(gl, baseVS, displayFS);
 
-      dye = createDoubleFBO(config.DYE_RESOLUTION, config.DYE_RESOLUTION);
-      velocity = createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION);
-      curl = createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION);
-      divergence = createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION);
-      pressure = createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION);
-    }
-
-    function createFBO(w, h) {
-      gl.activeTexture(gl.TEXTURE0);
-      let texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texImage2D(gl.TEXTURE_2D, 0, ext.formatRGBA, w, h, 0, gl.RGBA, ext.halfFloat, null);
-
-      let fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-
-      return { texture, fbo, width: w, height: h, attach(id) { gl.activeTexture(gl.TEXTURE0 + id); gl.bindTexture(gl.TEXTURE_2D, texture); return id; } };
-    }
-
-    function createDoubleFBO(w, h) {
-      let fbo1 = createFBO(w, h);
-      let fbo2 = createFBO(w, h);
-      return {
-        get read() { return fbo1; },
-        set read(val) { fbo1 = val; },
-        get write() { return fbo2; },
-        set write(val) { fbo2 = val; },
-        swap() { let temp = fbo1; fbo1 = fbo2; fbo2 = temp; }
-      };
+      const programs = [splatProg, advectProg, curlProg, vorticityProg, divergenceProg, pressureProg, gradSubProg, displayProg];
+      if (programs.some((program) => !program)) {
+        console.error('Fluid shaders failed to compile.');
+        showCssFallback();
+      } else {
+        U = {
+          splat: uniformMap(splatProg, ['uTarget', 'aspect', 'color', 'point', 'radius']),
+          advect: uniformMap(advectProg, ['texelSize', 'uVelocity', 'uSource', 'dt', 'dissipation']),
+          curl: uniformMap(curlProg, ['texelSize', 'uVelocity']),
+          vorticity: uniformMap(vorticityProg, ['texelSize', 'uVelocity', 'uCurl', 'curl', 'dt']),
+          divergence: uniformMap(divergenceProg, ['texelSize', 'uVelocity']),
+          pressure: uniformMap(pressureProg, ['texelSize', 'uDivergence', 'uPressure']),
+          gradSub: uniformMap(gradSubProg, ['texelSize', 'uPressure', 'uVelocity']),
+          display: uniformMap(displayProg, ['uTexture', 'uInvert'])
+        };
+        let targets = allocTargets(ext.halfFloat);
+        if (!targets && ext.halfFloat !== gl.UNSIGNED_BYTE) {
+          console.warn('Half-float framebuffers unavailable; using 8-bit.');
+          targets = allocTargets(gl.UNSIGNED_BYTE);
+        }
+        if (!targets) {
+          console.error('Fluid framebuffers are incomplete.');
+          showCssFallback();
+        } else {
+          dye = targets.dye;
+          velocity = targets.velocity;
+          curl = targets.curl;
+          divergence = targets.divergence;
+          pressure = targets.pressure;
+        }
+      }
     }
 
     const blit = webglAvailable ? (() => {
@@ -868,72 +986,70 @@ loadSongSuggestions();
       const dt = Math.min((Date.now() - lastTime) / 1000, 0.016);
       lastTime = Date.now();
 
-      if (splatStack.length > 0) {
-        for (let i = 0; i < splatStack.length; i++) {
-          const s = splatStack.pop();
-          splat(s.x, s.y, s.dx, s.dy, s.color);
-        }
+      while (splatStack.length > 0) {
+        const s = splatStack.pop();
+        splat(s.x, s.y, s.dx, s.dy, s.color);
       }
 
       gl.viewport(0, 0, velocity.read.width, velocity.read.height);
       gl.useProgram(advectProg);
-      gl.uniform2f(gl.getUniformLocation(advectProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(advectProg, 'uVelocity'), velocity.read.attach(0));
-      gl.uniform1i(gl.getUniformLocation(advectProg, 'uSource'), velocity.read.attach(0));
-      gl.uniform1f(gl.getUniformLocation(advectProg, 'dt'), dt);
-      gl.uniform1f(gl.getUniformLocation(advectProg, 'dissipation'), config.VELOCITY_DISSIPATION);
+      gl.uniform2f(U.advect.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.advect.uVelocity, velocity.read.attach(0));
+      gl.uniform1i(U.advect.uSource, velocity.read.attach(0));
+      gl.uniform1f(U.advect.dt, dt);
+      gl.uniform1f(U.advect.dissipation, config.VELOCITY_DISSIPATION);
       blit(velocity.write);
       velocity.swap();
 
       gl.useProgram(curlProg);
-      gl.uniform2f(gl.getUniformLocation(curlProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(curlProg, 'uVelocity'), velocity.read.attach(0));
+      gl.uniform2f(U.curl.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.curl.uVelocity, velocity.read.attach(0));
       blit(curl);
 
       gl.useProgram(vorticityProg);
-      gl.uniform2f(gl.getUniformLocation(vorticityProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(vorticityProg, 'uVelocity'), velocity.read.attach(0));
-      gl.uniform1i(gl.getUniformLocation(vorticityProg, 'uCurl'), curl.attach(1));
-      gl.uniform1f(gl.getUniformLocation(vorticityProg, 'curl'), config.CURL);
-      gl.uniform1f(gl.getUniformLocation(vorticityProg, 'dt'), dt);
+      gl.uniform2f(U.vorticity.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.vorticity.uVelocity, velocity.read.attach(0));
+      gl.uniform1i(U.vorticity.uCurl, curl.attach(1));
+      gl.uniform1f(U.vorticity.curl, config.CURL);
+      gl.uniform1f(U.vorticity.dt, dt);
       blit(velocity.write);
       velocity.swap();
 
       gl.useProgram(divergenceProg);
-      gl.uniform2f(gl.getUniformLocation(divergenceProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(divergenceProg, 'uVelocity'), velocity.read.attach(0));
+      gl.uniform2f(U.divergence.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.divergence.uVelocity, velocity.read.attach(0));
       blit(divergence);
 
       gl.useProgram(pressureProg);
-      gl.uniform2f(gl.getUniformLocation(pressureProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(pressureProg, 'uDivergence'), divergence.attach(0));
+      gl.uniform2f(U.pressure.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.pressure.uDivergence, divergence.attach(0));
       for (let i = 0; i < config.PRESSURE_ITERATIONS; i++) {
-        gl.uniform1i(gl.getUniformLocation(pressureProg, 'uPressure'), pressure.read.attach(1));
+        gl.uniform1i(U.pressure.uPressure, pressure.read.attach(1));
         blit(pressure.write);
         pressure.swap();
       }
 
       gl.useProgram(gradSubProg);
-      gl.uniform2f(gl.getUniformLocation(gradSubProg, 'texelSize'), 1.0 / velocity.read.width, 1.0 / velocity.read.height);
-      gl.uniform1i(gl.getUniformLocation(gradSubProg, 'uPressure'), pressure.read.attach(0));
-      gl.uniform1i(gl.getUniformLocation(gradSubProg, 'uVelocity'), velocity.read.attach(1));
+      gl.uniform2f(U.gradSub.texelSize, 1.0 / velocity.read.width, 1.0 / velocity.read.height);
+      gl.uniform1i(U.gradSub.uPressure, pressure.read.attach(0));
+      gl.uniform1i(U.gradSub.uVelocity, velocity.read.attach(1));
       blit(velocity.write);
       velocity.swap();
 
       gl.viewport(0, 0, dye.read.width, dye.read.height);
       gl.useProgram(advectProg);
-      gl.uniform2f(gl.getUniformLocation(advectProg, 'texelSize'), 1.0 / dye.read.width, 1.0 / dye.read.height);
-      gl.uniform1i(gl.getUniformLocation(advectProg, 'uVelocity'), velocity.read.attach(0));
-      gl.uniform1i(gl.getUniformLocation(advectProg, 'uSource'), dye.read.attach(1));
-      gl.uniform1f(gl.getUniformLocation(advectProg, 'dt'), dt);
-      gl.uniform1f(gl.getUniformLocation(advectProg, 'dissipation'), config.DENSITY_DISSIPATION);
+      gl.uniform2f(U.advect.texelSize, 1.0 / dye.read.width, 1.0 / dye.read.height);
+      gl.uniform1i(U.advect.uVelocity, velocity.read.attach(0));
+      gl.uniform1i(U.advect.uSource, dye.read.attach(1));
+      gl.uniform1f(U.advect.dt, dt);
+      gl.uniform1f(U.advect.dissipation, config.DENSITY_DISSIPATION);
       blit(dye.write);
       dye.swap();
 
       gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
       gl.useProgram(displayProg);
-      gl.uniform1i(gl.getUniformLocation(displayProg, 'uTexture'), dye.read.attach(0));
-      gl.uniform1f(gl.getUniformLocation(displayProg, 'uInvert'), isDarkMode ? 0.0 : 1.0);
+      gl.uniform1i(U.display.uTexture, dye.read.attach(0));
+      gl.uniform1f(U.display.uInvert, isDarkMode ? 0.0 : 1.0);
       blit(null);
 
       requestAnimationFrame(update);
@@ -942,21 +1058,20 @@ loadSongSuggestions();
     function splat(x, y, dx, dy, color) {
       gl.viewport(0, 0, velocity.read.width, velocity.read.height);
       gl.useProgram(splatProg);
-      gl.uniform1i(gl.getUniformLocation(splatProg, 'uTarget'), velocity.read.attach(0));
-      gl.uniform1f(gl.getUniformLocation(splatProg, 'aspect'), canvas.width / canvas.height);
-      gl.uniform2f(gl.getUniformLocation(splatProg, 'point'), x, y);
-      gl.uniform3f(gl.getUniformLocation(splatProg, 'color'), dx, dy, 0.0);
-      gl.uniform1f(gl.getUniformLocation(splatProg, 'radius'), config.SPLAT_RADIUS / 100);
+      gl.uniform1i(U.splat.uTarget, velocity.read.attach(0));
+      gl.uniform1f(U.splat.aspect, canvas.width / canvas.height);
+      gl.uniform2f(U.splat.point, x, y);
+      gl.uniform3f(U.splat.color, dx, dy, 0.0);
+      gl.uniform1f(U.splat.radius, config.SPLAT_RADIUS / 100);
       blit(velocity.write);
       velocity.swap();
 
       gl.viewport(0, 0, dye.read.width, dye.read.height);
-      gl.useProgram(splatProg);
-      gl.uniform1i(gl.getUniformLocation(splatProg, 'uTarget'), dye.read.attach(0));
-      gl.uniform1f(gl.getUniformLocation(splatProg, 'aspect'), canvas.width / canvas.height);
-      gl.uniform2f(gl.getUniformLocation(splatProg, 'point'), x, y);
-      gl.uniform3f(gl.getUniformLocation(splatProg, 'color'), color[0], color[1], color[2]);
-      gl.uniform1f(gl.getUniformLocation(splatProg, 'radius'), config.SPLAT_RADIUS / 100);
+      gl.uniform1i(U.splat.uTarget, dye.read.attach(0));
+      gl.uniform1f(U.splat.aspect, canvas.width / canvas.height);
+      gl.uniform2f(U.splat.point, x, y);
+      gl.uniform3f(U.splat.color, color[0], color[1], color[2]);
+      gl.uniform1f(U.splat.radius, config.SPLAT_RADIUS / 100);
       blit(dye.write);
       dye.swap();
     }
@@ -989,23 +1104,43 @@ loadSongSuggestions();
 
     themeBtn.addEventListener('click', () => {
       isDarkMode = !isDarkMode;
-      document.body.classList.toggle('light-mode', !isDarkMode);
+      syncThemeButton();
+      try { localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light'); } catch (err) {}
     });
+
+    function isFluidGestureTarget(node) {
+      return !(node && node.closest && node.closest(
+        '.modal-content, .music-widget-wrapper, nav.bottom-nav, .ghost-pet, a, button, input, textarea, select, label'
+      ));
+    }
 
     if (webglAvailable) {
       window.addEventListener('mousemove', e => updatePointer(e.clientX, e.clientY));
 
+      let fluidTouchId = null;
       window.addEventListener('touchstart', e => {
-        const t = e.touches[0];
+        const t = e.changedTouches[0];
+        if (!isFluidGestureTarget(e.target)) {
+          fluidTouchId = null;
+          return;
+        }
+        fluidTouchId = t.identifier;
         pointer.x = t.clientX / window.innerWidth;
         pointer.y = 1.0 - t.clientY / window.innerHeight;
       }, { passive: true });
 
       window.addEventListener('touchmove', e => {
-        e.preventDefault();
-        const t = e.touches[0];
+        if (fluidTouchId == null) return;
+        const t = Array.prototype.find.call(e.changedTouches, (touch) => touch.identifier === fluidTouchId);
+        if (!t) return;
+        if (e.cancelable) e.preventDefault();
         updatePointer(t.clientX, t.clientY);
       }, { passive: false });
+
+      window.addEventListener('touchend', e => {
+        const t = Array.prototype.find.call(e.changedTouches, (touch) => touch.identifier === fluidTouchId);
+        if (t) fluidTouchId = null;
+      }, { passive: true });
     }
 
     // Modals Handling
@@ -1030,11 +1165,15 @@ loadSongSuggestions();
       }
 
       modalContainer.classList.add('active');
+      modalContainer.setAttribute('aria-modal', 'true');
+      modalContainer.setAttribute('aria-hidden', 'false');
       closeModalBtn.focus();
     }
 
     function closeModalDialog() {
       modalContainer.classList.remove('active');
+      modalContainer.setAttribute('aria-modal', 'false');
+      modalContainer.setAttribute('aria-hidden', 'true');
       if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
         lastFocusedElement.focus();
       }
@@ -1069,12 +1208,17 @@ loadSongSuggestions();
       }
 
       if (e.key === 'Tab') {
-        const focusable = modalContent.querySelectorAll(
-          'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
+        const activeSection = modalContent.querySelector('.modal-section.active');
+        const focusable = [closeModalBtn];
+        if (activeSection) {
+          activeSection.querySelectorAll('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])').forEach((el) => {
+            focusable.push(el);
+          });
+        }
+        const visible = focusable.filter((el) => !el.disabled && el.tabIndex !== -1 && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+        if (visible.length === 0) return;
+        const first = visible[0];
+        const last = visible[visible.length - 1];
 
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
@@ -1102,6 +1246,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- DRAGGABLE LOGIC ---
   let isDragging = false;
   let offsetX = 0, offsetY = 0;
+  let pos = { x: 0, y: 0 };
+  let target = { x: 0, y: 0 };
+  let interactionPause = false;
+  let idleTimer = null;
+  let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function clearIdle() {
+    if (!idleTimer) return;
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
 
   function startDrag(clientX, clientY) {
     // Use a type/NaN check, not truthiness — clientX/clientY of 0 (top-left
@@ -1109,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // which was silently cancelling drags that started there.
     if (typeof clientX !== 'number' || typeof clientY !== 'number' || Number.isNaN(clientX) || Number.isNaN(clientY)) return;
 
+    clearIdle();
     isDragging = true;
     interactionPause = true;
     const rect = container.getBoundingClientRect();
@@ -1134,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isDragging = false;
     interactionPause = false;
     ghostBody.classList.remove('is-moving');
+    clearIdle();
     // Resume roaming from wherever the pet was dropped.
     pickNewTarget();
   }
@@ -1167,10 +1324,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- ROAMING LOGIC ---
   // The pet wanders the viewport on its own, pausing whenever it's being
   // dragged or hovered, and respects prefers-reduced-motion.
-  let pos = { x: 0, y: 0 };
-  let target = { x: 0, y: 0 };
-  let interactionPause = false;
-  let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function clamp(val, min, max) {
     if (max < min) return min; // viewport smaller than the pet — pin it
@@ -1210,11 +1363,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const dist = Math.hypot(dx, dy);
 
       if (dist < 4) {
-        // Idle for a moment at each waypoint before choosing the next one.
         ghostBody.classList.remove('is-moving');
-        setTimeout(() => { if (roamEnabled) pickNewTarget(); }, 1500 + Math.random() * 2500);
-        target = { ...pos }; // hold still until the timeout fires
+        if (!idleTimer) {
+          idleTimer = setTimeout(() => {
+            idleTimer = null;
+            if (roamEnabled && !isDragging && !interactionPause) pickNewTarget();
+          }, 1500 + Math.random() * 2500);
+        }
       } else {
+        clearIdle();
         ghostBody.classList.add('is-moving');
         const speed = Math.min(1.1, dist * 0.04);
         pos.x += (dx / dist) * speed;

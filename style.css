@@ -144,7 +144,7 @@
       width: 0;
       height: 0;
       pointer-events: none;
-      z-index: 1000;
+      z-index: 4;
     }
     .bullseye-ring {
       position: absolute;
@@ -188,7 +188,7 @@
     .sparkle {
       position: absolute;
       pointer-events: none;
-      z-index: 999;
+      z-index: 4;
       font-size: 14px;
       animation: trailSparkleFade 0.8s linear forwards;
     }
@@ -232,7 +232,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 2;
+      z-index: 7;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -271,7 +271,7 @@
       position: absolute;
       top: 40px;
       right: 20px;
-      z-index: 5;
+      z-index: 8;
       pointer-events: auto;
       display: flex;
       flex-direction: column;
@@ -372,6 +372,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      width: 100%;
+      background: none;
+      border: none;
+      font: inherit;
+      text-align: left;
       padding: 6px 8px;
       border-radius: 6px;
       font-size: 0.75rem;
@@ -476,7 +481,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 10;
+      z-index: 30;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -503,6 +508,8 @@
       max-width: 680px;
       max-height: 85vh;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
       border-radius: 20px;
       padding: 28px;
       box-shadow: 0 0 30px rgba(255, 113, 206, 0.3);
@@ -742,21 +749,21 @@
 /* Container Positioning */
 /* Update this block in style.css */
 .ghost-pet {
-  position: fixed !important;
+  position: fixed;
   bottom: 20px;
   right: 20px;
   top: auto;
   left: auto;
-  z-index: 999999 !important; /* Ensure it stays above desktop navbars/sidebars */
-  display: flex !important;
+  z-index: 3;
+  display: flex;
   flex-direction: column;
   align-items: center;
   font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
   user-select: none;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
   max-width: 200px;
 }
 /* Y2K Speech Bubble */
@@ -853,7 +860,7 @@
   position: fixed;
   pointer-events: none;
   font-size: 20px;
-  z-index: 10000;
+  z-index: 4;
   animation: sparkleFade 1s forwards ease-out;
 }
 
@@ -887,4 +894,67 @@
 .ghost-actions button:active {
   box-shadow: none;
   transform: translate(2px, 2px);
+}
+
+@media (max-width: 700px) {
+  .overlay {
+    padding: 92px 12px 12px;
+  }
+
+  .music-widget-wrapper {
+    top: 32px;
+    right: 8px;
+    left: 8px;
+  }
+
+  .music-widget {
+    max-width: 100%;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .track-info {
+    min-width: 0;
+    max-width: 46vw;
+  }
+
+  .track-title,
+  .track-artist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  nav.bottom-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: calc(100vw - 16px);
+    border-radius: 18px;
+    gap: 4px 10px;
+    padding: 8px 12px;
+  }
+
+  nav.bottom-nav button.nav-link {
+    font-size: 0.78rem;
+  }
+
+  .modal-container {
+    padding: 12px;
+  }
+
+  .modal-content {
+    max-height: 78vh;
+    padding: 22px 16px 18px;
+  }
+
+  .ghost-pet {
+    bottom: 8px;
+    right: 8px;
+    max-width: 150px;
+  }
+
+  .ghost-actions button {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
 }

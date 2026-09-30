@@ -16,20 +16,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.1/dist/umd/supabase.js"
+    integrity="sha384-qmLe2vls59SnfpN2OJ/tjAASSNP+R7nmj+MyytoaCmVRjJbVGsUaFkxJW4jGpaqh"
+    crossorigin="anonymous"></script>
   
 </head>
 <body>
 
   <a href="#mainContent" class="skip-link">Skip to content</a>
 
-  <!-- Audio Element for Direct MP3 Audio Playback -->
-  <audio id="audioPlayer" crossorigin="anonymous" preload="auto"></audio>
-
   <!-- Retro Marquee Header Banner -->
   <div class="retro-ticker">
     <div class="ticker-text">
-      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: TODAY ★ LEAVE A MESSAGE IN THE GUESTBOOK! ★ LEAVE A SONG! ★
+      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: <span id="lastUpdated">TODAY</span> ★ LEAVE A MESSAGE IN THE GUESTBOOK! ★ LEAVE A SONG! ★
     </div>
   </div>
 
@@ -49,26 +49,26 @@
 
     <div class="playlist-dropdown" id="playlistDropdown">
       <div class="playlist-dropdown-header">[ SELECT TRACK ]</div>
-      <div class="playlist-item active" data-index="0" role="option" tabindex="0">
+      <button type="button" class="playlist-item active" data-index="0">
         <span>1. Lo-Fi Chill</span>
         <span class="playlist-item-duration">SYNTH</span>
-      </div>
-      <div class="playlist-item" data-index="1" role="option" tabindex="0">
+      </button>
+      <button type="button" class="playlist-item" data-index="1">
         <span>2. Synthwave Sunset</span>
         <span class="playlist-item-duration">SYNTH</span>
-      </div>
-      <div class="playlist-item" data-index="2" role="option" tabindex="0">
+      </button>
+      <button type="button" class="playlist-item" data-index="2">
         <span>3. Retro Groove</span>
         <span class="playlist-item-duration">SYNTH</span>
-      </div>
-      <div class="playlist-item" data-index="3" role="option" tabindex="0">
+      </button>
+      <button type="button" class="playlist-item" data-index="3">
         <span>4. Night Drive</span>
         <span class="playlist-item-duration">SYNTH</span>
-      </div>
-      <div class="playlist-item" data-index="4" role="option" tabindex="0">
+      </button>
+      <button type="button" class="playlist-item" data-index="4">
         <span>5. Pixel Rain</span>
         <span class="playlist-item-duration">SYNTH</span>
-      </div>
+      </button>
       <button type="button" class="playlist-suggestion-link" style="background:none; border:none; width:100%; text-align:center; cursor:pointer;" data-open-modal="songSuggestion">♫ LEAVE A SONG</button>
     </div>
   </div>
@@ -88,7 +88,7 @@
       <button class="nav-link" data-target="setup">Setup</button>
       <button class="nav-link" data-target="guestbook">Guestbook</button>
       <button class="nav-link" data-target="contact">Contact</button>
-      <button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">
+      <button class="theme-toggle" id="themeBtn" aria-label="Switch to light theme" aria-pressed="false">
         <svg class="theme-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <mask id="moon-mask">
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
@@ -111,7 +111,7 @@
   </div>
 
   <!-- Modal Container -->
-  <div class="modal-container" id="modalContainer" role="dialog" aria-modal="true" aria-labelledby="portfolio-heading">
+  <div class="modal-container" id="modalContainer" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="portfolio-heading">
     <div class="modal-content">
       <button class="close-btn" id="closeModal" aria-label="Close dialog">&times;</button>
 
@@ -121,14 +121,22 @@
         <div class="card">
           <h3>Interactive WebGL Fluid Canvas</h3>
           <p>The animated background on this very page — a real-time Navier–Stokes fluid solver written in GLSL, running entirely in fragment shaders. Move your cursor across the site to stir it up. Falls back to a CSS gradient on devices without WebGL.</p>
+          <a class="project-link" href="https://github.com/dylan3737/y2k-site/blob/main/script.js">Source on GitHub</a>
         </div>
         <div class="card">
           <h3>Y2K Aesthetic Lab</h3>
           <p>An ongoing series of experiments reviving early-2000s personal-site conventions — dropdown music players, marquee tickers, glitter cursors — rebuilt with modern CSS and JS instead of Flash and table layouts.</p>
+          <a class="project-link" href="https://github.com/dylan3737/y2k-site">Source on GitHub</a>
         </div>
         <div class="card">
           <h3>Procedural Web Audio Synth</h3>
-          <p>A tiny synthesizer built on the Web Audio API that generates the "Synthwave" and "Chiptune" tracks in the music widget live, with no audio files at all — just oscillators and gain envelopes.</p>
+          <p>A tiny synthesizer built on the Web Audio API that generates the tracks in the music widget live, with no audio files at all — just oscillators and gain envelopes.</p>
+          <a class="project-link" href="https://github.com/dylan3737/y2k-site/blob/main/script.js">Source on GitHub</a>
+        </div>
+        <div class="card">
+          <h3>Ruin Wars</h3>
+          <p>An Arthurian take on a Mafia Wars-style game loop. The project lives in its own repo.</p>
+          <a class="project-link" href="https://github.com/dylan3737/ruin_wars">Source on GitHub</a>
         </div>
       </div>
 
@@ -142,7 +150,7 @@
           <span class="tumblr-tag">#shaders</span>
           <span class="tumblr-tag">#performance</span>
           <div>
-            <button class="like-btn">♥ <span class="like-count">42</span> notes</button>
+            <button class="like-btn" data-post="pressure-solver" aria-pressed="false">♥ <span class="like-count" data-base="42">42</span> notes</button>
           </div>
         </div>
 
@@ -151,7 +159,7 @@
           <span class="tumblr-tag">#myspace</span>
           <span class="tumblr-tag">#retro</span>
           <div>
-            <button class="like-btn">♥ <span class="like-count">128</span> notes</button>
+            <button class="like-btn" data-post="profile-music" aria-pressed="false">♥ <span class="like-count" data-base="128">128</span> notes</button>
           </div>
         </div>
 
@@ -160,7 +168,7 @@
           <span class="tumblr-tag">#guestbook</span>
           <span class="tumblr-tag">#update</span>
           <div>
-            <button class="like-btn">♥ <span class="like-count">17</span> notes</button>
+            <button class="like-btn" data-post="guestbook-post" aria-pressed="false">♥ <span class="like-count" data-base="17">17</span> notes</button>
           </div>
         </div>
       </div>
@@ -204,8 +212,8 @@
     <!-- Honeypot: real visitors never see or fill this in. Bots that
          auto-fill every field will, so we quietly reject the submission. -->
     <div class="hp-field" aria-hidden="true">
-      <label for="guestWebsite">Website</label>
-      <input type="text" id="guestWebsite" name="website" tabindex="-1" autocomplete="off" />
+      <label for="guestWebsite">Leave this blank</label>
+      <input type="text" id="guestWebsite" name="hp_field" tabindex="-1" autocomplete="off" />
     </div>
 
     <button type="submit" class="guestbook-submit" id="guestbookSubmit">Sign the guestbook</button>
@@ -229,8 +237,8 @@
           <!-- Honeypot: real visitors never see or fill this in. Bots that
                auto-fill every field will, so we quietly reject the submission. -->
           <div class="hp-field" aria-hidden="true">
-            <label for="songWebsite">Website</label>
-            <input type="text" id="songWebsite" name="website" tabindex="-1" autocomplete="off" />
+            <label for="songWebsite">Leave this blank</label>
+            <input type="text" id="songWebsite" name="hp_field" tabindex="-1" autocomplete="off" />
           </div>
 
           <button type="submit" class="guestbook-submit" id="songSubmit">Send Suggestion</button>
@@ -251,7 +259,7 @@
         </div>
         <div class="card">
           <h3>Elsewhere</h3>
-          <p>Also floating around GitHub and Are.na under the same handle — mostly posting fragments of whatever I'm building at the moment.</p>
+          <p>Code and experiments live on <a style="color: var(--accent-pink);" href="https://github.com/dylan3737">GitHub</a>.</p>
         </div>
       </div>
 
