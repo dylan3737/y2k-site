@@ -747,7 +747,6 @@
     }
     .project-link:hover { text-decoration: underline; }
 /* Container Positioning */
-/* Update this block in style.css */
 .ghost-pet {
   position: fixed;
   bottom: 20px;
@@ -758,41 +757,50 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+  font-family: 'Silkscreen', monospace;
   user-select: none;
   background: transparent;
-  border: none;
-  box-shadow: none;
-  outline: none;
-  max-width: 200px;
-}
-/* Y2K Speech Bubble */
-.ghost-bubble {
-  background: #ffffcc;
-  border: 2px solid #000;
-  box-shadow: 3px 3px 0px #000;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  text-align: center;
-  max-width: 170px;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
+  width: 168px;
+  --eye-x: 0px;
+  --eye-y: 0px;
 }
 
-/* Main Body Canvas & Drag Cursor */
+.ghost-bubble {
+  position: relative;
+  background: linear-gradient(#fffef2, #ffe56a);
+  border: 2px solid #140c22;
+  box-shadow: 3px 3px 0 #01cdfe, 6px 6px 0 #ff71ce;
+  padding: 7px 10px 8px;
+  border-radius: 10px;
+  font-size: 9px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+  text-align: center;
+  max-width: 168px;
+  color: #1a1028;
+  pointer-events: none;
+}
+
+.ghost-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  margin-left: -6px;
+  border-width: 8px 6px 0;
+  border-style: solid;
+  border-color: #140c22 transparent transparent;
+}
+
 .ghost-body {
   position: relative;
   cursor: grab;
   animation: floatBody 3.8s infinite ease-in-out;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+  filter: drop-shadow(0 10px 12px rgba(1, 205, 254, 0.25));
 }
 
-.ghost-body:active {
-  cursor: grabbing;
-}
+.ghost-body:active { cursor: grabbing; }
 
 .ghost-body svg {
   display: block;
@@ -800,102 +808,216 @@
   transition: transform 0.35s ease;
 }
 
-/* Dragging/roaming disables the idle float bob so movement reads cleanly */
-.ghost-body.is-moving {
-  animation-play-state: paused;
+.ghost-body.is-moving { animation-play-state: paused; }
+
+.eye-pupil { transform: translate(var(--eye-x), var(--eye-y)); }
+
+.eyelid {
+  opacity: 0;
+  animation: blink 5.4s infinite;
 }
 
-/* Independent Motion Layers */
-.floating-eyes {
-  animation: floatEyes 2.2s infinite ease-in-out;
+.rune-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: runeSpin 14s linear infinite;
 }
 
-.color-orb-svg {
-  animation: orbColorCycle 4s infinite linear, floatOrb 2.6s infinite ease-in-out;
+.hat-star {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: starTwinkle 2.4s ease-in-out infinite;
 }
 
-/* Keyframe Animations */
+.wand {
+  transform-box: fill-box;
+  transform-origin: 70% 100%;
+  animation: wandBob 2.8s ease-in-out infinite;
+}
+
+.color-orb-svg { animation: orbColorCycle 4s infinite linear; }
+
 @keyframes floatBody {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(1.5deg); }
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1.4deg); }
 }
 
-@keyframes floatEyes {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-3.5px); }
+@keyframes blink {
+  0%, 88%, 100% { opacity: 0; }
+  91%, 95% { opacity: 1; }
 }
 
-@keyframes floatOrb {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-5px); }
+@keyframes runeSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes starTwinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.25) rotate(18deg); opacity: 0.75; }
+}
+
+@keyframes wandBob {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(10deg); }
 }
 
 @keyframes orbColorCycle {
   0% { fill: #00ffff; }
-  33% { fill: #ff00ff; }
+  33% { fill: #ff4fd8; }
   66% { fill: #ffd700; }
   100% { fill: #00ffff; }
 }
 
-/* Action Effects */
 @keyframes danceAnim {
   0% { transform: scale(1) rotate(0deg); }
-  25% { transform: scale(1.1) rotate(-12deg) translateY(-8px); }
-  50% { transform: scale(0.9) rotate(12deg) translateY(0px); }
-  75% { transform: scale(1.1) rotate(-12deg) translateY(-8px); }
+  25% { transform: scale(1.08) rotate(-14deg) translateY(-12px); }
+  50% { transform: scale(0.94) rotate(12deg) translateY(0); }
+  75% { transform: scale(1.08) rotate(-10deg) translateY(-8px); }
   100% { transform: scale(1) rotate(0deg); }
 }
 
 @keyframes manaPulse {
-  0% { filter: drop-shadow(0 0 2px #00ffff) scale(1); }
-  50% { filter: drop-shadow(0 0 16px #00ffff) scale(1.12); }
-  100% { filter: drop-shadow(0 0 2px #00ffff) scale(1); }
+  0% { filter: drop-shadow(0 0 2px #00ffff); }
+  50% { filter: drop-shadow(0 0 18px #00ffff) drop-shadow(0 0 8px #ff71ce); }
+  100% { filter: drop-shadow(0 0 2px #00ffff); }
 }
 
-.dancing { animation: danceAnim 0.6s infinite !important; }
-.mana-glow { animation: manaPulse 0.8s ease-in-out 2 !important; }
+@keyframes poofOut {
+  to { opacity: 0; filter: blur(8px); transform: scale(0.45) translateY(18px); }
+}
 
-/* Sparkles */
-.magic-sparkle {
+@keyframes popIn {
+  from { opacity: 0; filter: blur(8px); transform: scale(0.5); }
+  to { opacity: 1; filter: drop-shadow(0 10px 12px rgba(1, 205, 254, 0.25)); transform: none; }
+}
+
+.dancing { animation: danceAnim 0.55s infinite !important; }
+.dancing .rune-ring { animation-duration: 1.1s; }
+.mana-glow { animation: manaPulse 0.7s ease-in-out 2 !important; }
+.ghost-body.is-gone { animation: poofOut 0.45s ease forwards !important; }
+.ghost-body.is-back { animation: popIn 0.4s ease !important; }
+.ghost-body.casting .wand { animation: wandBob 0.2s linear 3; }
+
+.magic-sparkle,
+.cast-ring,
+.ghost-dust {
   position: fixed;
   pointer-events: none;
-  font-size: 20px;
   z-index: 4;
-  animation: sparkleFade 1s forwards ease-out;
+}
+
+.magic-sparkle {
+  font-size: 18px;
+  animation: sparkleFade 0.9s forwards ease-out;
+}
+
+.cast-ring {
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 2px dashed #01cdfe;
+  box-shadow: 0 0 12px #ff71ce, inset 0 0 8px rgba(1, 205, 254, 0.8);
+  animation: castRing 0.85s ease-out forwards;
+}
+
+.ghost-dust {
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: #01cdfe;
+  box-shadow: 0 0 8px #ff71ce;
+  animation: dustFade 0.7s linear forwards;
 }
 
 @keyframes sparkleFade {
   0% { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.4); }
 }
 
-/* Retro Menu Buttons */
+@keyframes castRing {
+  to { transform: scale(7) rotate(40deg); opacity: 0; }
+}
+
+@keyframes dustFade {
+  to { opacity: 0; transform: translateY(10px) scale(0.3); }
+}
+
+.familiar {
+  position: absolute;
+  left: 42%;
+  top: 38%;
+  font-size: 15px;
+  pointer-events: none;
+  animation: familiarOrbit 2.6s linear infinite;
+}
+
+@keyframes familiarOrbit {
+  from { transform: rotate(0deg) translateX(62px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(62px) rotate(-360deg); }
+}
+
+.ghost-mana {
+  width: 108px;
+  height: 8px;
+  margin-top: 2px;
+  border: 2px solid #140c22;
+  border-radius: 99px;
+  background: #1a1028;
+  box-shadow: 2px 2px 0 #ff71ce;
+  overflow: hidden;
+}
+
+.ghost-mana span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #01cdfe, #ff71ce 70%, #fffb96);
+  transition: width 0.25s ease;
+}
+
 .ghost-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
-  margin-top: 10px;
-  max-width: 200px;
+  margin-top: 8px;
+  max-width: 168px;
 }
 
 .ghost-actions button {
-  background: #ff79c6;
-  color: #fff;
-  border: 2px solid #000;
-  box-shadow: 2px 2px 0px #000;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: bold;
+  background: linear-gradient(#ff8ad4, #e345b0);
+  color: #1a1028;
+  border: 2px solid #140c22;
+  box-shadow: 2px 2px 0 #140c22;
+  padding: 4px 6px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 8px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
+.ghost-actions button:hover { background: linear-gradient(#fff6a8, #ffd23f); }
 .ghost-actions button:active {
   box-shadow: none;
   transform: translate(2px, 2px);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .rune-ring,
+  .hat-star,
+  .wand,
+  .eyelid,
+  .familiar,
+  .ghost-body,
+  .color-orb-svg {
+    animation: none !important;
+  }
+  .eye-pupil { transform: none; }
+}
 @media (max-width: 700px) {
   .overlay {
     padding: 92px 12px 12px;
@@ -950,11 +1072,13 @@
   .ghost-pet {
     bottom: 8px;
     right: 8px;
-    max-width: 150px;
+    width: 142px;
   }
 
+  .ghost-svg { width: 112px; height: auto; }
+
   .ghost-actions button {
-    font-size: 10px;
-    padding: 4px 6px;
+    font-size: 7px;
+    padding: 4px 5px;
   }
 }

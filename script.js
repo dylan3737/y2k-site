@@ -1250,7 +1250,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let target = { x: 0, y: 0 };
   let interactionPause = false;
   let idleTimer = null;
+  let trailTick = 0;
   let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const eyesFollow = roamEnabled;
 
   function clearIdle() {
     if (!idleTimer) return;
@@ -1382,6 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (svg && Math.abs(dx) > 2) {
           svg.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
         }
+        if (trailTick++ % 7 === 0) dropGhostDust();
       }
     }
 
@@ -1415,84 +1418,143 @@ document.addEventListener('DOMContentLoaded', () => {
     if (actionBtn) ghostAction(actionBtn.dataset.ghostAction);
   });
 
+  if (eyesFollow) {
+    window.addEventListener('pointermove', (e) => {
+      const rect = ghostBody.getBoundingClientRect();
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.42;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const ang = Math.atan2(dy, dx);
+      const dist = Math.min(3.4, Math.hypot(dx, dy) / 70);
+      const svg = ghostBody.querySelector('svg');
+      const flipped = svg && svg.style.transform.indexOf('-1') !== -1;
+      container.style.setProperty('--eye-x', (Math.cos(ang) * dist * (flipped ? -1 : 1)).toFixed(2) + 'px');
+      container.style.setProperty('--eye-y', (Math.sin(ang) * dist).toFixed(2) + 'px');
+    });
+  }
+
+  syncMana();
   startRoaming();
 });
 
 // --- ACTIONS ---
+function syncMana() {
+  const fill = document.getElementById('ghostManaFill');
+  const bar = document.getElementById('ghostMana');
+  if (fill) fill.style.width = manaLevel + '%';
+  if (bar) {
+    bar.setAttribute('aria-valuenow', String(manaLevel));
+    bar.classList.toggle('is-empty', manaLevel <= 0);
+  }
+}
+
+function ghostCenter() {
+  const ghost = document.getElementById('ghost-character');
+  const rect = ghost.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height * 0.45 };
+}
+
 function ghostAction(type) {
   const speech = document.getElementById('ghost-speech');
   const ghost = document.getElementById('ghost-character');
 
-  ghost.classList.remove('dancing', 'mana-glow');
+  ghost.classList.remove('dancing', 'mana-glow', 'casting');
 
   if (type === 'spell') {
     if (manaLevel < 20) {
-      speech.innerText = "❌ Out of Mana! Feed me mana first!";
+      speech.textContent = 'Mana empty. Feed me first.';
       return;
     }
     manaLevel -= 20;
-    speech.innerText = `✨ Abracadabra! (Mana: ${manaLevel}%)`;
+    syncMana();
+    speech.textContent = '✦ Hex cast. Mana ' + manaLevel + '%';
+    ghost.classList.add('casting');
+    spawnCastRing();
     spawnSparkles();
+    setTimeout(() => ghost.classList.remove('casting'), 700);
 
   } else if (type === 'mana') {
     manaLevel = Math.min(100, manaLevel + 40);
-    speech.innerText = `🧪 *Gulp!* Restored! (Mana: ${manaLevel}%)`;
+    syncMana();
+    speech.textContent = '🧪 Gulp. Mana ' + manaLevel + '%';
     ghost.classList.add('mana-glow');
 
   } else if (type === 'summon') {
-    speech.innerText = "🦇 I summoned a spooky friend!";
-    spawnSingleParticle('🦇');
+    speech.textContent = '🦇 Familiars, fall in.';
+    spawnFamiliars();
 
   } else if (type === 'dance') {
-    speech.innerText = "💃 Party like it's 1999!";
+    speech.textContent = '💃 Party like it\'s 1999.';
     ghost.classList.add('dancing');
-    setTimeout(() => ghost.classList.remove('dancing'), 2500);
+    setTimeout(() => ghost.classList.remove('dancing'), 2800);
 
   } else if (type === 'vanish') {
-    speech.innerText = "💨 Disappearing act!";
-    ghost.style.opacity = "0";
+    speech.textContent = '💨 Now you don\'t.';
+    spawnSparkles();
+    ghost.classList.add('is-gone');
+    ghost.classList.remove('is-back');
     setTimeout(() => {
-      ghost.style.opacity = "1";
-      speech.innerText = "👻 Peekaboo!";
-    }, 2000);
+      ghost.classList.remove('is-gone');
+      ghost.classList.add('is-back');
+      speech.textContent = '👻 Peekaboo.';
+      setTimeout(() => ghost.classList.remove('is-back'), 450);
+    }, 1500);
   }
 }
 
-// --- PARTICLES ---
+function spawnCastRing() {
+  const c = ghostCenter();
+  for (let i = 0; i < 2; i++) {
+    const ring = document.createElement('div');
+    ring.className = 'cast-ring';
+    ring.style.left = c.x + 'px';
+    ring.style.top = c.y + 'px';
+    ring.style.animationDelay = (i * 120) + 'ms';
+    document.body.appendChild(ring);
+    setTimeout(() => ring.remove(), 1000);
+  }
+}
+
+function spawnFamiliars() {
+  const host = document.getElementById('ghost-character');
+  host.querySelectorAll('.familiar').forEach((node) => node.remove());
+  ['🦇', '⭐', '👻'].forEach((emoji, i) => {
+    const el = document.createElement('span');
+    el.className = 'familiar';
+    el.textContent = emoji;
+    el.style.animationDelay = (-i * 0.85) + 's';
+    el.style.animationDuration = (2.2 + i * 0.35) + 's';
+    host.appendChild(el);
+  });
+  setTimeout(() => host.querySelectorAll('.familiar').forEach((node) => node.remove()), 5600);
+}
+
+function dropGhostDust() {
+  const c = ghostCenter();
+  const dust = document.createElement('div');
+  dust.className = 'ghost-dust';
+  dust.style.left = (c.x + (Math.random() - 0.5) * 18) + 'px';
+  dust.style.top = (c.y + 28) + 'px';
+  dust.style.background = Math.random() > 0.5 ? '#01cdfe' : '#ff71ce';
+  document.body.appendChild(dust);
+  setTimeout(() => dust.remove(), 700);
+}
+
 function spawnSparkles() {
-  const ghost = document.getElementById('ghost-character');
-  const rect = ghost.getBoundingClientRect();
+  const c = ghostCenter();
   const icons = ['✨', '⭐', '🌟', '🔮', '💫'];
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     const sparkle = document.createElement('div');
     sparkle.className = 'magic-sparkle';
-    sparkle.innerText = icons[Math.floor(Math.random() * icons.length)];
-    
-    const dx = (Math.random() - 0.5) * 120 + 'px';
-    const dy = (Math.random() - 0.5) * 120 + 'px';
-    
-    sparkle.style.setProperty('--dx', dx);
-    sparkle.style.setProperty('--dy', dy);
-    sparkle.style.left = (rect.left + rect.width / 2) + 'px';
-    sparkle.style.top = (rect.top + rect.height / 2) + 'px';
-
+    sparkle.textContent = icons[Math.floor(Math.random() * icons.length)];
+    sparkle.style.setProperty('--dx', ((Math.random() - 0.5) * 150) + 'px');
+    sparkle.style.setProperty('--dy', ((Math.random() - 0.7) * 140) + 'px');
+    sparkle.style.left = c.x + 'px';
+    sparkle.style.top = c.y + 'px';
     document.body.appendChild(sparkle);
-    setTimeout(() => sparkle.remove(), 1000);
+    setTimeout(() => sparkle.remove(), 950);
   }
-}
-
-function spawnSingleParticle(emoji) {
-  const ghost = document.getElementById('ghost-character');
-  const rect = ghost.getBoundingClientRect();
-  const p = document.createElement('div');
-  p.className = 'magic-sparkle';
-  p.innerText = emoji;
-  p.style.setProperty('--dx', '60px');
-  p.style.setProperty('--dy', '-80px');
-  p.style.left = (rect.left + rect.width / 2) + 'px';
-  p.style.top = (rect.top + rect.height / 2) + 'px';
-  document.body.appendChild(p);
-  setTimeout(() => p.remove(), 1000);
 }
 })();
