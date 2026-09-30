@@ -805,9 +805,11 @@
 .ghost-body svg,
 .ghost-body .ghost-svg {
   display: block;
-  width: 118px;
+  width: 132px;
   height: auto;
   overflow: visible;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
   transition: transform 0.35s ease;
   -webkit-user-drag: none;
 }
