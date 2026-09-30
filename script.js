@@ -988,7 +988,7 @@ loadSongSuggestions();
 
       while (splatStack.length > 0) {
         const s = splatStack.pop();
-        splat(s.x, s.y, s.dx, s.dy, s.color);
+        splat(s.x, s.y, s.dx, s.dy, s.color, s.radius);
       }
 
       gl.viewport(0, 0, velocity.read.width, velocity.read.height);
@@ -1055,14 +1055,15 @@ loadSongSuggestions();
       requestAnimationFrame(update);
     }
 
-    function splat(x, y, dx, dy, color) {
+    function splat(x, y, dx, dy, color, radiusScale) {
+      const radius = (config.SPLAT_RADIUS / 100) * (radiusScale || 1);
       gl.viewport(0, 0, velocity.read.width, velocity.read.height);
       gl.useProgram(splatProg);
       gl.uniform1i(U.splat.uTarget, velocity.read.attach(0));
       gl.uniform1f(U.splat.aspect, canvas.width / canvas.height);
       gl.uniform2f(U.splat.point, x, y);
       gl.uniform3f(U.splat.color, dx, dy, 0.0);
-      gl.uniform1f(U.splat.radius, config.SPLAT_RADIUS / 100);
+      gl.uniform1f(U.splat.radius, radius);
       blit(velocity.write);
       velocity.swap();
 
@@ -1071,7 +1072,7 @@ loadSongSuggestions();
       gl.uniform1f(U.splat.aspect, canvas.width / canvas.height);
       gl.uniform2f(U.splat.point, x, y);
       gl.uniform3f(U.splat.color, color[0], color[1], color[2]);
-      gl.uniform1f(U.splat.radius, config.SPLAT_RADIUS / 100);
+      gl.uniform1f(U.splat.radius, radius);
       blit(dye.write);
       dye.swap();
     }
@@ -1100,6 +1101,40 @@ loadSongSuggestions();
 
       pointer.x = x;
       pointer.y = y;
+    }
+
+    // The reaper stirs the same fluid the cursor does. vx/vy are pixels
+    // moved since the last stir. Reduced motion never gets here.
+    if (webglAvailable) {
+      window.y2kWake = function (clientX, clientY, vx, vy) {
+        const x = clientX / window.innerWidth;
+        const y = 1.0 - clientY / window.innerHeight;
+        let dx = (vx / window.innerWidth) * 28;
+        let dy = -(vy / window.innerHeight) * 28;
+        const mag = Math.hypot(dx, dy);
+        if (mag > 0.4) {
+          dx = dx / mag * 0.4;
+          dy = dy / mag * 0.4;
+        }
+        const color = Math.random() < 0.7 ? [0.48, 0.04, 0.09] : [0.24, 0.05, 0.38];
+        splatStack.push({ x: x, y: y, dx: dx, dy: dy, color: color, radius: 0.7 });
+      };
+
+      window.y2kBurst = function (clientX, clientY) {
+        const x = clientX / window.innerWidth;
+        const y = 1.0 - clientY / window.innerHeight;
+        for (let i = 0; i < 7; i++) {
+          const a = (i / 7) * Math.PI * 2;
+          splatStack.push({
+            x: x,
+            y: y,
+            dx: Math.cos(a) * 0.32,
+            dy: Math.sin(a) * 0.32,
+            color: i % 2 ? [0.5, 0.04, 0.1] : [0.26, 0.04, 0.42],
+            radius: 1.2
+          });
+        }
+      };
     }
 
     themeBtn.addEventListener('click', () => {
@@ -1285,6 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pos.x = clamp(clientX - offsetX, b.minX, b.maxX);
     pos.y = clamp(clientY - offsetY, b.minY, b.maxY);
     setPosition(pos.x, pos.y);
+    stirFromMotion();
   }
 
   function stopDrag() {
@@ -1350,6 +1386,32 @@ document.addEventListener('DOMContentLoaded', () => {
     container.style.right = 'auto';
   }
 
+  let lastStir = { x: 0, y: 0, ready: false };
+
+  function stirFromMotion() {
+    if (typeof window.y2kWake !== 'function') return;
+    if (!lastStir.ready) {
+      lastStir.x = pos.x;
+      lastStir.y = pos.y;
+      lastStir.ready = true;
+      return;
+    }
+    const vx = pos.x - lastStir.x;
+    const vy = pos.y - lastStir.y;
+    lastStir.x = pos.x;
+    lastStir.y = pos.y;
+    if (Math.hypot(vx, vy) < 0.35) return;
+    const rect = ghostBody.getBoundingClientRect();
+    const face = ghostBody.querySelector('.ghost-svg');
+    const flipped = !!(face && face.style.transform.indexOf('-1') !== -1);
+    window.y2kWake(
+      rect.left + rect.width * (flipped ? 0.68 : 0.32),
+      rect.top + rect.height * 0.36,
+      vx,
+      vy
+    );
+  }
+
   function pickNewTarget() {
     const b = getBounds();
     target.x = b.minX + Math.random() * Math.max(0, b.maxX - b.minX);
@@ -1385,6 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
           svg.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
         }
         if (trailTick++ % 7 === 0) dropGhostDust();
+        stirFromMotion();
       }
     }
 
@@ -1472,6 +1535,10 @@ function ghostAction(type) {
     ghost.classList.add('casting');
     spawnCastRing();
     spawnSparkles();
+    if (typeof window.y2kBurst === 'function') {
+      const c = ghostCenter();
+      window.y2kBurst(c.x, c.y);
+    }
     setTimeout(() => ghost.classList.remove('casting'), 700);
 
   } else if (type === 'mana') {
@@ -1483,6 +1550,10 @@ function ghostAction(type) {
   } else if (type === 'summon') {
     speech.textContent = '👻 They came when called.';
     spawnFamiliars();
+    if (typeof window.y2kBurst === 'function') {
+      const c = ghostCenter();
+      window.y2kBurst(c.x, c.y);
+    }
 
   } else if (type === 'dance') {
     speech.textContent = '🌀 The court answers.';
@@ -1536,7 +1607,7 @@ function dropGhostDust() {
   dust.className = 'ghost-dust';
   dust.style.left = (c.x + (Math.random() - 0.5) * 18) + 'px';
   dust.style.top = (c.y + 28) + 'px';
-  dust.style.background = Math.random() > 0.5 ? '#01cdfe' : '#ff71ce';
+  dust.style.background = Math.random() > 0.45 ? '#9a2448' : '#6a34b0';
   document.body.appendChild(dust);
   setTimeout(() => dust.remove(), 700);
 }
