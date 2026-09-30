@@ -797,7 +797,7 @@
   cursor: grab;
   animation: floatBody 3.8s infinite ease-in-out;
   transition: opacity 0.35s ease, filter 0.35s ease;
-  filter: drop-shadow(0 10px 12px rgba(1, 205, 254, 0.25));
+  filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.8)) drop-shadow(0 8px 12px rgba(110, 12, 32, 0.45));
 }
 
 .ghost-body:active { cursor: grabbing; }
@@ -812,7 +812,10 @@
   -webkit-user-drag: none;
 }
 
-.ghost-body.is-moving { animation-play-state: paused; }
+.ghost-body.is-moving {
+  animation-play-state: paused;
+  filter: drop-shadow(0 0 9px rgba(164, 64, 230, 0.95)) drop-shadow(0 0 16px rgba(160, 24, 52, 0.55));
+}
 
 .eye-pupil {
   transform-box: fill-box;
@@ -895,9 +898,9 @@
 }
 
 @keyframes manaPulse {
-  0% { filter: drop-shadow(0 0 2px #00ffff); }
-  50% { filter: drop-shadow(0 0 18px #00ffff) drop-shadow(0 0 8px #ff71ce); }
-  100% { filter: drop-shadow(0 0 2px #00ffff); }
+  0% { filter: drop-shadow(0 0 4px #6a1a88); }
+  50% { filter: drop-shadow(0 0 12px #8a2ad4) drop-shadow(0 0 8px #9a2040); }
+  100% { filter: drop-shadow(0 0 4px #6a1a88); }
 }
 
 @keyframes poofOut {
@@ -906,7 +909,7 @@
 
 @keyframes popIn {
   from { opacity: 0; filter: blur(8px); transform: scale(0.5); }
-  to { opacity: 1; filter: drop-shadow(0 10px 12px rgba(1, 205, 254, 0.25)); transform: none; }
+  to { opacity: 1; filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.8)) drop-shadow(0 8px 12px rgba(110, 12, 32, 0.45)); transform: none; }
 }
 
 .dancing { animation: danceAnim 0.55s infinite !important; }
@@ -946,8 +949,8 @@
   margin-left: -3px;
   margin-top: -3px;
   border-radius: 50%;
-  background: #01cdfe;
-  box-shadow: 0 0 8px #ff71ce;
+  background: #9a2448;
+  box-shadow: 0 0 8px #6a34b0;
   animation: dustFade 0.7s linear forwards;
 }
 

@@ -1109,29 +1109,46 @@ loadSongSuggestions();
       window.y2kWake = function (clientX, clientY, vx, vy) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
-        let dx = (vx / window.innerWidth) * 28;
-        let dy = -(vy / window.innerHeight) * 28;
-        const mag = Math.hypot(dx, dy);
-        if (mag > 0.4) {
-          dx = dx / mag * 0.4;
-          dy = dy / mag * 0.4;
+        let dx = (vx / window.innerWidth) * 36;
+        let dy = -(vy / window.innerHeight) * 36;
+        const mag = Math.hypot(dx, dy) || 1;
+        if (mag > 0.55) {
+          dx = dx / mag * 0.55;
+          dy = dy / mag * 0.55;
         }
-        const color = Math.random() < 0.7 ? [0.48, 0.04, 0.09] : [0.24, 0.05, 0.38];
-        splatStack.push({ x: x, y: y, dx: dx, dy: dy, color: color, radius: 0.7 });
+        const swirl = 0.22;
+        const sx = -dy * swirl;
+        const sy = dx * swirl;
+        splatStack.push({
+          x: x,
+          y: y,
+          dx: dx * 0.4 + sx,
+          dy: dy * 0.4 + sy,
+          color: [0.5, 0.1, 0.85],
+          radius: 1.45
+        });
+        splatStack.push({
+          x: x,
+          y: y,
+          dx: dx + sx,
+          dy: dy + sy,
+          color: [0.95, 0.18, 0.32],
+          radius: 0.55
+        });
       };
 
       window.y2kBurst = function (clientX, clientY) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
-        for (let i = 0; i < 7; i++) {
-          const a = (i / 7) * Math.PI * 2;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
           splatStack.push({
             x: x,
             y: y,
-            dx: Math.cos(a) * 0.32,
-            dy: Math.sin(a) * 0.32,
-            color: i % 2 ? [0.5, 0.04, 0.1] : [0.26, 0.04, 0.42],
-            radius: 1.2
+            dx: Math.cos(a) * 0.38,
+            dy: Math.sin(a) * 0.38,
+            color: i % 2 ? [0.95, 0.16, 0.3] : [0.48, 0.1, 0.9],
+            radius: 1.35
           });
         }
       };
