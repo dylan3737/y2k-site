@@ -1380,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pos.y += (dy / dist) * speed;
         setPosition(pos.x, pos.y);
 
-        const svg = ghostBody.querySelector('svg');
+        const svg = ghostBody.querySelector('.ghost-svg');
         if (svg && Math.abs(dx) > 2) {
           svg.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
         }
