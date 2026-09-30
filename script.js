@@ -1463,12 +1463,12 @@ function ghostAction(type) {
 
   if (type === 'spell') {
     if (manaLevel < 20) {
-      speech.textContent = 'Out of dew. Water me first.';
+      speech.textContent = 'Out of glow. Feed me first.';
       return;
     }
     manaLevel -= 20;
     syncMana();
-    speech.textContent = '✦ Bloom. Dew ' + manaLevel + '%';
+    speech.textContent = '✦ Boo. Glow ' + manaLevel + '%';
     ghost.classList.add('casting');
     spawnCastRing();
     spawnSparkles();
@@ -1477,27 +1477,27 @@ function ghostAction(type) {
   } else if (type === 'mana') {
     manaLevel = Math.min(100, manaLevel + 40);
     syncMana();
-    speech.textContent = '💧 Sip. Dew ' + manaLevel + '%';
+    speech.textContent = '🌙 Brighter. Glow ' + manaLevel + '%';
     ghost.classList.add('mana-glow');
 
   } else if (type === 'summon') {
-    speech.textContent = '🌸 The grove answers.';
+    speech.textContent = '👻 Someone else showed up.';
     spawnFamiliars();
 
   } else if (type === 'dance') {
-    speech.textContent = '💃 Ring dance.';
+    speech.textContent = '💃 Float like it\'s 1999.';
     ghost.classList.add('dancing');
     setTimeout(() => ghost.classList.remove('dancing'), 2800);
 
   } else if (type === 'vanish') {
-    speech.textContent = '🍃 Into the leaves.';
+    speech.textContent = '💨 Fading out.';
     spawnSparkles();
     ghost.classList.add('is-gone');
     ghost.classList.remove('is-back');
     setTimeout(() => {
       ghost.classList.remove('is-gone');
       ghost.classList.add('is-back');
-      speech.textContent = '🌿 Still here.';
+      speech.textContent = '👻 Still here.';
       setTimeout(() => ghost.classList.remove('is-back'), 450);
     }, 1500);
   }
@@ -1519,7 +1519,7 @@ function spawnCastRing() {
 function spawnFamiliars() {
   const host = document.getElementById('ghost-character');
   host.querySelectorAll('.familiar').forEach((node) => node.remove());
-  ['🌿', '🌸', '🍄'].forEach((emoji, i) => {
+  ['✨', '👻', '⭐'].forEach((emoji, i) => {
     const el = document.createElement('span');
     el.className = 'familiar';
     el.textContent = emoji;

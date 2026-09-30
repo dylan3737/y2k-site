@@ -810,7 +810,11 @@
 
 .ghost-body.is-moving { animation-play-state: paused; }
 
-.eye-pupil { transform: translate(var(--eye-x), var(--eye-y)); }
+.eye-pupil {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate(var(--eye-x), var(--eye-y));
+}
 
 .eyelid {
   opacity: 0;
