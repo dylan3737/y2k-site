@@ -1130,25 +1130,21 @@ loadSongSuggestions();
         const h = window.innerHeight;
         const x = clientX / w;
         const y = 1.0 - clientY / h;
-        let dx = (vx / w) * 48;
-        let dy = -(vy / h) * 48;
+        let dx = (vx / w) * 28;
+        let dy = -(vy / h) * 28;
         const mag = Math.hypot(dx, dy) || 1;
-        const ux = dx / mag;
-        const uy = dy / mag;
-        if (mag > 0.7) {
-          dx = ux * 0.7;
-          dy = uy * 0.7;
+        if (mag > 0.45) {
+          dx = dx / mag * 0.45;
+          dy = dy / mag * 0.45;
         }
-        for (let i = -1; i <= 1; i++) {
-          splatStack.push({
-            x: x + ux * i * 0.014,
-            y: y + uy * i * 0.014,
-            dx: dx,
-            dy: dy,
-            color: i === 0 ? [0.42, 0.08, 0.55] : [0.22, 0.04, 0.34],
-            radius: 0.28
-          });
-        }
+        splatStack.push({
+          x: x,
+          y: y,
+          dx: dx,
+          dy: dy,
+          color: [0.16, 0.02, 0.26],
+          radius: 0.9
+        });
       };
 
       window.y2kCut = function (clientX, clientY, dir) {
@@ -1348,7 +1344,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let target = { x: 0, y: 0 };
   let interactionPause = false;
   let idleTimer = null;
-  let trailTick = 0;
   let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const eyesFollow = roamEnabled;
 
@@ -1509,7 +1504,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (svg && Math.abs(dx) > 2) {
           svg.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
         }
-        if (trailTick++ % 7 === 0) dropGhostDust();
         stirFromMotion();
       }
     }
