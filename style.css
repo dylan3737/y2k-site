@@ -280,8 +280,7 @@
     }
 
     .construct-badge,
-    .hit-counter,
-    .mouse-badge {
+    .hit-counter {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -305,10 +304,6 @@
 
     .hit-counter {
       letter-spacing: 2px;
-    }
-
-    .mouse-badge {
-      letter-spacing: 1px;
     }
 
     /* Myspace Retro Dropdown Music Player Widget */

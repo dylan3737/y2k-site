@@ -304,22 +304,6 @@
       }
     }
 
-    const hitEl = document.getElementById('hitCount');
-    if (hitEl) {
-      const key = 'y2k-clicks';
-      let clicks = 0;
-      try { clicks = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (err) { clicks = 0; }
-      const paintClicks = () => {
-        hitEl.textContent = String(clicks).padStart(6, '0');
-      };
-      paintClicks();
-      document.addEventListener('click', () => {
-        clicks += 1;
-        paintClicks();
-        try { localStorage.setItem(key, String(clicks)); } catch (err) {}
-      });
-    }
-
     // Click bullseye
     const prefersReducedMotionClick = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     function spawnBullseye(clientX, clientY) {
