@@ -413,16 +413,6 @@
       color: var(--accent-pink);
     }
 
-    .song-request {
-      margin-top: 6px;
-      max-width: 300px;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.58rem;
-      line-height: 1.45;
-      color: var(--muted-text);
-      text-align: right;
-    }
-
     /* Navigation Bar */
     nav.bottom-nav {
       display: flex;

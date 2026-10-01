@@ -516,20 +516,6 @@ const songStatus = document.getElementById('songStatus');
 const songSuggestionsEl = document.getElementById('songSuggestionsList');
 const songHoneypotInput = document.getElementById('songWebsite');
 
-function showLatestRequest(entries) {
-  const el = document.getElementById('songRequest');
-  if (!el) return;
-  if (!entries) {
-    el.textContent = 'Up next from the book: —';
-    return;
-  }
-  if (!entries || !entries.length) {
-    el.textContent = 'Up next from the book: nothing yet';
-    return;
-  }
-  el.textContent = 'Up next from the book: ' + entries[0].song;
-}
-
 function renderSongEntry(entry) {
   return `
     <div class="guestbook-entry">
@@ -542,7 +528,6 @@ function renderSongEntry(entry) {
 async function loadSongSuggestions() {
   if (!supabaseClient) {
     renderEntryList(songSuggestionsEl, [], 'Song suggestions aren\'t connected yet — check back soon!', renderSongEntry);
-    showLatestRequest([]);
     return;
   }
   const { data, error } = await supabaseClient
@@ -554,11 +539,9 @@ async function loadSongSuggestions() {
   if (error) {
     console.error('Failed to load song suggestions:', error);
     renderEntryList(songSuggestionsEl, [], 'Couldn\'t load suggestions right now.', renderSongEntry);
-    showLatestRequest(null);
     return;
   }
   renderEntryList(songSuggestionsEl, data, 'No suggestions yet — be the first!', renderSongEntry);
-  showLatestRequest(data);
 }
 
 if (songForm) {
