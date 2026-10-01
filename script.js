@@ -658,23 +658,31 @@ loadSongSuggestions();
 
     const config = isLowPower
       ? {
-          SIM_RESOLUTION: 96,
-          DYE_RESOLUTION: 256,
-          DENSITY_DISSIPATION: 0.96,
-          VELOCITY_DISSIPATION: 0.98,
-          PRESSURE_ITERATIONS: 12,
-          CURL: 30,
+          SIM_RESOLUTION: 128,
+          DYE_RESOLUTION: 384,
+          DENSITY_DISSIPATION: 0.985,
+          VELOCITY_DISSIPATION: 0.99,
+          PRESSURE_ITERATIONS: 16,
+          CURL: 28,
           SPLAT_RADIUS: 0.25
         }
       : {
-          SIM_RESOLUTION: 128,
-          DYE_RESOLUTION: 512,
-          DENSITY_DISSIPATION: 0.96,
-          VELOCITY_DISSIPATION: 0.98,
-          PRESSURE_ITERATIONS: 20,
-          CURL: 30,
-          SPLAT_RADIUS: 0.25
+          SIM_RESOLUTION: 224,
+          DYE_RESOLUTION: 900,
+          DENSITY_DISSIPATION: 0.988,
+          VELOCITY_DISSIPATION: 0.992,
+          PRESSURE_ITERATIONS: 28,
+          CURL: 32,
+          SPLAT_RADIUS: 0.22
         };
+
+    function resolutionPair(base) {
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      if (aspect >= 1) {
+        return { width: Math.round(base * aspect), height: base };
+      }
+      return { width: base, height: Math.round(base / aspect) };
+    }
 
     let pointer = { x: 0, y: 0, dx: 0, dy: 0 };
     let splatStack = [];
@@ -710,8 +718,8 @@ loadSongSuggestions();
       formatRGBA: gl.RGBA,
       halfFloat: (() => {
         const halfFloat = gl.getExtension('OES_texture_half_float');
-        gl.getExtension('OES_texture_half_float_linear');
-        return halfFloat ? halfFloat.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
+        const linear = gl.getExtension('OES_texture_half_float_linear');
+        return halfFloat && linear ? halfFloat.HALF_FLOAT_OES : gl.UNSIGNED_BYTE;
       })()
     } : null;
 
@@ -946,12 +954,14 @@ loadSongSuggestions();
     }
 
     function allocTargets(pixelType) {
+      const dyeSize = resolutionPair(config.DYE_RESOLUTION);
+      const simSize = resolutionPair(config.SIM_RESOLUTION);
       const next = {
-        dye: createDoubleFBO(config.DYE_RESOLUTION, config.DYE_RESOLUTION, pixelType),
-        velocity: createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
-        curl: createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
-        divergence: createFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType),
-        pressure: createDoubleFBO(config.SIM_RESOLUTION, config.SIM_RESOLUTION, pixelType)
+        dye: createDoubleFBO(dyeSize.width, dyeSize.height, pixelType),
+        velocity: createDoubleFBO(simSize.width, simSize.height, pixelType),
+        curl: createFBO(simSize.width, simSize.height, pixelType),
+        divergence: createFBO(simSize.width, simSize.height, pixelType),
+        pressure: createDoubleFBO(simSize.width, simSize.height, pixelType)
       };
       if (!next.dye || !next.velocity || !next.curl || !next.divergence || !next.pressure) return null;
       return next;
@@ -1113,9 +1123,12 @@ loadSongSuggestions();
     }
 
     function resizeCanvas() {
-      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, isLowPower ? 1.5 : 2);
+      const w = Math.round(window.innerWidth * dpr);
+      const h = Math.round(window.innerHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
       }
     }
 
