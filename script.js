@@ -47,6 +47,62 @@
     // Web Audio API Synthesizer Engine
     let audioCtx = null;
     let synthInterval = null;
+    let rainNodes = null;
+
+    function makeNoiseBuffer() {
+      const length = audioCtx.sampleRate * 2;
+      const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+      return buffer;
+    }
+
+    function startRain() {
+      const buffer = makeNoiseBuffer();
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+
+      const highpass = audioCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 900;
+
+      const lowpass = audioCtx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = 5000;
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.11;
+
+      src.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start();
+
+      const drop = () => {
+        if (!rainNodes) return;
+        const burst = audioCtx.createBufferSource();
+        burst.buffer = buffer;
+        const band = audioCtx.createBiquadFilter();
+        band.type = 'bandpass';
+        band.frequency.value = 700 + Math.random() * 3400;
+        band.Q.value = 3.5;
+        const dropGain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+        const peak = 0.08 + Math.random() * 0.16;
+        dropGain.gain.setValueAtTime(0.0001, now);
+        dropGain.gain.exponentialRampToValueAtTime(peak, now + 0.008);
+        dropGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05 + Math.random() * 0.14);
+        burst.connect(band);
+        band.connect(dropGain);
+        dropGain.connect(audioCtx.destination);
+        burst.start(now);
+        burst.stop(now + 0.22);
+      };
+
+      rainNodes = { src: src, gain: gain, timer: setInterval(drop, 70) };
+    }
 
     function initAudioContext() {
       if (!audioCtx) {
@@ -78,6 +134,10 @@
     function startSynthLoop(preset) {
       stopSynthLoop();
       initAudioContext();
+      if (preset === 'pixelrain') {
+        startRain();
+        return;
+      }
 
       // Distinct melody scale maps and speeds for each track
       const trackConfigs = {
@@ -112,14 +172,6 @@
           hold: 1.5,
           gain: 0.06,
           pad: true
-        },
-        pixelrain: {
-          notes: [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 880.00, 1174.66],
-          oscType: 'square',
-          speed: 105,
-          hold: 0.05,
-          gain: 0.032,
-          chirp: true
         },
         reaper: {
           notes: [146.83, 174.61, 155.56, 130.81],
@@ -167,6 +219,12 @@
       if (synthInterval) {
         clearInterval(synthInterval);
         synthInterval = null;
+      }
+      if (rainNodes) {
+        clearInterval(rainNodes.timer);
+        try { rainNodes.src.stop(); } catch (err) {}
+        try { rainNodes.gain.disconnect(); } catch (err) {}
+        rainNodes = null;
       }
     }
     // Audio DOM Elements
