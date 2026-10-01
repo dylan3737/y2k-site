@@ -1618,7 +1618,7 @@ function floatSoul(text, kind) {
   setTimeout(() => pop.remove(), 800);
 }
 
-let rallyCuts = null;
+let reapCuts = null;
 let chain = 0;
 let lastCast = 0;
 let pactUntil = 0;
@@ -1646,9 +1646,9 @@ function ghostAction(type) {
 
   ghost.classList.remove('dancing', 'mana-glow', 'casting');
 
-  if (type === 'spell') {
+  if (type === 'hex') {
     if (!spendSoul(25, speech)) return;
-    speech.textContent = chain > 1 ? 'Bound. Chain ' + chain + '.' : 'Bound.';
+    speech.textContent = chain > 1 ? 'Hexed. Chain ' + chain + '.' : 'Hexed.';
     ghost.classList.add('casting');
     spawnBlade();
     spawnCastRing();
@@ -1678,11 +1678,11 @@ function ghostAction(type) {
     spawnCatchGhosts();
     burstHere();
 
-  } else if (type === 'dance') {
+  } else if (type === 'reap') {
     if (!spendSoul(15, speech)) return;
-    speech.textContent = chain > 1 ? 'The court turns. x' + chain : 'The court turns.';
+    speech.textContent = chain > 1 ? 'Reaped. Chain ' + chain + '.' : 'Reaped.';
     ghost.classList.add('dancing');
-    if (rallyCuts) clearInterval(rallyCuts);
+    if (reapCuts) clearInterval(reapCuts);
     let swings = 0;
     const swing = () => {
       if (typeof window.y2kPulse !== 'function') return;
@@ -1690,11 +1690,11 @@ function ghostAction(type) {
       window.y2kPulse(c.x, c.y);
     };
     swing();
-    rallyCuts = setInterval(() => {
+    reapCuts = setInterval(() => {
       swings += 1;
       if (swings >= 4) {
-        clearInterval(rallyCuts);
-        rallyCuts = null;
+        clearInterval(reapCuts);
+        reapCuts = null;
         return;
       }
       swing();
