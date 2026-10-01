@@ -82,34 +82,44 @@
       // Distinct melody scale maps and speeds for each track
       const trackConfigs = {
         lofi: {
-          notes: [261.63, 329.63, 392.00, 493.88, 440.00, 392.00, 329.63, 293.66], // Jazzy C Major 7th
+          notes: [261.63, 329.63, 392.00, 493.88, 440.00, 392.00, 329.63, 293.66],
           oscType: 'sine',
-          speed: 550,
-          hasBass: true
+          speed: 640,
+          hold: 0.95,
+          gain: 0.07,
+          hasBass: true,
+          fifth: true
         },
         synthwave: {
-          notes: [220.00, 261.63, 329.63, 440.00, 392.00, 246.94, 293.66, 392.00], // Moody minor progression
+          notes: [220.00, 261.63, 329.63, 392.00, 440.00, 329.63, 293.66, 246.94],
           oscType: 'sawtooth',
-          speed: 350,
-          hasBass: true
+          speed: 260,
+          hold: 0.18,
+          gain: 0.045,
+          pulse: true
         },
         retrogroove: {
-          notes: [130.81, 261.63, 164.81, 329.63, 196.00, 392.00, 220.00, 440.00], // Upbeat octave-skipping funk
-          oscType: 'triangle',
-          speed: 220,
-          hasBass: false
+          notes: [196.00, 392.00, 246.94, 493.88, 220.00, 440.00, 164.81, 329.63],
+          oscType: 'square',
+          speed: 170,
+          hold: 0.07,
+          gain: 0.04
         },
         nightdrive: {
-          notes: [174.61, 220.00, 261.63, 349.23, 329.63, 261.63], // Atmospheric synth pulse
-          oscType: 'sawtooth',
-          speed: 400,
-          hasBass: true
+          notes: [130.81, 164.81, 196.00, 164.81, 146.83, 174.61],
+          oscType: 'triangle',
+          speed: 760,
+          hold: 1.5,
+          gain: 0.06,
+          pad: true
         },
         pixelrain: {
-          notes: [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 880.00, 783.99],
+          notes: [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 880.00, 1174.66],
           oscType: 'square',
-          speed: 150,
-          hasBass: false
+          speed: 105,
+          hold: 0.05,
+          gain: 0.032,
+          chirp: true
         },
         reaper: {
           notes: [146.83, 174.61, 155.56, 130.81],
@@ -126,12 +136,24 @@
 
       synthInterval = setInterval(() => {
         const freq = config.notes[step % config.notes.length];
-        playSynthNote(freq, config.oscType, config.speed / 500, 0.12);
-        
+        playSynthNote(freq, config.oscType, config.hold || config.speed / 500, config.gain || 0.12);
+
+        if (config.fifth && step % 2 === 0) {
+          playSynthNote(freq * 1.5, 'sine', 0.8, 0.028);
+        }
+        if (config.pulse) {
+          playSynthNote(freq / 2, 'sawtooth', 0.1, 0.035);
+        }
+        if (config.pad) {
+          playSynthNote(freq / 2, 'sine', 1.8, 0.045);
+        }
+        if (config.chirp && step % 2 === 0) {
+          playSynthNote(freq * 1.5, 'square', 0.045, 0.018);
+        }
         if (config.drone) {
           playSynthNote(freq / 2, 'sine', 2.4, 0.14);
         } else if (config.hasBass && step % 2 === 0) {
-          playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.18);
+          playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.08);
         }
         if (config.bell && step % 4 === 3) {
           playSynthNote(987.77, 'sine', 1.6, 0.045);
@@ -1734,16 +1756,22 @@ function spawnCastRing() {
 }
 
 let score = 0;
+let best = 0;
+let roundScore = 0;
 try { score = parseInt(localStorage.getItem('y2k-score') || '0', 10) || 0; } catch (err) { score = 0; }
+try { best = parseInt(localStorage.getItem('y2k-best') || '0', 10) || 0; } catch (err) { best = 0; }
 
 function paintScore() {
   const el = document.getElementById('scoreCount');
   if (el) el.textContent = String(score).padStart(6, '0');
+  const bestEl = document.getElementById('bestCount');
+  if (bestEl) bestEl.textContent = String(best).padStart(2, '0');
 }
 paintScore();
 
 function addScore(n) {
   score += n;
+  roundScore += n;
   paintScore();
   try { localStorage.setItem('y2k-score', String(score)); } catch (err) {}
 }
@@ -1794,6 +1822,7 @@ const huntReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').m
 function paintHunt() {}
 
 function beginHunt() {
+  if (!(huntEnds > Date.now())) roundScore = 0;
   huntEnds = Date.now() + 10000;
   paintHunt(10000);
   if (!huntTick) huntTick = setInterval(tickHunt, 200);
@@ -1810,11 +1839,21 @@ function tickHunt() {
 }
 
 function finishHunt() {
+  if (!huntEnds) return;
+  const caught = roundScore;
+  roundScore = 0;
+  huntEnds = 0;
   if (huntTick) clearInterval(huntTick);
   huntTick = null;
-  huntEnds = 0;
   paintHunt(0);
   document.querySelectorAll('.prey-ghost').forEach((node) => node.remove());
+  if (caught > best) {
+    best = caught;
+    try { localStorage.setItem('y2k-best', String(best)); } catch (err) {}
+    paintScore();
+    const speech = document.getElementById('ghost-speech');
+    if (speech) speech.textContent = 'New mark. ' + caught + '.';
+  }
 }
 
 function movePrey(now) {
