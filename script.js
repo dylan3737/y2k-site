@@ -1107,34 +1107,61 @@ loadSongSuggestions();
     // moved since the last stir. Reduced motion never gets here.
     if (webglAvailable) {
       window.y2kWake = function (clientX, clientY, vx, vy) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const x = clientX / w;
+        const y = 1.0 - clientY / h;
+        let dx = (vx / w) * 48;
+        let dy = -(vy / h) * 48;
+        const mag = Math.hypot(dx, dy) || 1;
+        const ux = dx / mag;
+        const uy = dy / mag;
+        if (mag > 0.7) {
+          dx = ux * 0.7;
+          dy = uy * 0.7;
+        }
+        for (let i = -1; i <= 1; i++) {
+          splatStack.push({
+            x: x + ux * i * 0.014,
+            y: y + uy * i * 0.014,
+            dx: dx,
+            dy: dy,
+            color: i === 0 ? [0.95, 0.2, 0.34] : [0.4, 0.08, 0.7],
+            radius: 0.28
+          });
+        }
+      };
+
+      window.y2kCut = function (clientX, clientY, dir) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
-        let dx = (vx / window.innerWidth) * 36;
-        let dy = -(vy / window.innerHeight) * 36;
-        const mag = Math.hypot(dx, dy) || 1;
-        if (mag > 0.55) {
-          dx = dx / mag * 0.55;
-          dy = dy / mag * 0.55;
+        const sign = dir < 0 ? -1 : 1;
+        for (let i = -2; i <= 2; i++) {
+          splatStack.push({
+            x: x + i * 0.012 * sign,
+            y: y - i * 0.005,
+            dx: 0.55 * sign,
+            dy: -0.18,
+            color: i === 0 ? [0.95, 0.18, 0.32] : [0.45, 0.1, 0.8],
+            radius: 0.26
+          });
         }
-        const swirl = 0.22;
-        const sx = -dy * swirl;
-        const sy = dx * swirl;
-        splatStack.push({
-          x: x,
-          y: y,
-          dx: dx * 0.4 + sx,
-          dy: dy * 0.4 + sy,
-          color: [0.5, 0.1, 0.85],
-          radius: 1.45
-        });
-        splatStack.push({
-          x: x,
-          y: y,
-          dx: dx + sx,
-          dy: dy + sy,
-          color: [0.95, 0.18, 0.32],
-          radius: 0.55
-        });
+      };
+
+      window.y2kDismiss = function (clientX, clientY) {
+        const x = clientX / window.innerWidth;
+        const y = 1.0 - clientY / window.innerHeight;
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          splatStack.push({
+            x: x + Math.cos(a) * 0.018,
+            y: y + Math.sin(a) * 0.018,
+            dx: -Math.cos(a) * 0.55,
+            dy: -Math.sin(a) * 0.55,
+            color: [0.32, 0.08, 0.5],
+            radius: 0.36
+          });
+        }
       };
 
       window.y2kBurst = function (clientX, clientY) {
@@ -1535,6 +1562,8 @@ function ghostCenter() {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height * 0.45 };
 }
 
+let rallyCuts = null;
+
 function ghostAction(type) {
   const speech = document.getElementById('ghost-speech');
   const ghost = document.getElementById('ghost-character');
@@ -1575,17 +1604,42 @@ function ghostAction(type) {
   } else if (type === 'dance') {
     speech.textContent = '🌀 The court answers.';
     ghost.classList.add('dancing');
+    if (rallyCuts) clearInterval(rallyCuts);
+    let swings = 0;
+    const swing = () => {
+      if (typeof window.y2kCut !== 'function') return;
+      const c = ghostCenter();
+      window.y2kCut(c.x, c.y, swings % 2 ? -1 : 1);
+    };
+    swing();
+    rallyCuts = setInterval(() => {
+      swings += 1;
+      if (swings >= 4) {
+        clearInterval(rallyCuts);
+        rallyCuts = null;
+        return;
+      }
+      swing();
+    }, 550);
     setTimeout(() => ghost.classList.remove('dancing'), 2800);
 
   } else if (type === 'vanish') {
     speech.textContent = '💨 Sent back.';
     spawnSparkles();
+    if (typeof window.y2kDismiss === 'function') {
+      const c = ghostCenter();
+      window.y2kDismiss(c.x, c.y);
+    }
     ghost.classList.add('is-gone');
     ghost.classList.remove('is-back');
     setTimeout(() => {
       ghost.classList.remove('is-gone');
       ghost.classList.add('is-back');
       speech.textContent = '👻 I remain.';
+      if (typeof window.y2kBurst === 'function') {
+        const c = ghostCenter();
+        window.y2kBurst(c.x, c.y);
+      }
       setTimeout(() => ghost.classList.remove('is-back'), 450);
     }, 1500);
   }
