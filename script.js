@@ -1621,6 +1621,7 @@ function floatSoul(text, kind) {
 let chain = 0;
 let lastCast = 0;
 let pactUntil = 0;
+let hexed = false;
 
 function spendSoul(cost, speech) {
   if (manaLevel < cost) {
@@ -1647,12 +1648,18 @@ function ghostAction(type) {
 
   if (type === 'hex') {
     if (!spendSoul(25, speech)) return;
-    speech.textContent = 'Hexed.';
-    ghost.classList.add('casting');
-    spawnSlash(-55);
-    spawnSlash(15);
-    burstHere();
-    setTimeout(() => ghost.classList.remove('casting'), 700);
+    speech.textContent = document.querySelector('.prey-ghost:not(.is-caught)') ? 'They crawl.' : 'Hexed.';
+    ghost.classList.add('mana-glow');
+    if (huntEnds > Date.now()) {
+      hexed = true;
+      document.querySelectorAll('.prey-ghost:not(.is-caught)').forEach((el) => el.classList.add('is-hexed'));
+    }
+    spawnHexMark();
+    if (typeof window.y2kPulse === 'function') {
+      const c = ghostCenter();
+      window.y2kPulse(c.x, c.y);
+    }
+    setTimeout(() => ghost.classList.remove('mana-glow'), 900);
 
   } else if (type === 'mana') {
     if (Date.now() < pactUntil) {
@@ -1682,9 +1689,7 @@ function ghostAction(type) {
     speech.textContent = 'Reaped.';
     ghost.classList.remove('dancing');
     ghost.classList.add('reaping');
-    spawnSlash(-70);
-    spawnSlash(-20);
-    spawnSlash(30);
+    spawnScythe();
     burstHere();
     setTimeout(() => ghost.classList.remove('reaping'), 900);
 
@@ -1713,15 +1718,24 @@ function burstHere() {
   window.y2kBurst(c.x, c.y);
 }
 
-function spawnSlash(rot) {
+function spawnScythe() {
   const c = ghostCenter();
   const cut = document.createElement('div');
-  cut.className = 'slash';
+  cut.className = 'scythe-cut';
   cut.style.left = c.x + 'px';
   cut.style.top = c.y + 'px';
-  cut.style.setProperty('--rot', rot + 'deg');
   document.body.appendChild(cut);
-  setTimeout(() => cut.remove(), 400);
+  setTimeout(() => cut.remove(), 520);
+}
+
+function spawnHexMark() {
+  const c = ghostCenter();
+  const mark = document.createElement('div');
+  mark.className = 'hex-mark';
+  mark.style.left = c.x + 'px';
+  mark.style.top = c.y + 'px';
+  document.body.appendChild(mark);
+  setTimeout(() => mark.remove(), 950);
 }
 
 function spawnCastRing() {
@@ -1774,6 +1788,7 @@ function spawnCatchGhosts() {
     el._next = 0;
     el.style.left = el._x + 'px';
     el.style.top = el._y + 'px';
+    if (hexed) el.classList.add('is-hexed');
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       if (el.classList.contains('is-caught')) return;
@@ -1824,6 +1839,7 @@ function finishHunt() {
   if (!huntEnds) return;
   const caught = roundScore;
   roundScore = 0;
+  hexed = false;
   huntEnds = 0;
   if (huntTick) clearInterval(huntTick);
   huntTick = null;
@@ -1848,13 +1864,14 @@ function movePrey(now) {
   const maxX = Math.max(pad, window.innerWidth - pad - 40);
   const maxY = Math.max(80, window.innerHeight - 80);
   nodes.forEach((el) => {
+    const step = hexed ? 0.012 : 0.045;
     if (now > el._next) {
       el._tx = pad + Math.random() * (maxX - pad);
       el._ty = 70 + Math.random() * (maxY - 70);
-      el._next = now + 600 + Math.random() * 800;
+      el._next = now + (hexed ? 1500 : 600) + Math.random() * 800;
     }
-    el._x += (el._tx - el._x) * 0.045;
-    el._y += (el._ty - el._y) * 0.045;
+    el._x += (el._tx - el._x) * step;
+    el._y += (el._ty - el._y) * step;
     el.style.left = el._x + 'px';
     el.style.top = el._y + 'px';
   });
