@@ -1146,20 +1146,20 @@ loadSongSuggestions();
         const h = window.innerHeight;
         const x = clientX / w;
         const y = 1.0 - clientY / h;
-        let dx = (vx / w) * 28;
-        let dy = -(vy / h) * 28;
+        let dx = (vx / w) * 10;
+        let dy = -(vy / h) * 10;
         const mag = Math.hypot(dx, dy) || 1;
-        if (mag > 0.45) {
-          dx = dx / mag * 0.45;
-          dy = dy / mag * 0.45;
+        if (mag > 0.16) {
+          dx = dx / mag * 0.16;
+          dy = dy / mag * 0.16;
         }
         splatStack.push({
           x: x,
           y: y,
           dx: dx,
           dy: dy,
-          color: [0.42, 0.08, 0.72],
-          radius: 0.9
+          color: [0.22, 0.04, 0.38],
+          radius: 0.35
         });
       };
 
@@ -1469,9 +1469,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const vx = pos.x - lastStir.x;
     const vy = pos.y - lastStir.y;
+    if (Math.hypot(vx, vy) < 8) return;
     lastStir.x = pos.x;
     lastStir.y = pos.y;
-    if (Math.hypot(vx, vy) < 0.35) return;
     const rect = ghostBody.getBoundingClientRect();
     const face = ghostBody.querySelector('.ghost-svg');
     const flipped = !!(face && face.style.transform.indexOf('-1') !== -1);
