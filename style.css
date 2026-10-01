@@ -207,7 +207,7 @@
       width: 100%;
       z-index: 5;
       background: #160e22;
-      color: #ffe14a;
+      color: #e7d9ff;
       border-bottom: 2px solid #c9b6ff;
       font-family: 'Silkscreen', monospace;
       font-size: 0.75rem;
@@ -262,7 +262,7 @@
     .subtitle {
       font-family: 'Silkscreen', monospace;
       font-size: 0.8rem;
-      color: #ffe14a;
+      color: #e7d9ff;
       letter-spacing: 2px;
       margin-top: 8px;
       text-transform: uppercase;
@@ -286,7 +286,7 @@
       align-items: center;
       gap: 6px;
       padding: 4px 8px;
-      color: #ffe14a;
+      color: #e7d9ff;
       background: #160e22;
       border: 2px outset #c9b6ff;
     }
@@ -357,7 +357,7 @@
       color: var(--text-color);
     }
 
-    .track-title { color: #ffe14a; }
+    .track-title { color: #e7d9ff; }
     .track-artist { color: var(--muted-text); }
 
     .player-controls {
@@ -368,7 +368,7 @@
     .play-btn, .playlist-toggle-btn {
       background: #160e22;
       border: 2px outset #c9b6ff;
-      color: #ffe14a;
+      color: #e7d9ff;
       border-radius: 0;
       padding: 4px 8px;
       font-size: 0.62rem;
@@ -400,7 +400,7 @@
     .playlist-dropdown-header {
       font-family: 'Silkscreen', monospace;
       font-size: 0.65rem;
-      color: var(--accent-yellow);
+      color: #e7d9ff;
       margin-bottom: 6px;
       padding-bottom: 4px;
       border-bottom: 1px dashed var(--nav-border);
@@ -425,7 +425,7 @@
 
     .playlist-item:hover, .playlist-item.active {
       background: #2a1840;
-      color: #ffe14a;
+      color: #e7d9ff;
     }
 
     .playlist-item-duration {
@@ -470,7 +470,7 @@
 
     nav.bottom-nav button.nav-link {
       background: #160e22;
-      color: var(--accent-yellow);
+      color: #e7d9ff;
       border: 2px outset #c9b6ff;
       padding: 4px 8px;
       font-family: 'Silkscreen', monospace;
@@ -1050,7 +1050,7 @@
 
 .ghost-actions button {
   background: #160e22;
-  color: #ffe14a;
+  color: #e7d9ff;
   border: 2px outset #c9b6ff;
   padding: 4px 6px;
   font-family: 'Silkscreen', monospace;
