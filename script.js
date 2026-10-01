@@ -1659,6 +1659,7 @@ function ghostAction(type) {
     if (!spendSoul(30, speech)) return;
     speech.textContent = chain > 1 ? 'They answer. Chain ' + chain + '.' : 'They answer.';
     spawnFamiliars();
+    spawnCatchGhosts();
     burstHere();
 
   } else if (type === 'dance') {
@@ -1729,6 +1730,51 @@ function spawnCastRing() {
     ring.style.animationDelay = (i * 120) + 'ms';
     document.body.appendChild(ring);
     setTimeout(() => ring.remove(), 1000);
+  }
+}
+
+let score = 0;
+try { score = parseInt(localStorage.getItem('y2k-score') || '0', 10) || 0; } catch (err) { score = 0; }
+
+function paintScore() {
+  const el = document.getElementById('scoreCount');
+  if (el) el.textContent = String(score).padStart(6, '0');
+}
+paintScore();
+
+function addScore(n) {
+  score += n;
+  paintScore();
+  try { localStorage.setItem('y2k-score', String(score)); } catch (err) {}
+}
+
+function spawnCatchGhosts() {
+  const room = 8 - document.querySelectorAll('.prey-ghost').length;
+  const count = Math.min(5, room);
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'prey-ghost';
+    el.setAttribute('aria-label', 'Catch');
+    el.style.left = (6 + Math.random() * 78) + 'vw';
+    el.style.top = (14 + Math.random() * 64) + 'vh';
+    const life = setTimeout(() => el.remove(), 8000);
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (el.classList.contains('is-caught')) return;
+      el.classList.add('is-caught');
+      clearTimeout(life);
+      addScore(1);
+      const pop = document.createElement('div');
+      pop.className = 'soul-pop is-gain';
+      pop.textContent = '+1';
+      pop.style.left = el.style.left;
+      pop.style.top = el.style.top;
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 800);
+      setTimeout(() => el.remove(), 260);
+    });
+    document.body.appendChild(el);
   }
 }
 

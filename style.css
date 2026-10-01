@@ -1102,6 +1102,32 @@
   border-radius: 0;
 }
 
+.prey-ghost {
+  position: fixed;
+  z-index: 6;
+  width: 40px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent url("ghost.png") center / contain no-repeat;
+  cursor: pointer;
+  filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.85));
+  animation: preyDrift 2.2s ease-in-out infinite;
+}
+
+.prey-ghost.is-caught {
+  animation: preyPop 0.25s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes preyDrift {
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes preyPop {
+  to { transform: scale(1.45); opacity: 0; }
+}
+
 .ghost-actions button span {
   display: block;
   margin-top: 1px;
@@ -1127,6 +1153,7 @@
   .tail,
   .eyelid,
   .familiar,
+  .prey-ghost,
   .ghost-body,
   .color-orb-svg {
     animation: none !important;
