@@ -1657,7 +1657,7 @@ function ghostAction(type) {
 
   } else if (type === 'summon') {
     if (!spendSoul(30, speech)) return;
-    speech.textContent = chain > 1 ? 'They answer. Chain ' + chain + '.' : 'They answer.';
+    speech.textContent = chain > 1 ? 'Ten seconds. Chain ' + chain + '.' : 'Ten seconds. Catch them.';
     spawnFamiliars();
     spawnCatchGhosts();
     burstHere();
@@ -1749,21 +1749,25 @@ function addScore(n) {
 }
 
 function spawnCatchGhosts() {
-  const room = 8 - document.querySelectorAll('.prey-ghost').length;
+  const room = 8 - document.querySelectorAll('.prey-ghost:not(.is-caught)').length;
   const count = Math.min(5, room);
   for (let i = 0; i < count; i++) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'prey-ghost';
     el.setAttribute('aria-label', 'Catch');
-    el.style.left = (6 + Math.random() * 78) + 'vw';
-    el.style.top = (14 + Math.random() * 64) + 'vh';
-    const life = setTimeout(() => el.remove(), 8000);
+    const pad = 40;
+    el._x = pad + Math.random() * Math.max(40, window.innerWidth - pad * 2 - 40);
+    el._y = 72 + Math.random() * Math.max(40, window.innerHeight - 180);
+    el._tx = el._x;
+    el._ty = el._y;
+    el._next = 0;
+    el.style.left = el._x + 'px';
+    el.style.top = el._y + 'px';
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       if (el.classList.contains('is-caught')) return;
       el.classList.add('is-caught');
-      clearTimeout(life);
       addScore(1);
       const pop = document.createElement('div');
       pop.className = 'soul-pop is-gain';
@@ -1772,10 +1776,78 @@ function spawnCatchGhosts() {
       pop.style.top = el.style.top;
       document.body.appendChild(pop);
       setTimeout(() => pop.remove(), 800);
-      setTimeout(() => el.remove(), 260);
+      setTimeout(() => {
+        el.remove();
+        if (!document.querySelector('.prey-ghost:not(.is-caught)')) finishHunt();
+      }, 260);
     });
     document.body.appendChild(el);
   }
+  beginHunt();
+}
+
+let huntEnds = 0;
+let huntTick = null;
+let huntFrame = null;
+const huntReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function paintHunt(ms) {
+  const badge = document.getElementById('huntTimer');
+  const num = document.getElementById('huntTime');
+  if (!badge || !num) return;
+  if (ms <= 0) {
+    badge.hidden = true;
+    return;
+  }
+  badge.hidden = false;
+  num.textContent = String(Math.ceil(ms / 1000));
+}
+
+function beginHunt() {
+  huntEnds = Date.now() + 10000;
+  paintHunt(10000);
+  if (!huntTick) huntTick = setInterval(tickHunt, 200);
+  if (!huntReduceMotion && !huntFrame) huntFrame = requestAnimationFrame(movePrey);
+}
+
+function tickHunt() {
+  const left = huntEnds - Date.now();
+  if (left <= 0) {
+    finishHunt();
+    return;
+  }
+  paintHunt(left);
+}
+
+function finishHunt() {
+  if (huntTick) clearInterval(huntTick);
+  huntTick = null;
+  huntEnds = 0;
+  paintHunt(0);
+  document.querySelectorAll('.prey-ghost').forEach((node) => node.remove());
+}
+
+function movePrey(now) {
+  const nodes = document.querySelectorAll('.prey-ghost:not(.is-caught)');
+  if (!nodes.length || !huntEnds) {
+    huntFrame = null;
+    return;
+  }
+  const pad = 28;
+  const maxX = Math.max(pad, window.innerWidth - pad - 40);
+  const maxY = Math.max(80, window.innerHeight - 80);
+  nodes.forEach((el) => {
+    if (now > el._next) {
+      el._tx = pad + Math.random() * (maxX - pad);
+      el._ty = 70 + Math.random() * (maxY - 70);
+      el._next = now + 600 + Math.random() * 800;
+    }
+    el._x += (el._tx - el._x) * 0.045;
+    el._y += (el._ty - el._y) * 0.045;
+    el.style.left = el._x + 'px';
+    el.style.top = el._y + 'px';
+  });
+  huntFrame = requestAnimationFrame(movePrey);
 }
 
 function spawnFamiliars() {

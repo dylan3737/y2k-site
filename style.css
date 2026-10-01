@@ -1112,16 +1112,11 @@
   background: transparent url("ghost.png") center / contain no-repeat;
   cursor: pointer;
   filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.85));
-  animation: preyDrift 2.2s ease-in-out infinite;
 }
 
 .prey-ghost.is-caught {
   animation: preyPop 0.25s ease forwards;
   pointer-events: none;
-}
-
-@keyframes preyDrift {
-  50% { transform: translateY(-12px); }
 }
 
 @keyframes preyPop {
