@@ -1142,25 +1142,22 @@ loadSongSuggestions();
           y: y,
           dx: dx,
           dy: dy,
-          color: [0.16, 0.02, 0.26],
+          color: [0.42, 0.08, 0.72],
           radius: 0.9
         });
       };
 
-      window.y2kCut = function (clientX, clientY, dir) {
+      window.y2kPulse = function (clientX, clientY) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
-        const sign = dir < 0 ? -1 : 1;
-        for (let i = -2; i <= 2; i++) {
-          splatStack.push({
-            x: x + i * 0.012 * sign,
-            y: y - i * 0.005,
-            dx: 0.55 * sign,
-            dy: -0.18,
-            color: i === 0 ? [0.95, 0.18, 0.32] : [0.45, 0.1, 0.8],
-            radius: 0.26
-          });
-        }
+        splatStack.push({
+          x: x,
+          y: y,
+          dx: (Math.random() - 0.5) * 0.25,
+          dy: (Math.random() - 0.5) * 0.25,
+          color: [0.42, 0.08, 0.72],
+          radius: 1
+        });
       };
 
       window.y2kDismiss = function (clientX, clientY) {
@@ -1173,7 +1170,7 @@ loadSongSuggestions();
             y: y + Math.sin(a) * 0.018,
             dx: -Math.cos(a) * 0.55,
             dy: -Math.sin(a) * 0.55,
-            color: [0.32, 0.08, 0.5],
+            color: [0.32, 0.06, 0.55],
             radius: 0.36
           });
         }
@@ -1189,7 +1186,7 @@ loadSongSuggestions();
             y: y,
             dx: Math.cos(a) * 0.38,
             dy: Math.sin(a) * 0.38,
-            color: i % 2 ? [0.95, 0.16, 0.3] : [0.48, 0.1, 0.9],
+            color: [0.48, 0.1, 0.82],
             radius: 1.35
           });
         }
@@ -1620,9 +1617,9 @@ function ghostAction(type) {
     if (rallyCuts) clearInterval(rallyCuts);
     let swings = 0;
     const swing = () => {
-      if (typeof window.y2kCut !== 'function') return;
+      if (typeof window.y2kPulse !== 'function') return;
       const c = ghostCenter();
-      window.y2kCut(c.x, c.y, swings % 2 ? -1 : 1);
+      window.y2kPulse(c.x, c.y);
     };
     swing();
     rallyCuts = setInterval(() => {
