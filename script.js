@@ -660,20 +660,20 @@ loadSongSuggestions();
       ? {
           SIM_RESOLUTION: 128,
           DYE_RESOLUTION: 384,
-          DENSITY_DISSIPATION: 0.985,
-          VELOCITY_DISSIPATION: 0.99,
-          PRESSURE_ITERATIONS: 16,
-          CURL: 28,
-          SPLAT_RADIUS: 0.25
+          DENSITY_DISSIPATION: 0.97,
+          VELOCITY_DISSIPATION: 0.98,
+          PRESSURE_ITERATIONS: 12,
+          CURL: 30,
+          SPLAT_RADIUS: 0.4
         }
       : {
           SIM_RESOLUTION: 224,
           DYE_RESOLUTION: 900,
-          DENSITY_DISSIPATION: 0.988,
-          VELOCITY_DISSIPATION: 0.992,
-          PRESSURE_ITERATIONS: 28,
-          CURL: 32,
-          SPLAT_RADIUS: 0.22
+          DENSITY_DISSIPATION: 0.97,
+          VELOCITY_DISSIPATION: 0.98,
+          PRESSURE_ITERATIONS: 20,
+          CURL: 30,
+          SPLAT_RADIUS: 0.45
         };
 
     function resolutionPair(base) {
@@ -1117,7 +1117,7 @@ loadSongSuggestions();
       gl.uniform1f(U.splat.aspect, canvas.width / canvas.height);
       gl.uniform2f(U.splat.point, x, y);
       gl.uniform3f(U.splat.color, color[0], color[1], color[2]);
-      gl.uniform1f(U.splat.radius, radius);
+      gl.uniform1f(U.splat.radius, radius * 2.6);
       blit(dye.write);
       dye.swap();
     }
