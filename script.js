@@ -1791,17 +1791,7 @@ let huntTick = null;
 let huntFrame = null;
 const huntReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function paintHunt(ms) {
-  const badge = document.getElementById('huntTimer');
-  const num = document.getElementById('huntTime');
-  if (!badge || !num) return;
-  if (ms <= 0) {
-    badge.hidden = true;
-    return;
-  }
-  badge.hidden = false;
-  num.textContent = String(Math.ceil(ms / 1000));
-}
+function paintHunt() {}
 
 function beginHunt() {
   huntEnds = Date.now() + 10000;
