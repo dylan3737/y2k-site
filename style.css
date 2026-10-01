@@ -315,47 +315,6 @@
       border-color: #1d6d80;
     }
 
-    .dock {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      pointer-events: none;
-    }
-
-    .webring {
-      pointer-events: auto;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.62rem;
-    }
-
-    .webring-label {
-      color: var(--accent-pink);
-      letter-spacing: 1px;
-    }
-
-    .webring a,
-    .webring button {
-      background: #160e22;
-      color: var(--accent-yellow);
-      border: 2px outset #c9b6ff;
-      padding: 4px 8px;
-      font: inherit;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .webring a:hover,
-    .webring button:hover {
-      background: #2a1840;
-      color: #fff;
-    }
-
     /* Myspace Retro Dropdown Music Player Widget */
     .music-widget-wrapper {
       position: absolute;
@@ -1172,8 +1131,7 @@
     font-size: 0.78rem;
   }
 
-  .nineties-bar,
-  .webring {
+  .nineties-bar {
     max-width: calc(100vw - 16px);
   }
 

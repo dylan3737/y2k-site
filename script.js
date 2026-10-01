@@ -226,19 +226,18 @@
 
     const hitEl = document.getElementById('hitCount');
     if (hitEl) {
-      const key = 'y2k-local-hits';
-      let hits = 0;
-      try { hits = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (err) { hits = 0; }
-      let seen = false;
-      try { seen = sessionStorage.getItem('y2k-hit-seen') === '1'; } catch (err) { seen = false; }
-      if (!seen) {
-        hits += 1;
-        try {
-          localStorage.setItem(key, String(hits));
-          sessionStorage.setItem('y2k-hit-seen', '1');
-        } catch (err) {}
-      }
-      hitEl.textContent = String(hits).padStart(6, '0');
+      const key = 'y2k-clicks';
+      let clicks = 0;
+      try { clicks = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (err) { clicks = 0; }
+      const paintClicks = () => {
+        hitEl.textContent = String(clicks).padStart(6, '0');
+      };
+      paintClicks();
+      document.addEventListener('click', () => {
+        clicks += 1;
+        paintClicks();
+        try { localStorage.setItem(key, String(clicks)); } catch (err) {}
+      });
     }
 
     // Click bullseye
