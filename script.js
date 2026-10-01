@@ -659,7 +659,7 @@ loadSongSuggestions();
     const config = isLowPower
       ? {
           SIM_RESOLUTION: 96,
-          DYE_RESOLUTION: 320,
+          DYE_RESOLUTION: 256,
           DENSITY_DISSIPATION: 0.96,
           VELOCITY_DISSIPATION: 0.98,
           PRESSURE_ITERATIONS: 12,
@@ -667,8 +667,8 @@ loadSongSuggestions();
           SPLAT_RADIUS: 0.25
         }
       : {
-          SIM_RESOLUTION: 160,
-          DYE_RESOLUTION: 640,
+          SIM_RESOLUTION: 128,
+          DYE_RESOLUTION: 512,
           DENSITY_DISSIPATION: 0.96,
           VELOCITY_DISSIPATION: 0.98,
           PRESSURE_ITERATIONS: 20,
@@ -1113,12 +1113,9 @@ loadSongSuggestions();
     }
 
     function resizeCanvas() {
-      const dpr = Math.min(window.devicePixelRatio || 1, isLowPower ? 1.25 : 1.75);
-      const w = Math.round(window.innerWidth * dpr);
-      const h = Math.round(window.innerHeight * dpr);
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
       }
     }
 
@@ -1134,19 +1131,7 @@ loadSongSuggestions();
       const dy = (y - pointer.y) * 10.0;
 
       if (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001) {
-        const dist = Math.hypot(x - pointer.x, y - pointer.y);
-        const steps = Math.min(6, Math.max(1, Math.ceil(dist / 0.01)));
-        const color = generateColor();
-        for (let i = 1; i <= steps; i++) {
-          const t = i / steps;
-          splatStack.push({
-            x: pointer.x + (x - pointer.x) * t,
-            y: pointer.y + (y - pointer.y) * t,
-            dx: dx / steps,
-            dy: dy / steps,
-            color: color
-          });
-        }
+        splatStack.push({ x, y, dx, dy, color: generateColor() });
       }
 
       pointer.x = x;
