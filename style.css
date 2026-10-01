@@ -147,42 +147,33 @@
       pointer-events: none;
       z-index: 4;
     }
-    .bullseye-ring {
+    .bullseye-face {
       position: absolute;
       left: 0;
       top: 0;
-      width: 14px;
-      height: 14px;
-      margin-left: -7px;
-      margin-top: -7px;
+      width: 64px;
+      height: 64px;
+      margin-left: -32px;
+      margin-top: -32px;
       border-radius: 50%;
-      border: 3px solid var(--ring-color, #e10600);
-      box-shadow: 0 0 6px rgba(225, 6, 0, 0.45);
-      opacity: 0.95;
-      animation: bullseyeExpand 0.7s ease-out forwards;
-      animation-delay: var(--ring-delay, 0s);
+      background:
+        radial-gradient(circle,
+          #f2c14e 0 11%,
+          #111 11% 13%,
+          #d40000 13% 28%,
+          #f7f7f7 28% 43%,
+          #d40000 43% 58%,
+          #f7f7f7 58% 74%,
+          #111 74% 76%,
+          #f7f7f7 76% 100%);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      animation: bullseyeStamp 0.62s ease-out forwards;
     }
-    .bullseye-dot {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 6px;
-      height: 6px;
-      margin-left: -3px;
-      margin-top: -3px;
-      border-radius: 50%;
-      background: #e10600;
-      box-shadow: 0 0 0 2px #f4f4f4, 0 0 8px #e10600;
-      animation: bullseyeDot 0.45s ease-out forwards;
-    }
-    @keyframes bullseyeExpand {
-      0% { transform: scale(0.4); opacity: 0.95; }
-      70% { opacity: 0.55; }
-      100% { transform: scale(var(--ring-scale, 4.2)); opacity: 0; }
-    }
-    @keyframes bullseyeDot {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(0.2); opacity: 0; }
+    @keyframes bullseyeStamp {
+      0% { transform: scale(0.2); opacity: 0; }
+      16% { transform: scale(1.06); opacity: 1; }
+      28% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
     }
 
     /* Sparkle Particle Styling */

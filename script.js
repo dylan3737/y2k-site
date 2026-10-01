@@ -313,20 +313,9 @@
       wrap.style.left = clientX + 'px';
       wrap.style.top = clientY + 'px';
 
-      const colors = ['#e10600', '#f4f4f4', '#e10600'];
-      const scales = [2.6, 4.0, 5.6];
-      const delays = ['0ms', '70ms', '140ms'];
-      scales.forEach((scale, i) => {
-        const ring = document.createElement('span');
-        ring.className = 'bullseye-ring';
-        ring.style.setProperty('--ring-scale', String(scale));
-        ring.style.setProperty('--ring-delay', delays[i]);
-        ring.style.setProperty('--ring-color', colors[i % colors.length]);
-        wrap.appendChild(ring);
-      });
-      const dot = document.createElement('span');
-      dot.className = 'bullseye-dot';
-      wrap.appendChild(dot);
+      const face = document.createElement('span');
+      face.className = 'bullseye-face';
+      wrap.appendChild(face);
       document.body.appendChild(wrap);
       setTimeout(() => wrap.remove(), 850);
     }
