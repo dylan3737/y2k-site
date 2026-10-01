@@ -978,25 +978,39 @@
   animation: castRing 0.7s ease-out forwards;
 }
 
-.blade-arc,
+.slash {
+  position: fixed;
+  z-index: 6;
+  pointer-events: none;
+  width: 168px;
+  height: 10px;
+  margin-left: -24px;
+  margin-top: -5px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, transparent 0%, #fff 18%, #e7d9ff 42%, #9a2448 78%, transparent 100%);
+  box-shadow: 0 0 14px #c9b6ff, 0 0 4px #fff;
+  transform-origin: 12% 50%;
+  animation: slashCut 0.36s ease-out forwards;
+}
+
+@keyframes slashCut {
+  0% { transform: rotate(var(--rot, -30deg)) scaleX(0.15); opacity: 1; }
+  55% { opacity: 1; }
+  100% { transform: rotate(calc(var(--rot, -30deg) + 80deg)) scaleX(1.15); opacity: 0; }
+}
+
+.reaping { animation: reapSwing 0.42s ease-in-out 2 !important; }
+
+@keyframes reapSwing {
+  0% { transform: rotate(0deg) translateX(0); }
+  40% { transform: rotate(-16deg) translateX(-6px); }
+  100% { transform: rotate(24deg) translateX(16px); }
+}
+
 .soul-pop {
   position: fixed;
-  pointer-events: none;
   z-index: 6;
-}
-
-.blade-arc {
-  width: 56px;
-  height: 56px;
-  margin-left: -28px;
-  margin-top: -28px;
-  border-radius: 50%;
-  border-top: 3px solid #e7d9ff;
-  border-right: 3px solid transparent;
-  animation: bladeSweep 0.42s ease-out forwards;
-}
-
-.soul-pop {
+  pointer-events: none;
   font-family: 'Silkscreen', monospace;
   font-size: 11px;
   color: #e7d9ff;
@@ -1006,11 +1020,6 @@
 
 .soul-pop.is-gain { color: #d7b4ff; }
 .soul-pop.is-need { color: #c45a78; }
-
-@keyframes bladeSweep {
-  from { transform: rotate(-50deg) scale(0.35); opacity: 1; }
-  to { transform: rotate(150deg) scale(1.25); opacity: 0; }
-}
 
 @keyframes soulRise {
   to { transform: translateY(-32px); opacity: 0; }

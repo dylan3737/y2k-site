@@ -1618,7 +1618,6 @@ function floatSoul(text, kind) {
   setTimeout(() => pop.remove(), 800);
 }
 
-let reapCuts = null;
 let chain = 0;
 let lastCast = 0;
 let pactUntil = 0;
@@ -1644,14 +1643,14 @@ function ghostAction(type) {
   const ghost = document.getElementById('ghost-character');
   const pactBtn = document.querySelector('[data-ghost-action="mana"]');
 
-  ghost.classList.remove('dancing', 'mana-glow', 'casting');
+  ghost.classList.remove('dancing', 'reaping', 'mana-glow', 'casting');
 
   if (type === 'hex') {
     if (!spendSoul(25, speech)) return;
-    speech.textContent = chain > 1 ? 'Hexed. Chain ' + chain + '.' : 'Hexed.';
+    speech.textContent = 'Hexed.';
     ghost.classList.add('casting');
-    spawnBlade();
-    spawnCastRing();
+    spawnSlash(-55);
+    spawnSlash(15);
     burstHere();
     setTimeout(() => ghost.classList.remove('casting'), 700);
 
@@ -1673,33 +1672,21 @@ function ghostAction(type) {
 
   } else if (type === 'summon') {
     if (!spendSoul(30, speech)) return;
-    speech.textContent = chain > 1 ? 'Ten seconds. Chain ' + chain + '.' : 'Ten seconds. Catch them.';
+    speech.textContent = 'Ten seconds. Catch them.';
     spawnFamiliars();
     spawnCatchGhosts();
     burstHere();
 
   } else if (type === 'reap') {
     if (!spendSoul(15, speech)) return;
-    speech.textContent = chain > 1 ? 'Reaped. Chain ' + chain + '.' : 'Reaped.';
-    ghost.classList.add('dancing');
-    if (reapCuts) clearInterval(reapCuts);
-    let swings = 0;
-    const swing = () => {
-      if (typeof window.y2kPulse !== 'function') return;
-      const c = ghostCenter();
-      window.y2kPulse(c.x, c.y);
-    };
-    swing();
-    reapCuts = setInterval(() => {
-      swings += 1;
-      if (swings >= 4) {
-        clearInterval(reapCuts);
-        reapCuts = null;
-        return;
-      }
-      swing();
-    }, 550);
-    setTimeout(() => ghost.classList.remove('dancing'), 2800);
+    speech.textContent = 'Reaped.';
+    ghost.classList.remove('dancing');
+    ghost.classList.add('reaping');
+    spawnSlash(-70);
+    spawnSlash(-20);
+    spawnSlash(30);
+    burstHere();
+    setTimeout(() => ghost.classList.remove('reaping'), 900);
 
   } else if (type === 'vanish') {
     if (!spendSoul(20, speech)) return;
@@ -1726,14 +1713,15 @@ function burstHere() {
   window.y2kBurst(c.x, c.y);
 }
 
-function spawnBlade() {
+function spawnSlash(rot) {
   const c = ghostCenter();
-  const arc = document.createElement('div');
-  arc.className = 'blade-arc';
-  arc.style.left = c.x + 'px';
-  arc.style.top = c.y + 'px';
-  document.body.appendChild(arc);
-  setTimeout(() => arc.remove(), 450);
+  const cut = document.createElement('div');
+  cut.className = 'slash';
+  cut.style.left = c.x + 'px';
+  cut.style.top = c.y + 'px';
+  cut.style.setProperty('--rot', rot + 'deg');
+  document.body.appendChild(cut);
+  setTimeout(() => cut.remove(), 400);
 }
 
 function spawnCastRing() {
