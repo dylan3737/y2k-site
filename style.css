@@ -46,6 +46,7 @@
       .player-disc { animation: none; }
       .sparkle { animation: none; display: none; }
       .bullseye-ring { animation: none; display: none; }
+      .construct-stripes { animation: none; }
       * { transition-duration: 0.001ms !important; }
     }
 
@@ -264,6 +265,95 @@
       letter-spacing: 2px;
       margin-top: 8px;
       text-transform: uppercase;
+    }
+
+    .nineties-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 1px;
+    }
+
+    .construct-badge,
+    .hit-counter,
+    .mouse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      color: #ffe14a;
+      background: #140c08;
+      border: 2px outset #ffe14a;
+    }
+
+    .construct-stripes {
+      width: 14px;
+      height: 14px;
+      background: repeating-linear-gradient(45deg, #140c08 0 3px, #ffe14a 3px 6px);
+      border: 1px solid #ffe14a;
+      animation: constructBlink 1.1s steps(2, end) infinite;
+    }
+
+    @keyframes constructBlink {
+      50% { opacity: 0.2; }
+    }
+
+    .hit-counter {
+      color: #d7a6ff;
+      background: #120814;
+      border-color: #7a4aa8;
+      letter-spacing: 2px;
+    }
+
+    .mouse-badge {
+      color: #9aefff;
+      background: #07141c;
+      border-color: #1d6d80;
+    }
+
+    .dock {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .webring {
+      pointer-events: auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.62rem;
+    }
+
+    .webring-label {
+      color: var(--accent-pink);
+      letter-spacing: 1px;
+    }
+
+    .webring a,
+    .webring button {
+      background: #160e22;
+      color: var(--accent-yellow);
+      border: 2px outset #c9b6ff;
+      padding: 4px 8px;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .webring a:hover,
+    .webring button:hover {
+      background: #2a1840;
+      color: #fff;
     }
 
     /* Myspace Retro Dropdown Music Player Widget */
@@ -1080,6 +1170,11 @@
 
   nav.bottom-nav button.nav-link {
     font-size: 0.78rem;
+  }
+
+  .nineties-bar,
+  .webring {
+    max-width: calc(100vw - 16px);
   }
 
   .modal-container {

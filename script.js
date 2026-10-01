@@ -224,6 +224,23 @@
       }
     }
 
+    const hitEl = document.getElementById('hitCount');
+    if (hitEl) {
+      const key = 'y2k-local-hits';
+      let hits = 0;
+      try { hits = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (err) { hits = 0; }
+      let seen = false;
+      try { seen = sessionStorage.getItem('y2k-hit-seen') === '1'; } catch (err) { seen = false; }
+      if (!seen) {
+        hits += 1;
+        try {
+          localStorage.setItem(key, String(hits));
+          sessionStorage.setItem('y2k-hit-seen', '1');
+        } catch (err) {}
+      }
+      hitEl.textContent = String(hits).padStart(6, '0');
+    }
+
     // Click bullseye
     const prefersReducedMotionClick = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     function spawnBullseye(clientX, clientY) {
