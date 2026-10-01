@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dylan Dyal ★ Personal Webspace</title>
-  <meta name="description" content="Dylan Dyal's personal webspace — a Y2K-inspired corner of the internet with creative-coding projects, a blog, and a guestbook." />
+  <meta name="description" content="Dylan Dyal's personal webspace — a Y2K-inspired corner of the internet with creative-coding projects and a guestbook." />
   <meta property="og:title" content="Dylan Dyal ★ Personal Webspace" />
-  <meta property="og:description" content="A Y2K-inspired personal site: WebGL fluid art, creative-coding projects, a blog, and a guestbook." />
+  <meta property="og:description" content="A Y2K-inspired personal site: WebGL fluid art, creative-coding projects, and a guestbook." />
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#0c0e18" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
@@ -95,7 +95,6 @@
 
     <nav class="bottom-nav" aria-label="Site sections">
       <button class="nav-link" data-target="portfolio">Portfolio</button>
-      <button class="nav-link" data-target="blog">Blog</button>
       <button class="nav-link" data-target="setup">Setup</button>
       <button class="nav-link" data-target="guestbook">Guestbook</button>
       <button class="nav-link" data-target="contact">Contact</button>
@@ -151,61 +150,36 @@
         </div>
       </div>
 
-      <!-- Blog Feed Section -->
-      <div class="modal-section" id="blog">
-        <h2 class="modal-title" id="blog-heading">[ FEED ]</h2>
-
-        <div class="tumblr-post">
-          <p>Spent the weekend rewriting the fluid sim's pressure solver. Dropped it from 20 Jacobi iterations to something that adapts based on how powerful your device is — same look, way less battery drain on phones.</p>
-          <span class="tumblr-tag">#webgl</span>
-          <span class="tumblr-tag">#shaders</span>
-          <span class="tumblr-tag">#performance</span>
-          <div>
-            <button class="like-btn" data-post="pressure-solver" aria-pressed="false">♥ <span class="like-count" data-base="42">42</span> notes</button>
-          </div>
-        </div>
-
-        <div class="tumblr-post">
-          <p>Remember when customizing your HTML profile music was peak web design expression? Bringing that energy back — minus the autoplaying MIDI files nobody could turn off.</p>
-          <span class="tumblr-tag">#myspace</span>
-          <span class="tumblr-tag">#retro</span>
-          <div>
-            <button class="like-btn" data-post="profile-music" aria-pressed="false">♥ <span class="like-count" data-base="128">128</span> notes</button>
-          </div>
-        </div>
-
-        <div class="tumblr-post">
-          <p>Finally added a guestbook. It felt wrong to promise one in the ticker for this long and not actually build it. Sign it if you're passing through.</p>
-          <span class="tumblr-tag">#guestbook</span>
-          <span class="tumblr-tag">#update</span>
-          <div>
-            <button class="like-btn" data-post="guestbook-post" aria-pressed="false">♥ <span class="like-count" data-base="17">17</span> notes</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Setup & Tech Stack Section -->
       <div class="modal-section" id="setup">
         <h2 class="modal-title" id="setup-heading">[ TECH SETUP & GEAR ]</h2>
         <p style="font-size: 0.85rem; color: var(--muted-text); margin-bottom: 14px; line-height: 1.5;">
-          What this site and most of my side projects get built on:
+          What this page is built on:
         </p>
         <div class="setup-grid">
           <div class="setup-item">
-            <h4>PRIMARY RIG</h4>
-            <p>Custom PC / Apple M-Series Silicon</p>
+            <h4>HOST</h4>
+            <p>GitHub Pages</p>
           </div>
           <div class="setup-item">
-            <h4>EDITOR</h4>
-            <p>VS Code / Retro Cyber Theme</p>
+            <h4>PAGE</h4>
+            <p>HTML, CSS, and JavaScript</p>
           </div>
           <div class="setup-item">
-            <h4>GRAPHICS API</h4>
-            <p>WebGL / GLSL Shaders / Canvas2D</p>
+            <h4>GRAPHICS</h4>
+            <p>WebGL fluid</p>
           </div>
           <div class="setup-item">
-            <h4>PERIPHERALS</h4>
-            <p>Custom Mechanical Keyboard & Ultra-wide</p>
+            <h4>SOUND</h4>
+            <p>Web Audio, synths and rain</p>
+          </div>
+          <div class="setup-item">
+            <h4>NOTES</h4>
+            <p>Supabase guestbook and song book</p>
+          </div>
+          <div class="setup-item">
+            <h4>CODE</h4>
+            <p><a style="color: var(--accent-pink);" href="https://github.com/dylan3737">github.com/dylan3737</a></p>
           </div>
         </div>
       </div>
@@ -266,7 +240,7 @@
         <div class="card">
           <h3>Send a Message</h3>
           <p>Drop a note or collaborate on creative projects:</p>
-          <p style="margin-top: 10px;"><a style="color: var(--accent-pink);" href="mailto:contact@dylandyal.com">contact@dylandyal.com</a></p>
+          <p style="margin-top: 10px;"><a style="color: var(--accent-pink);" href="mailto:dylthesage@gmail.com">dylthesage@gmail.com</a></p>
         </div>
         <div class="card">
           <h3>Elsewhere</h3>
@@ -297,6 +271,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=22"></script>
+  <script src="script.js?v=23"></script>
 </body>
 </html>

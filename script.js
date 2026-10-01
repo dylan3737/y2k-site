@@ -368,55 +368,7 @@
       }
     });
 
-    // Tumblr Heart Like Handler — one like per browser, remembered locally.
-    const LIKE_KEY = 'y2k-likes';
-
-    function readLikes() {
-      try {
-        return JSON.parse(localStorage.getItem(LIKE_KEY)) || {};
-      } catch (err) {
-        return {};
-      }
-    }
-
-    function applyLikes() {
-      const likes = readLikes();
-      document.querySelectorAll('.like-btn').forEach((btn) => {
-        const countSpan = btn.querySelector('.like-count');
-        if (!countSpan) return;
-        const base = parseInt(countSpan.dataset.base, 10);
-        const on = !!likes[btn.dataset.post];
-        const start = Number.isNaN(base) ? 0 : base;
-        countSpan.textContent = String(start + (on ? 1 : 0));
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-        btn.style.fontWeight = on ? 'bold' : '';
-      });
-    }
-
-    function likePost(btn) {
-      const id = btn.dataset.post;
-      if (!id) return;
-      const likes = readLikes();
-      if (likes[id]) delete likes[id];
-      else likes[id] = true;
-      try {
-        localStorage.setItem(LIKE_KEY, JSON.stringify(likes));
-      } catch (err) {
-        // Private mode can reject storage; the toggle still applies this visit.
-      }
-      applyLikes();
-    }
-
-    applyLikes();
-
-    // Delegate like-button clicks from a single listener instead of wiring
-    // up an inline onclick (and a global function) per button.
-    document.addEventListener('click', (e) => {
-      const likeBtn = e.target.closest('.like-btn');
-      if (likeBtn) likePost(likeBtn);
-    });
-
-   // --- Guestbook & Song Suggestions (Supabase-backed, shared & public) ---
+    // --- Guestbook & Song Suggestions (Supabase-backed, shared & public) ---
    // 1. Create a free project at supabase.com
    // 2. Run the two SQL setup blocks (create tables, then enable RLS + public policies)
    // 3. Paste your Project URL and anon public key below.
