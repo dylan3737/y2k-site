@@ -1580,6 +1580,9 @@ function syncMana() {
     bar.setAttribute('aria-valuenow', String(manaLevel));
     bar.classList.toggle('is-empty', manaLevel <= 0);
   }
+  document.querySelectorAll('[data-cost]').forEach((btn) => {
+    btn.classList.toggle('is-locked', manaLevel < Number(btn.dataset.cost));
+  });
 }
 
 function ghostCenter() {
@@ -1588,47 +1591,79 @@ function ghostCenter() {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height * 0.45 };
 }
 
+function floatSoul(text, kind) {
+  const c = ghostCenter();
+  const pop = document.createElement('div');
+  pop.className = 'soul-pop' + (kind ? ' ' + kind : '');
+  pop.textContent = text;
+  pop.style.left = (c.x - 18) + 'px';
+  pop.style.top = (c.y - 16) + 'px';
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 800);
+}
+
 let rallyCuts = null;
+let chain = 0;
+let lastCast = 0;
+let pactUntil = 0;
+
+function spendSoul(cost, speech) {
+  if (manaLevel < cost) {
+    speech.textContent = 'Empty. Seal a pact.';
+    floatSoul('EMPTY', 'is-need');
+    return false;
+  }
+  const now = Date.now();
+  chain = now - lastCast < 2200 ? chain + 1 : 1;
+  lastCast = now;
+  manaLevel -= cost;
+  if (chain >= 2) manaLevel = Math.min(100, manaLevel + 5);
+  syncMana();
+  floatSoul(chain >= 2 ? '-' + cost + ' x' + chain : '-' + cost);
+  return true;
+}
 
 function ghostAction(type) {
   const speech = document.getElementById('ghost-speech');
   const ghost = document.getElementById('ghost-character');
+  const pactBtn = document.querySelector('[data-ghost-action="mana"]');
 
   ghost.classList.remove('dancing', 'mana-glow', 'casting');
 
   if (type === 'spell') {
-    if (manaLevel < 20) {
-      speech.textContent = 'The circle is empty. Make a pact.';
-      return;
-    }
-    manaLevel -= 20;
-    syncMana();
-    speech.textContent = '✦ Bound. Soul ' + manaLevel + '%';
+    if (!spendSoul(25, speech)) return;
+    speech.textContent = chain > 1 ? 'Bound. Chain ' + chain + '.' : 'Bound.';
     ghost.classList.add('casting');
+    spawnBlade();
     spawnCastRing();
-    spawnSparkles();
-    if (typeof window.y2kBurst === 'function') {
-      const c = ghostCenter();
-      window.y2kBurst(c.x, c.y);
-    }
+    burstHere();
     setTimeout(() => ghost.classList.remove('casting'), 700);
 
   } else if (type === 'mana') {
-    manaLevel = Math.min(100, manaLevel + 40);
+    if (Date.now() < pactUntil) {
+      speech.textContent = 'The pact is still warm.';
+      return;
+    }
+    pactUntil = Date.now() + 6000;
+    if (pactBtn) {
+      pactBtn.classList.add('is-cooling');
+      setTimeout(() => pactBtn.classList.remove('is-cooling'), 6000);
+    }
+    manaLevel = Math.min(100, manaLevel + 35);
     syncMana();
-    speech.textContent = '🕯️ Pact sealed. Soul ' + manaLevel + '%';
+    speech.textContent = 'Pact sealed. Soul ' + manaLevel + '.';
+    floatSoul('+35', 'is-gain');
     ghost.classList.add('mana-glow');
 
   } else if (type === 'summon') {
-    speech.textContent = '👻 They came when called.';
+    if (!spendSoul(30, speech)) return;
+    speech.textContent = chain > 1 ? 'They answer. Chain ' + chain + '.' : 'They answer.';
     spawnFamiliars();
-    if (typeof window.y2kBurst === 'function') {
-      const c = ghostCenter();
-      window.y2kBurst(c.x, c.y);
-    }
+    burstHere();
 
   } else if (type === 'dance') {
-    speech.textContent = '🌀 The court answers.';
+    if (!spendSoul(15, speech)) return;
+    speech.textContent = chain > 1 ? 'The court turns. x' + chain : 'The court turns.';
     ghost.classList.add('dancing');
     if (rallyCuts) clearInterval(rallyCuts);
     let swings = 0;
@@ -1650,8 +1685,8 @@ function ghostAction(type) {
     setTimeout(() => ghost.classList.remove('dancing'), 2800);
 
   } else if (type === 'vanish') {
-    speech.textContent = '💨 Sent back.';
-    spawnSparkles();
+    if (!spendSoul(20, speech)) return;
+    speech.textContent = 'Sent back.';
     if (typeof window.y2kDismiss === 'function') {
       const c = ghostCenter();
       window.y2kDismiss(c.x, c.y);
@@ -1661,14 +1696,27 @@ function ghostAction(type) {
     setTimeout(() => {
       ghost.classList.remove('is-gone');
       ghost.classList.add('is-back');
-      speech.textContent = '👻 I remain.';
-      if (typeof window.y2kBurst === 'function') {
-        const c = ghostCenter();
-        window.y2kBurst(c.x, c.y);
-      }
+      speech.textContent = 'I remain.';
+      burstHere();
       setTimeout(() => ghost.classList.remove('is-back'), 450);
     }, 1500);
   }
+}
+
+function burstHere() {
+  if (typeof window.y2kBurst !== 'function') return;
+  const c = ghostCenter();
+  window.y2kBurst(c.x, c.y);
+}
+
+function spawnBlade() {
+  const c = ghostCenter();
+  const arc = document.createElement('div');
+  arc.className = 'blade-arc';
+  arc.style.left = c.x + 'px';
+  arc.style.top = c.y + 'px';
+  document.body.appendChild(arc);
+  setTimeout(() => arc.remove(), 450);
 }
 
 function spawnCastRing() {
@@ -1687,10 +1735,9 @@ function spawnCastRing() {
 function spawnFamiliars() {
   const host = document.getElementById('ghost-character');
   host.querySelectorAll('.familiar').forEach((node) => node.remove());
-  ['👻', '🔮', '👁️'].forEach((emoji, i) => {
+  [0, 1, 2].forEach((i) => {
     const el = document.createElement('span');
     el.className = 'familiar';
-    el.textContent = emoji;
     el.style.animationDelay = (-i * 0.85) + 's';
     el.style.animationDuration = (2.2 + i * 0.35) + 's';
     host.appendChild(el);

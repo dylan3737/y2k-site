@@ -978,9 +978,47 @@
   margin-left: -9px;
   margin-top: -9px;
   border-radius: 50%;
-  border: 2px dashed #01cdfe;
-  box-shadow: 0 0 12px #ff71ce, inset 0 0 8px rgba(1, 205, 254, 0.8);
-  animation: castRing 0.85s ease-out forwards;
+  border: 2px solid #c9b6ff;
+  box-shadow: 0 0 10px #6a1a88;
+  animation: castRing 0.7s ease-out forwards;
+}
+
+.blade-arc,
+.soul-pop {
+  position: fixed;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.blade-arc {
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  border-radius: 50%;
+  border-top: 3px solid #e7d9ff;
+  border-right: 3px solid transparent;
+  animation: bladeSweep 0.42s ease-out forwards;
+}
+
+.soul-pop {
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  color: #e7d9ff;
+  text-shadow: 0 0 6px #6a1a88;
+  animation: soulRise 0.75s ease-out forwards;
+}
+
+.soul-pop.is-gain { color: #d7b4ff; }
+.soul-pop.is-need { color: #c45a78; }
+
+@keyframes bladeSweep {
+  from { transform: rotate(-50deg) scale(0.35); opacity: 1; }
+  to { transform: rotate(150deg) scale(1.25); opacity: 0; }
+}
+
+@keyframes soulRise {
+  to { transform: translateY(-32px); opacity: 0; }
 }
 
 .ghost-dust {
@@ -1011,7 +1049,12 @@
   position: absolute;
   left: 42%;
   top: 38%;
-  font-size: 15px;
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: #7a3ad4;
+  box-shadow: 0 0 8px #9a2448;
   pointer-events: none;
   animation: familiarOrbit 2.6s linear infinite;
 }
@@ -1057,6 +1100,19 @@
   font-size: 8px;
   cursor: pointer;
   border-radius: 0;
+}
+
+.ghost-actions button span {
+  display: block;
+  margin-top: 1px;
+  font-size: 6px;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.ghost-actions button.is-locked,
+.ghost-actions button.is-cooling {
+  opacity: 0.4;
 }
 
 .ghost-actions button:hover { background: #2a1840; color: #fff; }

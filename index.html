@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13"/>
+  <link rel="stylesheet" href="style.css?v=14"/>
   <script
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.1/dist/umd/supabase.js"
     integrity="sha384-qmLe2vls59SnfpN2OJ/tjAASSNP+R7nmj+MyytoaCmVRjJbVGsUaFkxJW4jGpaqh"
@@ -276,7 +276,7 @@
   </div>
   <!-- Cute ghost in a hooded robe -->
 <div id="ghost-pet-container" class="ghost-pet">
-  <div id="ghost-speech" class="ghost-bubble">✦ drag me. call them.</div>
+  <div id="ghost-speech" class="ghost-bubble">✦ drag me. spend soul.</div>
 
   <div id="ghost-character" class="ghost-body">
     <img class="ghost-svg" src="ghost.png?v=11" alt="" width="92" draggable="false">
@@ -287,14 +287,14 @@
   </div>
 
   <div class="ghost-actions">
-    <button data-ghost-action="spell">🔮 Bind</button>
-    <button data-ghost-action="mana">🕯️ Pact</button>
-    <button data-ghost-action="summon">👻 Summon</button>
-    <button data-ghost-action="dance">🌀 Rally</button>
-    <button data-ghost-action="vanish">💨 Banish</button>
+    <button data-ghost-action="spell" data-cost="25">Bind<span>25</span></button>
+    <button data-ghost-action="mana">Pact<span>+35</span></button>
+    <button data-ghost-action="summon" data-cost="30">Summon<span>30</span></button>
+    <button data-ghost-action="dance" data-cost="15">Rally<span>15</span></button>
+    <button data-ghost-action="vanish" data-cost="20">Banish<span>20</span></button>
   </div>
 </div>
 
-  <script src="script.js?v=16"></script>
+  <script src="script.js?v=17"></script>
 </body>
 </html>
