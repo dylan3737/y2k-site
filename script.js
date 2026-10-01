@@ -313,7 +313,7 @@
       wrap.style.left = clientX + 'px';
       wrap.style.top = clientY + 'px';
 
-      const colors = ['#ff71ce', '#01cdfe', '#05ffa1', '#fffb96'];
+      const colors = ['#e10600', '#f4f4f4', '#e10600'];
       const scales = [2.6, 4.0, 5.6];
       const delays = ['0ms', '70ms', '140ms'];
       scales.forEach((scale, i) => {

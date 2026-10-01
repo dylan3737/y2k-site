@@ -156,8 +156,8 @@
       margin-left: -7px;
       margin-top: -7px;
       border-radius: 50%;
-      border: 2px solid var(--ring-color, #01cdfe);
-      box-shadow: 0 0 10px var(--ring-color, #01cdfe);
+      border: 3px solid var(--ring-color, #e10600);
+      box-shadow: 0 0 6px rgba(225, 6, 0, 0.45);
       opacity: 0.95;
       animation: bullseyeExpand 0.7s ease-out forwards;
       animation-delay: var(--ring-delay, 0s);
@@ -171,8 +171,8 @@
       margin-left: -3px;
       margin-top: -3px;
       border-radius: 50%;
-      background: #fffb96;
-      box-shadow: 0 0 8px #ff71ce;
+      background: #e10600;
+      box-shadow: 0 0 0 2px #f4f4f4, 0 0 8px #e10600;
       animation: bullseyeDot 0.45s ease-out forwards;
     }
     @keyframes bullseyeExpand {
