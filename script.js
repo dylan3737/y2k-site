@@ -4,34 +4,40 @@
 // Playlist Track Config
     const playlistData = [
       { 
-        title: "Lo-Fi Chill", 
-        artist: "Web Audio Synth", 
+        title: "Lo-Fi Chill",
+        artist: "Desk Lamp",
         type: "synth",
         preset: "lofi"
       },
-      { 
-        title: "Synthwave Sunset", 
-        artist: "Web Audio Synth", 
+      {
+        title: "Synthwave Sunset",
+        artist: "Mall Soft",
         type: "synth",
         preset: "synthwave"
       },
-      { 
-        title: "Retro Groove", 
-        artist: "Web Audio Synth", 
+      {
+        title: "Retro Groove",
+        artist: "Cursor Funk",
         type: "synth",
         preset: "retrogroove"
       },
-      { 
-        title: "Night Drive", 
-        artist: "Web Audio Synth", 
+      {
+        title: "Night Drive",
+        artist: "After Exit",
         type: "synth",
         preset: "nightdrive"
       },
-      { 
-        title: "Pixel Rain", 
-        artist: "Web Audio Synth",
+      {
+        title: "Pixel Rain",
+        artist: "8-bit Weather",
         type: "synth",
         preset: "pixelrain"
+      },
+      {
+        title: "Last Bell",
+        artist: "The Court",
+        type: "synth",
+        preset: "reaper"
       }
     ];
 
@@ -100,10 +106,18 @@
           hasBass: true
         },
         pixelrain: {
-          notes: [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 880.00, 783.99], // Fast ascending chiptune
+          notes: [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 880.00, 783.99],
           oscType: 'square',
           speed: 150,
           hasBass: false
+        },
+        reaper: {
+          notes: [146.83, 174.61, 155.56, 130.81],
+          oscType: 'triangle',
+          speed: 1100,
+          hasBass: true,
+          drone: true,
+          bell: true
         }
       };
 
@@ -114,8 +128,13 @@
         const freq = config.notes[step % config.notes.length];
         playSynthNote(freq, config.oscType, config.speed / 500, 0.12);
         
-        if (config.hasBass && step % 2 === 0) {
+        if (config.drone) {
+          playSynthNote(freq / 2, 'sine', 2.4, 0.14);
+        } else if (config.hasBass && step % 2 === 0) {
           playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.18);
+        }
+        if (config.bell && step % 4 === 3) {
+          playSynthNote(987.77, 'sine', 1.6, 0.045);
         }
 
         step++;
@@ -497,6 +516,20 @@ const songStatus = document.getElementById('songStatus');
 const songSuggestionsEl = document.getElementById('songSuggestionsList');
 const songHoneypotInput = document.getElementById('songWebsite');
 
+function showLatestRequest(entries) {
+  const el = document.getElementById('songRequest');
+  if (!el) return;
+  if (!entries) {
+    el.textContent = 'Up next from the book: —';
+    return;
+  }
+  if (!entries || !entries.length) {
+    el.textContent = 'Up next from the book: nothing yet';
+    return;
+  }
+  el.textContent = 'Up next from the book: ' + entries[0].song;
+}
+
 function renderSongEntry(entry) {
   return `
     <div class="guestbook-entry">
@@ -509,6 +542,7 @@ function renderSongEntry(entry) {
 async function loadSongSuggestions() {
   if (!supabaseClient) {
     renderEntryList(songSuggestionsEl, [], 'Song suggestions aren\'t connected yet — check back soon!', renderSongEntry);
+    showLatestRequest([]);
     return;
   }
   const { data, error } = await supabaseClient
@@ -520,9 +554,11 @@ async function loadSongSuggestions() {
   if (error) {
     console.error('Failed to load song suggestions:', error);
     renderEntryList(songSuggestionsEl, [], 'Couldn\'t load suggestions right now.', renderSongEntry);
+    showLatestRequest(null);
     return;
   }
   renderEntryList(songSuggestionsEl, data, 'No suggestions yet — be the first!', renderSongEntry);
+  showLatestRequest(data);
 }
 
 if (songForm) {
@@ -1126,7 +1162,7 @@ loadSongSuggestions();
             y: y + uy * i * 0.014,
             dx: dx,
             dy: dy,
-            color: i === 0 ? [0.95, 0.2, 0.34] : [0.4, 0.08, 0.7],
+            color: i === 0 ? [0.42, 0.08, 0.55] : [0.22, 0.04, 0.34],
             radius: 0.28
           });
         }

@@ -343,7 +343,7 @@
     /* Dropdown Playlist Menu */
     .playlist-dropdown {
       width: 100%;
-      min-width: 260px;
+      min-width: 300px;
       background: var(--nav-bg);
       border: 1px solid var(--accent-cyan);
       border-radius: 10px;
@@ -411,6 +411,16 @@
 
     .playlist-suggestion-link:hover {
       color: var(--accent-pink);
+    }
+
+    .song-request {
+      margin-top: 6px;
+      max-width: 300px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.58rem;
+      line-height: 1.45;
+      color: var(--muted-text);
+      text-align: right;
     }
 
     /* Navigation Bar */
