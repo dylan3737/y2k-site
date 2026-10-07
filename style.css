@@ -46,7 +46,6 @@
       .player-disc { animation: none; }
       .sparkle { animation: none; display: none; }
       .bullseye-ring { animation: none; display: none; }
-      .construct-stripes { animation: none; }
       * { transition-duration: 0.001ms !important; }
     }
 
@@ -270,7 +269,6 @@
       letter-spacing: 1px;
     }
 
-    .construct-badge,
     .hit-counter {
       display: inline-flex;
       align-items: center;
@@ -279,21 +277,6 @@
       color: #e7d9ff;
       background: #160e22;
       border: 2px outset #c9b6ff;
-    }
-
-    .construct-stripes {
-      width: 14px;
-      height: 14px;
-      background: repeating-linear-gradient(45deg, #160e22 0 3px, #c9b6ff 3px 6px);
-      border: 1px solid #c9b6ff;
-      animation: constructBlink 1.1s steps(2, end) infinite;
-    }
-
-    @keyframes constructBlink {
-      50% { opacity: 0.2; }
-    }
-
-    .hit-counter {
       letter-spacing: 2px;
     }
 
