@@ -1637,11 +1637,13 @@ function ghostAction(type) {
 
   if (type === 'hex') {
     if (!spendSoul(25, speech)) return;
-    speech.textContent = document.querySelector('.prey-ghost:not(.is-caught)') ? 'They crawl.' : 'Hexed.';
+    const loose = document.querySelectorAll('.prey-ghost:not(.is-caught)');
+    speech.textContent = loose.length ? 'They crawl.' : 'Hexed.';
     ghost.classList.add('mana-glow');
-    if (huntEnds > Date.now()) {
+    if (loose.length && huntEnds > Date.now()) {
       hexed = true;
-      document.querySelectorAll('.prey-ghost:not(.is-caught)').forEach((el) => el.classList.add('is-hexed'));
+      loose.forEach((el) => el.classList.add('is-hexed'));
+      popScore();
     }
     spawnHexMark();
     if (typeof window.y2kPulse === 'function') {
@@ -1753,6 +1755,23 @@ function paintScore() {
   if (bestEl) bestEl.textContent = String(best).padStart(2, '0');
 }
 paintScore();
+
+function popScore() {
+  const badge = document.querySelector('.hit-counter');
+  if (!badge) return;
+  badge.classList.remove('is-secret');
+  badge.classList.remove('is-pop');
+  void badge.offsetWidth;
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) badge.classList.add('is-pop');
+  try { localStorage.setItem('y2k-score-seen', '1'); } catch (err) {}
+}
+
+try {
+  if (localStorage.getItem('y2k-score-seen') === '1') {
+    const badge = document.querySelector('.hit-counter');
+    if (badge) badge.classList.remove('is-secret');
+  }
+} catch (err) {}
 
 function addScore(n) {
   score += n;

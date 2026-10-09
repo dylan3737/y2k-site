@@ -280,6 +280,20 @@
       letter-spacing: 2px;
     }
 
+    .hit-counter.is-secret {
+      display: none;
+    }
+
+    .hit-counter.is-pop {
+      animation: scorePop 0.45s ease-out;
+    }
+
+    @keyframes scorePop {
+      0% { transform: scale(0.35); }
+      55% { transform: scale(1.16); }
+      100% { transform: scale(1); }
+    }
+
     /* Myspace Retro Dropdown Music Player Widget */
     .music-widget-wrapper {
       position: absolute;
