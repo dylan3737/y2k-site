@@ -4,46 +4,46 @@
 // Playlist Track Config
     const playlistData = [
       { 
-        title: "Lo-Fi Chill",
-        artist: "Desk Lamp",
+        title: "Lamp",
+        artist: "Desk",
         freq: "88.1",
         type: "synth",
-        preset: "lofi"
+        preset: "lamp"
       },
       {
-        title: "Synthwave Sunset",
-        artist: "Mall Soft",
+        title: "Window",
+        artist: "Rain Glass",
         freq: "91.5",
         type: "synth",
-        preset: "synthwave"
+        preset: "window"
       },
       {
-        title: "Retro Groove",
-        artist: "Cursor Funk",
+        title: "Drift",
+        artist: "Low Tide",
         freq: "94.7",
         type: "synth",
-        preset: "retrogroove"
+        preset: "drift"
       },
       {
-        title: "Night Drive",
-        artist: "After Exit",
+        title: "Still",
+        artist: "Night Desk",
         freq: "98.3",
         type: "synth",
-        preset: "nightdrive"
+        preset: "still"
       },
       {
-        title: "Pixel Rain",
-        artist: "8-bit Weather",
+        title: "Ash",
+        artist: "Quiet Room",
         freq: "102.9",
         type: "synth",
-        preset: "pixelrain"
+        preset: "ash"
       },
       {
-        title: "Last Bell",
-        artist: "The Court",
+        title: "Bell",
+        artist: "Far Off",
         freq: "106.7",
         type: "synth",
-        preset: "reaper"
+        preset: "bell"
       }
     ];
 
@@ -78,7 +78,7 @@
       lowpass.frequency.value = 5000;
 
       const gain = audioCtx.createGain();
-      gain.gain.value = 0.11;
+      gain.gain.value = 0.055;
 
       src.connect(highpass);
       highpass.connect(lowpass);
@@ -140,56 +140,57 @@
     function startSynthLoop(preset) {
       stopSynthLoop();
       initAudioContext();
-      if (preset === 'pixelrain') {
+      if (preset === 'window') {
         startRain();
         return;
       }
 
-      // Distinct melody scale maps and speeds for each track
       const trackConfigs = {
-        lofi: {
-          notes: [261.63, 329.63, 392.00, 493.88, 440.00, 392.00, 329.63, 293.66],
+        lamp: {
+          notes: [261.63, 293.66, 329.63, 392.00, 349.23, 329.63],
           oscType: 'sine',
-          speed: 640,
-          hold: 0.95,
-          gain: 0.07,
+          speed: 1100,
+          hold: 1.8,
+          gain: 0.045,
           hasBass: true,
           fifth: true
         },
-        synthwave: {
-          notes: [220.00, 261.63, 329.63, 392.00, 440.00, 329.63, 293.66, 246.94],
-          oscType: 'sawtooth',
-          speed: 260,
-          hold: 0.18,
-          gain: 0.045,
-          pulse: true
-        },
-        retrogroove: {
-          notes: [196.00, 392.00, 246.94, 493.88, 220.00, 440.00, 164.81, 329.63],
-          oscType: 'square',
-          speed: 170,
-          hold: 0.07,
-          gain: 0.04
-        },
-        nightdrive: {
-          notes: [130.81, 164.81, 196.00, 164.81, 146.83, 174.61],
+        drift: {
+          notes: [196.00, 220.00, 246.94, 220.00, 174.61, 196.00],
           oscType: 'triangle',
-          speed: 760,
-          hold: 1.5,
-          gain: 0.06,
+          speed: 1400,
+          hold: 2.4,
+          gain: 0.038,
           pad: true
         },
-        reaper: {
-          notes: [146.83, 174.61, 155.56, 130.81],
+        still: {
+          notes: [174.61, 196.00, 220.00, 196.00, 164.81, 146.83],
+          oscType: 'sine',
+          speed: 1600,
+          hold: 2.8,
+          gain: 0.04,
+          pad: true,
+          fifth: true
+        },
+        ash: {
+          notes: [130.81, 146.83, 164.81, 146.83],
+          oscType: 'sine',
+          speed: 1800,
+          hold: 3.2,
+          gain: 0.036,
+          drone: true
+        },
+        bell: {
+          notes: [146.83, 174.61, 164.81, 130.81],
           oscType: 'triangle',
-          speed: 1100,
-          hasBass: true,
+          speed: 1700,
+          gain: 0.04,
           drone: true,
           bell: true
         }
       };
 
-      const config = trackConfigs[preset] || trackConfigs.lofi;
+      const config = trackConfigs[preset] || trackConfigs.lamp;
       let step = 0;
 
       synthInterval = setInterval(() => {
@@ -209,7 +210,7 @@
           playSynthNote(freq * 1.5, 'square', 0.045, 0.018);
         }
         if (config.drone) {
-          playSynthNote(freq / 2, 'sine', 2.4, 0.14);
+          playSynthNote(freq / 2, 'sine', 2.8, 0.055);
         } else if (config.hasBass && step % 2 === 0) {
           playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.08);
         }
@@ -323,6 +324,17 @@
       e.stopPropagation();
       seek(1);
     });
+
+    let tuneGlow = null;
+    window.y2kTune = function () {
+      initAudioContext();
+      if (!isPlaying) playTrack();
+      else seek(1);
+      musicWidgetWrapper.classList.add('is-tuned');
+      clearTimeout(tuneGlow);
+      tuneGlow = setTimeout(() => musicWidgetWrapper.classList.remove('is-tuned'), 2600);
+      return playlistData[currentTrackIndex].title;
+    };
 
     playlistToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1351,7 +1363,17 @@ document.addEventListener('DOMContentLoaded', () => {
     interactionPause = false;
     ghostBody.classList.remove('is-moving');
     clearIdle();
-    // Resume roaming from wherever the pet was dropped.
+    const radio = document.querySelector('.radio');
+    if (radio && typeof window.y2kTune === 'function') {
+      const pet = container.getBoundingClientRect();
+      const box = radio.getBoundingClientRect();
+      const hit = pet.left < box.right && pet.right > box.left && pet.top < box.bottom && pet.bottom > box.top;
+      if (hit) {
+        const title = window.y2kTune();
+        const speech = document.getElementById('ghost-speech');
+        if (speech && title) speech.textContent = 'Leave ' + title + ' on.';
+      }
+    }
     pickNewTarget();
   }
 
