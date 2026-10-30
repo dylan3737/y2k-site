@@ -83,7 +83,7 @@
       src.connect(highpass);
       highpass.connect(lowpass);
       lowpass.connect(gain);
-      gain.connect(audioCtx.destination);
+      gain.connect(audioOut());
       src.start();
 
       const drop = () => {
@@ -102,7 +102,7 @@
         dropGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05 + Math.random() * 0.14);
         burst.connect(band);
         band.connect(dropGain);
-        dropGain.connect(audioCtx.destination);
+        dropGain.connect(audioOut());
         burst.start(now);
         burst.stop(now + 0.22);
       };
@@ -120,6 +120,12 @@
     }
 
     let musicBus = null;
+    let masterGain = null;
+    let volumeLevel = 0.7;
+
+    function audioOut() {
+      return masterGain || audioCtx.destination;
+    }
 
     function midiHz(note) {
       return 440 * Math.pow(2, (note - 69) / 12);
@@ -127,6 +133,9 @@
 
     function ensureBus() {
       if (musicBus) return;
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = volumeLevel;
+      masterGain.connect(audioCtx.destination);
       const input = audioCtx.createGain();
       const tone = audioCtx.createBiquadFilter();
       tone.type = 'lowpass';
@@ -138,12 +147,12 @@
       const wet = audioCtx.createGain();
       wet.gain.value = 0.22;
       input.connect(tone);
-      tone.connect(audioCtx.destination);
+      tone.connect(masterGain);
       tone.connect(delay);
       delay.connect(feedback);
       feedback.connect(delay);
       delay.connect(wet);
-      wet.connect(audioCtx.destination);
+      wet.connect(masterGain);
       musicBus = input;
     }
 
@@ -309,7 +318,7 @@
       gain.gain.value = 0.035;
       src.connect(band);
       band.connect(gain);
-      gain.connect(audioCtx.destination);
+      gain.connect(audioOut());
       src.start();
     }
 
@@ -372,6 +381,14 @@
         else window.y2kPlayAt(index);
       });
     });
+
+    const volumeInput = document.getElementById('volume');
+    if (volumeInput) {
+      volumeInput.addEventListener('input', () => {
+        volumeLevel = Number(volumeInput.value) / 100;
+        if (masterGain) masterGain.gain.setValueAtTime(volumeLevel, audioCtx ? audioCtx.currentTime : 0);
+      });
+    }
 
     const lastUpdatedEl = document.getElementById('lastUpdated');
     if (lastUpdatedEl) {

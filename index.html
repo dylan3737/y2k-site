@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=33"/>
+  <link rel="stylesheet" href="style.css?v=34"/>
   
 </head>
 <body>
@@ -37,6 +37,10 @@
     <button type="button" class="song-mark" data-song="3" style="--a: 304deg">Still</button>
     <button type="button" class="song-mark" data-song="4" style="--a: 342deg">Ash</button>
     <button type="button" class="song-mark" data-song="5" style="--a: 22deg">Bell</button>
+    <label class="volume">
+      <span>VOL</span>
+      <input id="volume" type="range" min="0" max="100" value="70" aria-label="Volume">
+    </label>
   </div>
 
   <canvas id="canvas" aria-hidden="true"></canvas>
@@ -199,6 +203,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=39"></script>
+  <script src="script.js?v=40"></script>
 </body>
 </html>
