@@ -6,36 +6,42 @@
       { 
         title: "Lo-Fi Chill",
         artist: "Desk Lamp",
+        freq: "88.1",
         type: "synth",
         preset: "lofi"
       },
       {
         title: "Synthwave Sunset",
         artist: "Mall Soft",
+        freq: "91.5",
         type: "synth",
         preset: "synthwave"
       },
       {
         title: "Retro Groove",
         artist: "Cursor Funk",
+        freq: "94.7",
         type: "synth",
         preset: "retrogroove"
       },
       {
         title: "Night Drive",
         artist: "After Exit",
+        freq: "98.3",
         type: "synth",
         preset: "nightdrive"
       },
       {
         title: "Pixel Rain",
         artist: "8-bit Weather",
+        freq: "102.9",
         type: "synth",
         preset: "pixelrain"
       },
       {
         title: "Last Bell",
         artist: "The Court",
+        freq: "106.7",
         type: "synth",
         preset: "reaper"
       }
@@ -230,24 +236,52 @@
     // Audio DOM Elements
     const musicWidgetWrapper = document.getElementById('musicWidgetWrapper');
     const playBtn = document.getElementById('playBtn');
+    const seekBack = document.getElementById('seekBack');
+    const seekNext = document.getElementById('seekNext');
     const playlistToggleBtn = document.getElementById('playlistToggleBtn');
     const playlistDropdown = document.getElementById('playlistDropdown');
     const trackTitleEl = document.getElementById('currentTrackTitle');
     const trackArtistEl = document.getElementById('currentTrackArtist');
+    const radioFreq = document.getElementById('radioFreq');
+    const radioNeedle = document.getElementById('radioNeedle');
     const dropdownItems = document.querySelectorAll('.playlist-item');
 
-    function loadTrack(index) {
+    function tuneStatic() {
+      if (!audioCtx) return;
+      const length = Math.floor(audioCtx.sampleRate * 0.16);
+      const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      const band = audioCtx.createBiquadFilter();
+      band.type = 'bandpass';
+      band.frequency.value = 1600;
+      const gain = audioCtx.createGain();
+      gain.gain.value = 0.09;
+      src.connect(band);
+      band.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start();
+    }
+
+    function loadTrack(index, fromUser) {
       currentTrackIndex = index;
       const track = playlistData[index];
 
       trackTitleEl.innerText = track.title;
       trackArtistEl.innerText = track.artist;
+      if (radioFreq) radioFreq.textContent = track.freq;
+      if (radioNeedle) {
+        radioNeedle.style.left = ((index + 0.5) / playlistData.length * 100) + '%';
+      }
 
       dropdownItems.forEach((item, i) => {
         item.classList.toggle('active', i === index);
       });
 
       if (isPlaying) {
+        if (fromUser) tuneStatic();
         playTrack();
       }
     }
@@ -258,14 +292,14 @@
       startSynthLoop(track.preset);
       isPlaying = true;
       musicWidgetWrapper.classList.add('playing');
-      playBtn.innerText = '❚❚ PAUSE';
+      playBtn.innerText = 'OFF';
     }
 
     function pauseTrack() {
       stopSynthLoop();
       isPlaying = false;
       musicWidgetWrapper.classList.remove('playing');
-      playBtn.innerText = '▶ PLAY';
+      playBtn.innerText = 'ON';
     }
 
     playBtn.addEventListener('click', () => {
@@ -276,21 +310,41 @@
       }
     });
 
+    function seek(dir) {
+      const next = (currentTrackIndex + dir + playlistData.length) % playlistData.length;
+      loadTrack(next, true);
+    }
+
+    seekBack.addEventListener('click', (e) => {
+      e.stopPropagation();
+      seek(-1);
+    });
+    seekNext.addEventListener('click', (e) => {
+      e.stopPropagation();
+      seek(1);
+    });
+
     playlistToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      playlistDropdown.classList.toggle('open');
+      const open = playlistDropdown.classList.toggle('open');
+      playlistToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
     document.addEventListener('click', () => {
       playlistDropdown.classList.remove('open');
+      playlistToggleBtn.setAttribute('aria-expanded', 'false');
     });
 
     dropdownItems.forEach((item, index) => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         playlistDropdown.classList.remove('open');
-        loadTrack(index);
-        playTrack();
+        playlistToggleBtn.setAttribute('aria-expanded', 'false');
+        if (isPlaying) loadTrack(index, true);
+        else {
+          loadTrack(index, false);
+          playTrack();
+        }
       });
     });
 
@@ -362,8 +416,8 @@ function escapeHTML(str) {
 }
 
 const SUBMIT_COOLDOWN_MS = 45000;
-const lastSubmitAt = { guestbook: 0, song: 0 };
-const recentPayloads = { guestbook: '', song: '' };
+const lastSubmitAt = { song: 0 };
+const recentPayloads = { song: '' };
 
 function looksLikeSpam(text) {
   const value = (text || '').trim();
@@ -418,113 +472,6 @@ function renderEntryList(container, entries, emptyMessage, renderItem) {
 
   entries.forEach(entry => {
     container.insertAdjacentHTML('beforeend', renderItem(entry));
-  });
-}
-
-// --- Guestbook ---
-const guestbookForm = document.getElementById('guestbookForm');
-const guestNameInput = document.getElementById('guestName');
-const guestMessageInput = document.getElementById('guestMessage');
-const guestbookSubmitBtn = document.getElementById('guestbookSubmit');
-const guestbookStatus = document.getElementById('guestbookStatus');
-const guestbookEntriesEl = document.getElementById('guestbookEntries');
-const guestHoneypotInput = document.getElementById('guestWebsite');
-
-function renderGuestbookEntry(entry) {
-  return `
-    <div class="guestbook-entry">
-      <div class="guestbook-entry-name">${escapeHTML(entry.name)}</div>
-      <div class="guestbook-entry-message">${escapeHTML(entry.message)}</div>
-      <div class="guestbook-entry-time">${formatEntryTime(entry.created_at)}</div>
-    </div>`;
-}
-
-async function loadGuestbookEntries() {
-  if (!supabaseClient) {
-    renderEntryList(guestbookEntriesEl, [], 'Guestbook isn\'t connected yet — check back soon!', renderGuestbookEntry);
-    return;
-  }
-  const { data, error } = await supabaseClient
-    .from('guestbook_entries')
-    .select('name, message, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) {
-    console.error('Failed to load guestbook entries:', error);
-    renderEntryList(guestbookEntriesEl, [], 'Couldn\'t load entries right now.', renderGuestbookEntry);
-    return;
-  }
-  renderEntryList(guestbookEntriesEl, data, 'No public messages yet — be the first to sign!', renderGuestbookEntry);
-}
-
-if (guestbookForm) {
-  guestbookForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const name = guestNameInput.value.trim();
-    const message = guestMessageInput.value.trim();
-    if (!name || !message) return;
-
-    const spamReason = looksLikeSpam(name) || looksLikeSpam(message);
-    if (spamReason) {
-      guestbookStatus.textContent = spamReason;
-      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    const payloadKey = name.toLowerCase() + '\n' + message.toLowerCase();
-    const rateReason = canSubmit('guestbook', payloadKey);
-    if (rateReason) {
-      guestbookStatus.textContent = rateReason;
-      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    // Honeypot: a hidden field real visitors can't see or fill in. If it has
-    // a value, this is almost certainly a bot — pretend to succeed so it
-    // doesn't learn to look for a different signal, but skip the insert.
-    if (guestHoneypotInput && guestHoneypotInput.value.trim() !== '') {
-      guestNameInput.value = '';
-      guestMessageInput.value = '';
-      guestbookStatus.textContent = '★ Thank you for signing!';
-      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    if (!supabaseClient) {
-      guestbookStatus.textContent = 'Guestbook isn\'t connected yet.';
-      setTimeout(() => { guestbookStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    guestbookSubmitBtn.disabled = true;
-    guestbookStatus.textContent = 'Signing…';
-
-    try {
-      const { error } = await supabaseClient
-        .from('guestbook_entries')
-        .insert({ name, message });
-
-      if (error) throw error;
-
-      guestNameInput.value = '';
-      guestMessageInput.value = '';
-      markSubmitted('guestbook', payloadKey);
-      guestbookStatus.textContent = '★ Thank you for signing!';
-      loadGuestbookEntries();
-    } catch (err) {
-      console.error('Submission error:', err);
-      const msg = err && err.message;
-      guestbookStatus.textContent = msg && msg.indexOf('Too many notes') !== -1
-        ? 'Too many notes. Please wait a few minutes.'
-        : 'Failed to submit. Please try again.';
-    } finally {
-      guestbookSubmitBtn.disabled = false;
-      setTimeout(() => {
-        guestbookStatus.textContent = '';
-      }, 4000);
-    }
   });
 }
 
@@ -633,7 +580,6 @@ if (songForm) {
   });
 }
 
-loadGuestbookEntries();
 loadSongSuggestions();
     // WebGL Fluid Solver Initialization
     const canvas = document.getElementById('canvas');

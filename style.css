@@ -43,7 +43,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .ticker-text { animation: none; }
-      .player-disc { animation: none; }
+      .radio-needle { transition: none; }
       .sparkle { animation: none; display: none; }
       .bullseye-ring { animation: none; display: none; }
       * { transition-duration: 0.001ms !important; }
@@ -91,7 +91,7 @@
 
     /* Only decorative chrome blocks selection now — modal/card content stays selectable
        so visitors can actually copy an email address or a quote. */
-    .retro-ticker, nav.bottom-nav, .music-widget, .playlist-dropdown, .sparkle {
+    .retro-ticker, nav.bottom-nav, .radio, .playlist-dropdown, .sparkle {
       user-select: none;
       -webkit-user-select: none;
     }
@@ -294,7 +294,7 @@
       100% { transform: scale(1); }
     }
 
-    /* Myspace Retro Dropdown Music Player Widget */
+    /* Radio */
     .music-widget-wrapper {
       position: absolute;
       top: 40px;
@@ -306,32 +306,75 @@
       align-items: flex-end;
     }
 
-    .music-widget {
+    .radio {
+      width: 280px;
       background: #160e22;
       border: 2px outset #c9b6ff;
-      padding: 10px 14px;
-      border-radius: 0;
+      padding: 8px 12px 10px;
+    }
+
+    .radio-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.55rem;
+      letter-spacing: 1px;
+      color: #c9b6ff;
+    }
+
+    .radio-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3a2458;
+    }
+
+    .music-widget-wrapper.playing .radio-led {
+      background: #c45a78;
+      box-shadow: 0 0 8px #c45a78;
+    }
+
+    .radio-display {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      margin-top: 6px;
     }
 
-    .player-disc {
-      width: 32px;
-      height: 32px;
-      background: radial-gradient(circle, #2a1840 30%, #160e22 72%, #c9b6ff 100%);
-      border-radius: 50%;
-      border: 2px solid #c9b6ff;
-      animation: spin 3s linear infinite;
-      animation-play-state: paused;
+    .radio-freq {
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.95rem;
+      color: #e7d9ff;
+      letter-spacing: 1px;
+      min-width: 52px;
     }
 
-    .music-widget-wrapper.playing .player-disc {
-      animation-play-state: running;
+    .radio-dial {
+      position: relative;
+      height: 12px;
+      margin: 8px 2px 6px;
     }
 
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
+    .radio-dial-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 5px;
+      height: 2px;
+      background: linear-gradient(90deg, #3a2458, #c9b6ff 50%, #3a2458);
+    }
+
+    .radio-needle {
+      position: absolute;
+      top: 1px;
+      left: 8.3%;
+      width: 2px;
+      height: 10px;
+      margin-left: -1px;
+      background: #e7d9ff;
+      box-shadow: 0 0 6px #c9b6ff;
+      transition: left 0.22s ease;
     }
 
     .track-info {
@@ -348,7 +391,7 @@
       gap: 6px;
     }
 
-    .play-btn, .playlist-toggle-btn {
+    .play-btn, .playlist-toggle-btn, #seekBack, #seekNext {
       background: #160e22;
       border: 2px outset #c9b6ff;
       color: #e7d9ff;
@@ -359,7 +402,7 @@
       cursor: pointer;
     }
 
-    .play-btn:hover, .playlist-toggle-btn:hover {
+    .play-btn:hover, .playlist-toggle-btn:hover, #seekBack:hover, #seekNext:hover {
       background: #2a1840;
       color: #fff;
     }
@@ -419,15 +462,17 @@
 
     .playlist-suggestion-link {
       display: block;
+      width: 100%;
       margin-top: 4px;
       padding: 8px;
+      border: none;
       border-top: 1px dashed var(--nav-border);
-      color: var(--accent-cyan);
+      background: none;
+      color: #e7d9ff;
       font-family: 'Silkscreen', monospace;
       font-size: 0.65rem;
       text-align: center;
-      text-decoration: none;
-      transition: color 0.2s ease;
+      cursor: pointer;
     }
 
     .playlist-suggestion-link:hover {
@@ -1189,12 +1234,11 @@
     top: 32px;
     right: 8px;
     left: 8px;
+    align-items: stretch;
   }
 
-  .music-widget {
-    max-width: 100%;
-    gap: 8px;
-    padding: 8px 10px;
+  .radio {
+    width: auto;
   }
 
   .track-info {
