@@ -1258,6 +1258,23 @@ document.addEventListener('DOMContentLoaded', () => {
     return dist < zone.width * 0.5 + body.width * 0.45;
   }
 
+  function leaveRest() {
+    restLock = false;
+    interactionPause = false;
+    clearIdle();
+    const ring = document.getElementById('rest-circle');
+    const zone = ring ? ring.getBoundingClientRect() : null;
+    for (let i = 0; i < 8; i++) {
+      pickNewTarget();
+      if (!zone) break;
+      const dx = (target.x + container.offsetWidth / 2) - (zone.left + zone.width / 2);
+      const dy = (target.y + 48) - (zone.top + zone.height / 2);
+      if (Math.hypot(dx, dy) > 200) break;
+    }
+    const speech = document.getElementById('ghost-speech');
+    if (speech) speech.textContent = 'Rested.';
+  }
+
   function stopDrag() {
     if (!isDragging) return;
     isDragging = false;
@@ -1270,7 +1287,9 @@ document.addEventListener('DOMContentLoaded', () => {
       window.y2kPlayAt(Number(hit.dataset.song));
     }
     restLock = onRest() && manaLevel < 100;
-    if (!restLock) pickNewTarget();
+    if (restLock) return;
+    if (onRest()) leaveRest();
+    else pickNewTarget();
   }
 
   // Mouse Listeners
@@ -1441,25 +1460,20 @@ document.addEventListener('DOMContentLoaded', () => {
   syncMana();
   startRoaming();
 
-  let wasResting = false;
   setInterval(() => {
     const ring = document.getElementById('rest-circle');
     if (!ring) return;
     const resting = onRest();
+    const wasLocked = restLock;
     if (resting && !isDragging && manaLevel < 100) {
       manaLevel = Math.min(100, manaLevel + 6);
       syncMana();
     }
-    const full = manaLevel >= 100;
-    restLock = resting && !isDragging && !full;
+    restLock = resting && !isDragging && manaLevel < 100;
     ring.classList.toggle('is-resting', restLock);
     const speech = document.getElementById('ghost-speech');
-    if (resting && !wasResting && speech) speech.textContent = full ? 'Full.' : 'Rest.';
-    if (wasResting && full && !isDragging && speech && speech.textContent === 'Rest.') {
-      speech.textContent = 'Rested.';
-      pickNewTarget();
-    }
-    wasResting = resting && !full;
+    if (restLock && !wasLocked && speech) speech.textContent = 'Rest.';
+    if (wasLocked && !restLock && !isDragging) leaveRest();
   }, 450);
 });
 
