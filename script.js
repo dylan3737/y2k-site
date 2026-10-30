@@ -1269,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hit && dragMoved > 12 && typeof window.y2kPlayAt === 'function') {
       window.y2kPlayAt(Number(hit.dataset.song));
     }
-    restLock = onRest();
+    restLock = onRest() && manaLevel < 100;
     if (!restLock) pickNewTarget();
   }
 
@@ -1446,17 +1446,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const ring = document.getElementById('rest-circle');
     if (!ring) return;
     const resting = onRest();
-    restLock = resting && !isDragging;
-    ring.classList.toggle('is-resting', resting);
-    if (resting && manaLevel < 100) {
+    if (resting && !isDragging && manaLevel < 100) {
       manaLevel = Math.min(100, manaLevel + 6);
       syncMana();
     }
-    if (resting && !wasResting) {
-      const speech = document.getElementById('ghost-speech');
-      if (speech) speech.textContent = manaLevel >= 100 ? 'Full.' : 'Rest.';
+    const full = manaLevel >= 100;
+    restLock = resting && !isDragging && !full;
+    ring.classList.toggle('is-resting', restLock);
+    const speech = document.getElementById('ghost-speech');
+    if (resting && !wasResting && speech) speech.textContent = full ? 'Full.' : 'Rest.';
+    if (wasResting && full && !isDragging && speech && speech.textContent === 'Rest.') {
+      speech.textContent = 'Rested.';
+      pickNewTarget();
     }
-    wasResting = resting;
+    wasResting = resting && !full;
   }, 450);
 });
 
