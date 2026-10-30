@@ -1191,16 +1191,24 @@ document.addEventListener('DOMContentLoaded', () => {
     ghostBody.classList.add('is-moving');
   }
 
-  function songUnder(x, y) {
+  function songUnder() {
+    const body = ghostBody.getBoundingClientRect();
+    const cx = body.left + body.width / 2;
+    const cy = body.top + body.height / 2;
     const marks = document.querySelectorAll('.song-mark');
+    let best = null;
+    let bestDist = Infinity;
     for (let i = 0; i < marks.length; i++) {
       const rect = marks[i].getBoundingClientRect();
-      const pad = 28;
-      if (x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad) {
-        return marks[i];
+      if (!rect.width || !rect.height) continue;
+      const dist = Math.hypot(cx - (rect.left + rect.width / 2), cy - (rect.top + rect.height / 2));
+      const reach = body.width * 0.45 + rect.width * 0.65;
+      if (dist < reach && dist < bestDist) {
+        best = marks[i];
+        bestDist = dist;
       }
     }
-    return null;
+    return best;
   }
 
   function moveDrag(clientX, clientY) {
@@ -1212,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dragMoved += Math.hypot(pos.x - (container._lx || pos.x), pos.y - (container._ly || pos.y));
     container._lx = pos.x;
     container._ly = pos.y;
-    const hit = songUnder(pos.x + container.offsetWidth / 2, pos.y + 36);
+    const hit = songUnder();
     document.querySelectorAll('.song-mark').forEach((mark) => {
       mark.classList.toggle('is-near', mark === hit);
     });
@@ -1225,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     interactionPause = false;
     ghostBody.classList.remove('is-moving');
     clearIdle();
-    const hit = songUnder(pos.x + container.offsetWidth / 2, pos.y + 36);
+    const hit = songUnder();
     document.querySelectorAll('.song-mark').forEach((mark) => mark.classList.remove('is-near'));
     if (hit && dragMoved > 12 && typeof window.y2kPlayAt === 'function') {
       window.y2kPlayAt(Number(hit.dataset.song));
@@ -1270,12 +1278,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getBounds() {
     const rect = container.getBoundingClientRect();
-    const margin = 12;
+    const body = ghostBody.getBoundingClientRect();
+    const offX = body.left - rect.left;
+    const offY = body.top - rect.top;
     return {
-      minX: margin,
-      minY: margin,
-      maxX: window.innerWidth - rect.width - margin,
-      maxY: window.innerHeight - rect.height - margin
+      minX: 8 - offX,
+      minY: 8 - offY,
+      maxX: window.innerWidth - offX - body.width - 8,
+      maxY: window.innerHeight - offY - body.height - 8
     };
   }
 
