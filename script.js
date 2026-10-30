@@ -5,42 +5,42 @@
     const playlistData = [
       { 
         title: "Lamp",
-        artist: "Desk",
+        artist: "soft keys",
         freq: "88.1",
         type: "synth",
         preset: "lamp"
       },
       {
         title: "Window",
-        artist: "Rain Glass",
+        artist: "rain",
         freq: "91.5",
         type: "synth",
         preset: "window"
       },
       {
         title: "Drift",
-        artist: "Low Tide",
+        artist: "slow chords",
         freq: "94.7",
         type: "synth",
         preset: "drift"
       },
       {
         title: "Still",
-        artist: "Night Desk",
+        artist: "pad",
         freq: "98.3",
         type: "synth",
         preset: "still"
       },
       {
         title: "Ash",
-        artist: "Quiet Room",
+        artist: "drone",
         freq: "102.9",
         type: "synth",
         preset: "ash"
       },
       {
         title: "Bell",
-        artist: "Far Off",
+        artist: "far bell",
         freq: "106.7",
         type: "synth",
         preset: "bell"
@@ -119,107 +119,162 @@
       }
     }
 
-    function playSynthNote(freq, type = 'sine', duration = 1.2, gainValue = 0.15) {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
+    function midiHz(note) {
+      return 440 * Math.pow(2, (note - 69) / 12);
     }
+
+    function ensureBus() {
+      if (musicBus) return;
+      const input = audioCtx.createGain();
+      const tone = audioCtx.createBiquadFilter();
+      tone.type = 'lowpass';
+      tone.frequency.value = 2600;
+      const delay = audioCtx.createDelay(1);
+      delay.delayTime.value = 0.34;
+      const feedback = audioCtx.createGain();
+      feedback.gain.value = 0.26;
+      const wet = audioCtx.createGain();
+      wet.gain.value = 0.22;
+      input.connect(tone);
+      tone.connect(audioCtx.destination);
+      tone.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(wet);
+      wet.connect(audioCtx.destination);
+      musicBus = input;
+    }
+
+    function shaped(peak, dur, when) {
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.0001, when);
+      gain.gain.exponentialRampToValueAtTime(peak, when + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      return gain;
+    }
+
+    function voice(note, type, dur, peak, when) {
+      const osc = audioCtx.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(midiHz(note), when);
+      const gain = shaped(peak, dur, when);
+      osc.connect(gain);
+      gain.connect(musicBus);
+      osc.start(when);
+      osc.stop(when + dur + 0.05);
+    }
+
+    function hat(when, peak, dur) {
+      const src = audioCtx.createBufferSource();
+      src.buffer = makeNoiseBuffer();
+      const band = audioCtx.createBiquadFilter();
+      band.type = 'highpass';
+      band.frequency.value = 5000;
+      const gain = shaped(peak, dur, when);
+      src.connect(band);
+      band.connect(gain);
+      gain.connect(musicBus);
+      src.start(when);
+      src.stop(when + dur + 0.02);
+    }
+
+    function kick(when) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(130, when);
+      osc.frequency.exponentialRampToValueAtTime(44, when + 0.1);
+      const gain = shaped(0.14, 0.24, when);
+      osc.connect(gain);
+      gain.connect(musicBus);
+      osc.start(when);
+      osc.stop(when + 0.28);
+    }
+
+    const songs = {
+      lamp: {
+        bpm: 74,
+        drums: true,
+        hold: 8,
+        rain: false,
+        bell: false,
+        chords: [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65], [48, 52, 55, 59]],
+        melody: [72, null, 76, null, 79, 76, null, 74, null, 72, null, 69, null, null, 67, null, 76, null, null, 74, 72, null, 69, null, 67, null, 64, null, null, null, 60, null]
+      },
+      window: {
+        bpm: 60,
+        drums: false,
+        hold: 16,
+        rain: true,
+        bell: false,
+        chords: [[53, 57, 60, 65], [55, 58, 62, 65], [50, 53, 57, 62], [48, 55, 60, 64]],
+        melody: [72, null, null, null, null, null, 76, null, null, null, null, null, 74, null, null, null, null, null, 69, null, null, null, null, null, 67, null, null, null, null, null, null, null]
+      },
+      drift: {
+        bpm: 56,
+        drums: false,
+        hold: 16,
+        rain: false,
+        bell: false,
+        chords: [[52, 55, 59, 62], [50, 53, 57, 60], [48, 55, 59, 63], [47, 50, 54, 59]],
+        melody: [71, null, null, null, 74, null, null, null, null, null, 67, null, null, null, null, null, 69, null, null, null, null, null, 66, null, null, null, null, null, 62, null, null, null]
+      },
+      still: {
+        bpm: 50,
+        drums: false,
+        hold: 16,
+        rain: false,
+        bell: false,
+        chords: [[48, 55, 60, 64], [46, 53, 58, 62], [45, 52, 57, 60], [43, 50, 55, 60]],
+        melody: [72, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 67, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+      },
+      ash: {
+        bpm: 46,
+        drums: false,
+        hold: 32,
+        rain: false,
+        bell: false,
+        chords: [[45, 52, 57], [43, 50, 55], [41, 48, 53], [40, 47, 52]],
+        melody: [null, null, null, null, null, null, null, null, 64, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 60, null, null, null, null, null, null, null]
+      },
+      bell: {
+        bpm: 54,
+        drums: false,
+        hold: 16,
+        rain: false,
+        bell: true,
+        chords: [[49, 56, 61, 65], [47, 54, 59, 63], [45, 52, 57, 61], [44, 51, 56, 61]],
+        melody: [68, null, null, 73, null, null, null, null, 70, null, null, null, null, null, 65, null, null, null, 68, null, null, null, 63, null, null, null, null, null, null, null, null, null]
+      }
+    };
 
     function startSynthLoop(preset) {
       stopSynthLoop();
       initAudioContext();
-      if (preset === 'window') {
-        startRain();
-        return;
-      }
-
-      const trackConfigs = {
-        lamp: {
-          notes: [261.63, 293.66, 329.63, 392.00, 349.23, 329.63],
-          oscType: 'sine',
-          speed: 1100,
-          hold: 1.8,
-          gain: 0.045,
-          hasBass: true,
-          fifth: true
-        },
-        drift: {
-          notes: [196.00, 220.00, 246.94, 220.00, 174.61, 196.00],
-          oscType: 'triangle',
-          speed: 1400,
-          hold: 2.4,
-          gain: 0.038,
-          pad: true
-        },
-        still: {
-          notes: [174.61, 196.00, 220.00, 196.00, 164.81, 146.83],
-          oscType: 'sine',
-          speed: 1600,
-          hold: 2.8,
-          gain: 0.04,
-          pad: true,
-          fifth: true
-        },
-        ash: {
-          notes: [130.81, 146.83, 164.81, 146.83],
-          oscType: 'sine',
-          speed: 1800,
-          hold: 3.2,
-          gain: 0.036,
-          drone: true
-        },
-        bell: {
-          notes: [146.83, 174.61, 164.81, 130.81],
-          oscType: 'triangle',
-          speed: 1700,
-          gain: 0.04,
-          drone: true,
-          bell: true
-        }
-      };
-
-      const config = trackConfigs[preset] || trackConfigs.lamp;
+      ensureBus();
+      const song = songs[preset] || songs.lamp;
+      if (song.rain) startRain();
       let step = 0;
+      const ms = 30000 / song.bpm;
 
       synthInterval = setInterval(() => {
-        const freq = config.notes[step % config.notes.length];
-        playSynthNote(freq, config.oscType, config.hold || config.speed / 500, config.gain || 0.12);
-
-        if (config.fifth && step % 2 === 0) {
-          playSynthNote(freq * 1.5, 'sine', 0.8, 0.028);
+        const now = audioCtx.currentTime + 0.03;
+        const span = (song.hold * ms) / 1000;
+        if (step % song.hold === 0) {
+          const chord = song.chords[Math.floor(step / song.hold) % song.chords.length];
+          chord.forEach((note, i) => voice(note, 'sine', span * 0.98, 0.03 - i * 0.004, now));
+          voice(chord[0] - 12, 'sine', span * 0.9, 0.045, now);
+          if (song.bell) voice(chord[0] + 24, 'sine', 2.2, 0.028, now);
         }
-        if (config.pulse) {
-          playSynthNote(freq / 2, 'sawtooth', 0.1, 0.035);
+        if (song.drums) {
+          const beat = step % 16;
+          if (beat === 0 || beat === 8) kick(now);
+          if (beat === 4 || beat === 12) hat(now, 0.035, 0.14);
+          else if (beat % 2 === 0) hat(now, 0.012, 0.04);
         }
-        if (config.pad) {
-          playSynthNote(freq / 2, 'sine', 1.8, 0.045);
-        }
-        if (config.chirp && step % 2 === 0) {
-          playSynthNote(freq * 1.5, 'square', 0.045, 0.018);
-        }
-        if (config.drone) {
-          playSynthNote(freq / 2, 'sine', 2.8, 0.055);
-        } else if (config.hasBass && step % 2 === 0) {
-          playSynthNote(freq / 2, 'sine', (config.speed / 500) * 1.5, 0.08);
-        }
-        if (config.bell && step % 4 === 3) {
-          playSynthNote(987.77, 'sine', 1.6, 0.045);
-        }
-
+        const note = song.melody[step % song.melody.length];
+        if (note != null) voice(note, 'triangle', song.drums ? 0.55 : 1.4, 0.032, now);
         step++;
-      }, config.speed);
+      }, ms);
     }
 
     function stopSynthLoop() {
@@ -243,8 +298,6 @@
     const playlistDropdown = document.getElementById('playlistDropdown');
     const trackTitleEl = document.getElementById('currentTrackTitle');
     const trackArtistEl = document.getElementById('currentTrackArtist');
-    const radioFreq = document.getElementById('radioFreq');
-    const radioNeedle = document.getElementById('radioNeedle');
     const dropdownItems = document.querySelectorAll('.playlist-item');
 
     function tuneStatic() {
@@ -257,9 +310,9 @@
       src.buffer = buffer;
       const band = audioCtx.createBiquadFilter();
       band.type = 'bandpass';
-      band.frequency.value = 1600;
+      band.frequency.value = 600;
       const gain = audioCtx.createGain();
-      gain.gain.value = 0.09;
+      gain.gain.value = 0.035;
       src.connect(band);
       band.connect(gain);
       gain.connect(audioCtx.destination);
@@ -272,10 +325,6 @@
 
       trackTitleEl.innerText = track.title;
       trackArtistEl.innerText = track.artist;
-      if (radioFreq) radioFreq.textContent = track.freq;
-      if (radioNeedle) {
-        radioNeedle.style.left = ((index + 0.5) / playlistData.length * 100) + '%';
-      }
 
       dropdownItems.forEach((item, i) => {
         item.classList.toggle('active', i === index);
@@ -293,14 +342,14 @@
       startSynthLoop(track.preset);
       isPlaying = true;
       musicWidgetWrapper.classList.add('playing');
-      playBtn.innerText = 'OFF';
+      playBtn.innerText = 'STOP';
     }
 
     function pauseTrack() {
       stopSynthLoop();
       isPlaying = false;
       musicWidgetWrapper.classList.remove('playing');
-      playBtn.innerText = 'ON';
+      playBtn.innerText = 'PLAY';
     }
 
     playBtn.addEventListener('click', () => {

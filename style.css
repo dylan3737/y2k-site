@@ -43,7 +43,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .ticker-text { animation: none; }
-      .radio-needle { transition: none; }
+      .tape-reel { animation: none; }
       .sparkle { animation: none; display: none; }
       .bullseye-ring { animation: none; display: none; }
       * { transition-duration: 0.001ms !important; }
@@ -347,39 +347,35 @@
       margin-top: 6px;
     }
 
-    .radio-freq {
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.95rem;
-      color: #e7d9ff;
-      letter-spacing: 1px;
-      min-width: 52px;
+    .tape-window {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 6px 2px;
+      padding: 10px 22px;
+      background: #0c0814;
+      border: 2px inset #c9b6ff;
+      border-radius: 10px;
     }
 
-    .radio-dial {
-      position: relative;
-      height: 12px;
-      margin: 8px 2px 6px;
+    .tape-reel {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 3px solid #c9b6ff;
+      background:
+        radial-gradient(circle, #160e22 0 7px, transparent 8px),
+        repeating-conic-gradient(#2a1840 0 20deg, #c9b6ff 20deg 24deg);
+      animation: spin 2.8s linear infinite;
+      animation-play-state: paused;
     }
 
-    .radio-dial-track {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 5px;
-      height: 2px;
-      background: linear-gradient(90deg, #3a2458, #c9b6ff 50%, #3a2458);
+    .music-widget-wrapper.playing .tape-reel {
+      animation-play-state: running;
     }
 
-    .radio-needle {
-      position: absolute;
-      top: 1px;
-      left: 8.3%;
-      width: 2px;
-      height: 10px;
-      margin-left: -1px;
-      background: #e7d9ff;
-      box-shadow: 0 0 6px #c9b6ff;
-      transition: left 0.22s ease;
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     .track-info {
