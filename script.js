@@ -1566,7 +1566,7 @@ function ghostAction(type) {
 
   } else if (type === 'reap') {
     if (!spendSoul(15, speech)) return;
-    speech.textContent = 'Cut them.';
+    speech.textContent = 'Reaped.';
     ghost.classList.remove('dancing');
     ghost.classList.add('reaping');
     spawnScythe();
