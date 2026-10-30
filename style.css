@@ -418,6 +418,10 @@
       text-transform: uppercase;
     }
 
+    body.light-mode .subtitle {
+      color: #5b2a86;
+    }
+
     .nineties-bar {
       display: flex;
       flex-wrap: wrap;
@@ -1436,6 +1440,18 @@
 @media (max-width: 700px) {
   .overlay {
     padding: 92px 12px 12px;
+  }
+
+  .rest-circle {
+    left: 16px;
+    bottom: 64px;
+  }
+}
+
+@media (max-width: 400px) {
+  /* The nav wraps to two rows here, so the circle sits above both. */
+  .rest-circle {
+    bottom: 100px;
   }
 
   .song-mark,

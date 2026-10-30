@@ -498,10 +498,10 @@
     const themeBtn = document.getElementById('themeBtn');
 
     const THEME_KEY = 'y2k-theme';
-    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
     let storedTheme = null;
     try { storedTheme = localStorage.getItem(THEME_KEY); } catch (err) { storedTheme = null; }
-    let isDarkMode = storedTheme === 'light' ? false : storedTheme === 'dark' ? true : !prefersLight;
+    // Dark is the house look; light only once a visitor picks it with the switch.
+    let isDarkMode = storedTheme !== 'light';
 
     function syncThemeButton() {
       const light = !isDarkMode;
