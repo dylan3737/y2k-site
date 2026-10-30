@@ -225,6 +225,17 @@
       pointer-events: none;
     }
 
+    .song-ring:not(.is-open) .song-mark {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    nav.bottom-nav button.nav-link.is-playing,
+    #musicTab[aria-pressed="true"] {
+      background: #2a1840;
+      box-shadow: 0 0 10px rgba(150, 80, 220, 0.8);
+    }
+
     .song-mark {
       position: fixed;
       z-index: 5;

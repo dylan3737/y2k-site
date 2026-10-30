@@ -328,6 +328,8 @@
       bubble.textContent = isPlaying ? track.title : '✦ listen';
       const listenBtn = document.querySelector('[data-ghost-action="listen"]');
       if (listenBtn) listenBtn.textContent = isPlaying ? 'Hush' : 'Listen';
+      const musicTab = document.getElementById('musicTab');
+      if (musicTab) musicTab.classList.toggle('is-playing', isPlaying);
       document.querySelectorAll('.song-mark').forEach((mark) => {
         mark.classList.toggle('is-on', isPlaying && Number(mark.dataset.song) === currentTrackIndex);
       });
@@ -1076,6 +1078,12 @@
 
     navLinks.forEach(link => {
       link.addEventListener('click', () => {
+        if (link.hasAttribute('data-music')) {
+          const ring = document.querySelector('.song-ring');
+          const open = ring.classList.toggle('is-open');
+          link.setAttribute('aria-pressed', open ? 'true' : 'false');
+          return;
+        }
         openModal(link.getAttribute('data-target'));
       });
     });
