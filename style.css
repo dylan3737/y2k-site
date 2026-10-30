@@ -17,8 +17,7 @@
     button:focus-visible,
     [role="button"]:focus-visible,
     input:focus-visible,
-    textarea:focus-visible,
-    .playlist-item:focus-visible {
+    textarea:focus-visible {
       outline: 2px solid var(--accent-cyan);
       outline-offset: 2px;
     }
@@ -43,9 +42,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .ticker-text { animation: none; }
-      .tape-reel { animation: none; }
       .sparkle { animation: none; display: none; }
-      .bullseye-ring { animation: none; display: none; }
       * { transition-duration: 0.001ms !important; }
     }
 
@@ -91,7 +88,7 @@
 
     /* Only decorative chrome blocks selection now — modal/card content stays selectable
        so visitors can actually copy an email address or a quote. */
-    .retro-ticker, nav.bottom-nav, .radio, .playlist-dropdown, .sparkle {
+    .retro-ticker, nav.bottom-nav, .sparkle {
       user-select: none;
       -webkit-user-select: none;
     }
@@ -325,7 +322,7 @@
     .volume {
       position: fixed;
       left: 50%;
-      bottom: 22px;
+      top: 40px;
       z-index: 6;
       transform: translateX(-50%);
       display: flex;
@@ -456,191 +453,6 @@
       0% { transform: scale(0.35); }
       55% { transform: scale(1.16); }
       100% { transform: scale(1); }
-    }
-
-    /* Radio */
-    .music-widget-wrapper {
-      position: absolute;
-      top: 40px;
-      right: 20px;
-      z-index: 8;
-      pointer-events: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
-
-    .radio {
-      width: 280px;
-      background: #160e22;
-      border: 2px outset #c9b6ff;
-      border-radius: 16px;
-      padding: 10px 12px 12px;
-    }
-
-    .radio-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.55rem;
-      letter-spacing: 1px;
-      color: #c9b6ff;
-    }
-
-    .radio-led {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #3a2458;
-    }
-
-    .music-widget-wrapper.playing .radio-led {
-      background: #c45a78;
-      box-shadow: 0 0 8px #c45a78;
-    }
-
-    .music-widget-wrapper.is-tuned .radio {
-      box-shadow: 0 0 18px rgba(140, 80, 200, 0.7);
-    }
-
-    .radio-display {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 6px;
-    }
-
-    .tape-window {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 8px 6px 2px;
-      padding: 10px 22px;
-      background: #0c0814;
-      border: 2px inset #c9b6ff;
-      border-radius: 10px;
-    }
-
-    .tape-reel {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: 3px solid #c9b6ff;
-      background:
-        radial-gradient(circle, #160e22 0 7px, transparent 8px),
-        repeating-conic-gradient(#2a1840 0 20deg, #c9b6ff 20deg 24deg);
-      animation: spin 2.8s linear infinite;
-      animation-play-state: paused;
-    }
-
-    .music-widget-wrapper.playing .tape-reel {
-      animation-play-state: running;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .track-info {
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.65rem;
-      color: var(--text-color);
-    }
-
-    .track-title { color: #e7d9ff; }
-    .track-artist { color: var(--muted-text); }
-
-    .player-controls {
-      display: flex;
-      gap: 6px;
-    }
-
-    .play-btn, .playlist-toggle-btn, #seekBack, #seekNext {
-      background: #160e22;
-      border: 2px outset #c9b6ff;
-      color: #e7d9ff;
-      border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 0.62rem;
-      font-family: 'Silkscreen', monospace;
-      cursor: pointer;
-    }
-
-    .play-btn:hover, .playlist-toggle-btn:hover, #seekBack:hover, #seekNext:hover {
-      background: #2a1840;
-      color: #fff;
-    }
-
-    /* Dropdown Playlist Menu */
-    .playlist-dropdown {
-      width: 100%;
-      min-width: 300px;
-      background: #160e22;
-      border: 2px outset #c9b6ff;
-      border-radius: 16px;
-      padding: 8px;
-      display: none;
-    }
-
-    .playlist-dropdown.open {
-      display: block;
-    }
-
-    .playlist-dropdown-header {
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.65rem;
-      color: #e7d9ff;
-      margin-bottom: 6px;
-      padding-bottom: 4px;
-      border-bottom: 1px dashed var(--nav-border);
-    }
-
-    .playlist-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      background: none;
-      border: none;
-      font: inherit;
-      text-align: left;
-      padding: 6px 8px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      color: var(--nav-text);
-      cursor: pointer;
-      transition: background 0.2s ease;
-    }
-
-    .playlist-item:hover, .playlist-item.active {
-      background: #2a1840;
-      color: #e7d9ff;
-    }
-
-    .playlist-item-duration {
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.65rem;
-      color: var(--muted-text);
-    }
-
-    .playlist-suggestion-link {
-      display: block;
-      width: 100%;
-      margin-top: 4px;
-      padding: 8px;
-      border: none;
-      border-top: 1px dashed var(--nav-border);
-      background: none;
-      color: #e7d9ff;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.65rem;
-      text-align: center;
-      cursor: pointer;
-    }
-
-    .playlist-suggestion-link:hover {
-      color: var(--accent-pink);
     }
 
     /* Navigation Bar */
@@ -795,39 +607,6 @@
     .card h3 { font-size: 1.05rem; margin-bottom: 6px; color: var(--accent-pink); }
     .card p { font-size: 0.88rem; color: var(--muted-text); line-height: 1.5; }
 
-    /* Tumblr Post Styling */
-    .tumblr-post {
-      background: var(--card-bg);
-      border-left: 3px solid var(--accent-cyan);
-      border-radius: 8px;
-      padding: 14px;
-      margin-bottom: 16px;
-    }
-
-    .tumblr-tag {
-      display: inline-block;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.65rem;
-      background: rgba(1, 205, 254, 0.15);
-      color: var(--accent-cyan);
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-top: 10px;
-      margin-right: 6px;
-    }
-
-    .like-btn {
-      background: transparent;
-      border: none;
-      color: #ff71ce;
-      cursor: pointer;
-      font-size: 0.85rem;
-      margin-top: 10px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
     /* Setup/Gear List Styling */
     .setup-grid {
       display: grid;
@@ -852,123 +631,6 @@
     .setup-item p {
       font-size: 0.82rem;
       color: var(--muted-text);
-    }
-
-    /* Honeypot field for the guestbook/song forms — hidden from sighted users
-       and screen readers, but still present in the DOM for simple bots that
-       auto-fill every input to find. */
-    .hp-field {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      clip-path: inset(50%);
-      white-space: nowrap;
-      left: -9999px;
-    }
-
-    /* Guestbook */
-    .guestbook-form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .guestbook-form input,
-    .guestbook-form textarea {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--nav-border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      color: var(--text-color);
-      font-family: 'Inter', sans-serif;
-      font-size: 0.85rem;
-    }
-
-    body.light-mode .guestbook-form input,
-    body.light-mode .guestbook-form textarea {
-      background: rgba(0, 0, 0, 0.04);
-    }
-
-    .guestbook-form textarea {
-      resize: vertical;
-      min-height: 70px;
-    }
-
-    .guestbook-form input::placeholder,
-    .guestbook-form textarea::placeholder {
-      color: var(--muted-text);
-    }
-
-    .guestbook-submit {
-      align-self: flex-start;
-      background: var(--accent-pink);
-      color: #000;
-      border: none;
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.75rem;
-      padding: 10px 16px;
-      border-radius: 999px;
-      font-weight: 700;
-    }
-
-    .guestbook-submit:disabled {
-      opacity: 0.6;
-    }
-
-    .guestbook-status {
-      font-size: 0.75rem;
-      color: var(--muted-text);
-      margin-top: -4px;
-      min-height: 1em;
-    }
-
-    .guestbook-entries {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .guestbook-entry {
-      background: var(--card-bg);
-      border: 1px solid var(--nav-border);
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
-
-    .guestbook-entry-name {
-      font-family: 'Silkscreen', monospace;
-      font-size: 0.72rem;
-      color: var(--accent-yellow);
-    }
-
-    .guestbook-entry-message {
-      font-size: 0.85rem;
-      color: var(--text-color);
-      margin-top: 4px;
-      line-height: 1.45;
-      word-break: break-word;
-    }
-
-    .guestbook-entry-time {
-      font-size: 0.68rem;
-      color: var(--muted-text);
-      margin-top: 6px;
-    }
-
-    .guestbook-empty {
-      font-size: 0.85rem;
-      color: var(--muted-text);
-      font-style: italic;
-    }
-
-    .guestbook-note {
-      font-size: 0.72rem;
-      color: var(--muted-text);
-      margin-top: 16px;
-      line-height: 1.5;
     }
 
     .project-link {
@@ -1036,7 +698,6 @@
 
 .ghost-body:active { cursor: grabbing; }
 
-.ghost-body svg,
 .ghost-body .ghost-svg {
   display: block;
   width: 92px;
@@ -1051,84 +712,9 @@
   filter: drop-shadow(0 0 9px rgba(164, 64, 230, 0.95)) drop-shadow(0 0 16px rgba(160, 24, 52, 0.55));
 }
 
-.eye-pupil {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: translate(var(--eye-x), var(--eye-y));
-}
-
-.eyelid {
-  opacity: 0;
-  animation: blink 5.4s infinite;
-}
-
-.saturn {
-  stroke-dasharray: 12 8;
-  animation: ringMarch 8s linear infinite;
-}
-
-.hat-star {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: starTwinkle 2.4s ease-in-out infinite;
-}
-
-.antenna {
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  animation: wandBob 2.6s ease-in-out infinite;
-}
-
-.tail {
-  transform-box: fill-box;
-  transform-origin: 100% 40%;
-  animation: tailSway 2.4s ease-in-out infinite;
-}
-
-.color-orb-svg { animation: orbColorCycle 4s infinite linear; }
-
 @keyframes floatBody {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-10px) rotate(1.4deg); }
-}
-
-@keyframes blink {
-  0%, 88%, 100% { opacity: 0; }
-  91%, 95% { opacity: 1; }
-}
-
-@keyframes ringMarch {
-  to { stroke-dashoffset: -140; }
-}
-
-@keyframes tailSway {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(12deg); }
-}
-
-@keyframes starTwinkle {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-  50% { transform: scale(1.25) rotate(18deg); opacity: 0.75; }
-}
-
-@keyframes wandBob {
-  0%, 100% { transform: rotate(-8deg); }
-  50% { transform: rotate(10deg); }
-}
-
-@keyframes orbColorCycle {
-  0% { fill: #00ffff; }
-  33% { fill: #ff4fd8; }
-  66% { fill: #ffd700; }
-  100% { fill: #00ffff; }
-}
-
-@keyframes danceAnim {
-  0% { transform: scale(1) rotate(0deg); }
-  25% { transform: scale(1.08) rotate(-14deg) translateY(-12px); }
-  50% { transform: scale(0.94) rotate(12deg) translateY(0); }
-  75% { transform: scale(1.08) rotate(-10deg) translateY(-8px); }
-  100% { transform: scale(1) rotate(0deg); }
 }
 
 @keyframes manaPulse {
@@ -1137,45 +723,7 @@
   100% { filter: drop-shadow(0 0 4px #6a1a88); }
 }
 
-@keyframes poofOut {
-  to { opacity: 0; filter: blur(8px); transform: scale(0.45) translateY(18px); }
-}
-
-@keyframes popIn {
-  from { opacity: 0; filter: blur(8px); transform: scale(0.5); }
-  to { opacity: 1; filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.8)) drop-shadow(0 8px 12px rgba(110, 12, 32, 0.45)); transform: none; }
-}
-
-.dancing { animation: danceAnim 0.55s infinite !important; }
-.dancing .saturn { animation-duration: 0.7s; }
 .mana-glow { animation: manaPulse 0.7s ease-in-out 2 !important; }
-.ghost-body.is-gone { animation: poofOut 0.45s ease forwards !important; }
-.ghost-body.is-back { animation: popIn 0.4s ease !important; }
-.ghost-body.casting .antenna { animation: wandBob 0.18s linear 4; }
-
-.magic-sparkle,
-.cast-ring,
-.ghost-dust {
-  position: fixed;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.magic-sparkle {
-  font-size: 18px;
-  animation: sparkleFade 0.9s forwards ease-out;
-}
-
-.cast-ring {
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  margin-top: -9px;
-  border-radius: 50%;
-  border: 2px solid #c9b6ff;
-  box-shadow: 0 0 10px #6a1a88;
-  animation: castRing 0.7s ease-out forwards;
-}
 
 .scythe-cut {
   position: fixed;
@@ -1257,30 +805,6 @@
   to { transform: translateY(-32px); opacity: 0; }
 }
 
-.ghost-dust {
-  width: 7px;
-  height: 7px;
-  margin-left: -3px;
-  margin-top: -3px;
-  border-radius: 50%;
-  background: #9a2448;
-  box-shadow: 0 0 8px #6a34b0;
-  animation: dustFade 0.7s linear forwards;
-}
-
-@keyframes sparkleFade {
-  0% { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.4); }
-}
-
-@keyframes castRing {
-  to { transform: scale(7) rotate(40deg); opacity: 0; }
-}
-
-@keyframes dustFade {
-  to { opacity: 0; transform: translateY(10px) scale(0.3); }
-}
-
 .familiar {
   position: absolute;
   left: 42%;
@@ -1336,26 +860,7 @@ body.light-mode .rest-circle.is-resting {
   color: #5b2a86;
 }
 
-.reap-spark {
-  width: 26px;
-  height: 26px;
-  background: none;
-  border: 2px solid #c9b6ff;
-  border-radius: 50%;
-  filter: none;
-  box-shadow: 0 0 10px rgba(150, 40, 80, 0.85);
-}
-
-.reap-spark::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 11px;
-  width: 16px;
-  height: 2px;
-  background: #e7d9ff;
-  transform: rotate(-36deg);
-}
+.ghost-mana {
   width: 108px;
   height: 8px;
   margin-top: 2px;
@@ -1433,19 +938,12 @@ body.light-mode .rest-circle.is-resting {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saturn,
-  .hat-star,
-  .antenna,
-  .tail,
-  .eyelid,
   .familiar,
   .prey-ghost,
-  .ghost-body,
-  .color-orb-svg {
+  .ghost-body {
     animation: none !important;
   }
   .song-mark.is-on::before { animation: none; }
-  .eye-pupil { transform: none; }
 }
 @media (max-width: 700px) {
   .overlay {
@@ -1455,13 +953,6 @@ body.light-mode .rest-circle.is-resting {
   .rest-circle {
     left: 16px;
     bottom: 64px;
-  }
-}
-
-@media (max-width: 400px) {
-  /* The nav wraps to two rows here, so the circle sits above both. */
-  .rest-circle {
-    bottom: 100px;
   }
 
   .song-mark,
@@ -1476,29 +967,6 @@ body.light-mode .rest-circle.is-resting {
 
   .song-mark::before,
   .game-mark::before { top: 8px; }
-
-  .music-widget-wrapper {
-    top: 32px;
-    right: 8px;
-    left: 8px;
-    align-items: stretch;
-  }
-
-  .radio {
-    width: auto;
-  }
-
-  .track-info {
-    min-width: 0;
-    max-width: 46vw;
-  }
-
-  .track-title,
-  .track-artist {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   nav.bottom-nav button.nav-link {
     font-size: 0.58rem;
@@ -1523,10 +991,17 @@ body.light-mode .rest-circle.is-resting {
     width: 118px;
   }
 
-  .ghost-svg { width: 78px; height: auto; }
+  .ghost-body .ghost-svg { width: 78px; }
 
   .ghost-actions button {
     font-size: 7px;
     padding: 4px 5px;
+  }
+}
+
+@media (max-width: 400px) {
+  /* The nav wraps to two rows here, so the circle sits above both. */
+  .rest-circle {
+    bottom: 100px;
   }
 }

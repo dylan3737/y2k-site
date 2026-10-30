@@ -336,8 +336,9 @@
       if (!bubble) return;
       const track = playlistData[currentTrackIndex];
       bubble.textContent = isPlaying ? track.title : '✦ listen';
-      const listenBtn = document.querySelector('[data-ghost-action="listen"]');
-      if (listenBtn) listenBtn.textContent = isPlaying ? 'Hush' : 'Listen';
+      if (isPlaying) {
+        try { localStorage.setItem('y2k-hint-seen', '1'); } catch (err) {}
+      }
       const musicTab = document.getElementById('musicTab');
       if (musicTab) musicTab.classList.toggle('is-playing', isPlaying);
       document.querySelectorAll('.song-mark').forEach((mark) => {
@@ -1039,22 +1040,6 @@
         });
       };
 
-      window.y2kDismiss = function (clientX, clientY) {
-        const x = clientX / window.innerWidth;
-        const y = 1.0 - clientY / window.innerHeight;
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2;
-          splatStack.push({
-            x: x + Math.cos(a) * 0.018,
-            y: y + Math.sin(a) * 0.018,
-            dx: -Math.cos(a) * 0.55,
-            dy: -Math.sin(a) * 0.55,
-            color: [0.32, 0.06, 0.55],
-            radius: 0.36
-          });
-        }
-      };
-
       window.y2kBreath = function () {
         for (let i = 0; i < 5; i++) {
           const a = (i / 5) * Math.PI * 2;
@@ -1094,7 +1079,7 @@
 
     function isFluidGestureTarget(node) {
       return !(node && node.closest && node.closest(
-        '.modal-content, .music-widget-wrapper, .game-card, .game-ring, nav.bottom-nav, .ghost-pet, a, button, input, textarea, select, label'
+        '.modal-content, .game-card, .game-ring, nav.bottom-nav, .ghost-pet, a, button, input, textarea, select, label'
       ));
     }
 
@@ -1182,9 +1167,8 @@
       });
     });
 
-    // Any other element that wants to open a modal section (e.g. the
-    // "LEAVE A SONG" link inside the playlist dropdown) just needs a
-    // data-open-modal attribute — no inline onclick or global function.
+    // Any other element that wants to open a modal section (e.g. "All work"
+    // in the game ring) just needs a data-open-modal attribute.
     document.addEventListener('click', (e) => {
       const trigger = e.target.closest('[data-open-modal]');
       if (trigger) openModal(trigger.dataset.openModal);
@@ -1257,7 +1241,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let interactionPause = false;
   let idleTimer = null;
   let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const eyesFollow = roamEnabled;
 
   function clearIdle() {
     if (!idleTimer) return;
@@ -1532,31 +1515,31 @@ document.addEventListener('DOMContentLoaded', () => {
     setPosition(pos.x, pos.y);
   });
 
-  // Ghost action buttons (Spell/Mana/Summon/Dance/Vanish) use data-ghost-action
+  // Reaper action buttons (Reap/Summon/Hex) use data-ghost-action
   // attributes rather than inline onclick, so delegate from the container.
   container.addEventListener('click', (e) => {
     const actionBtn = e.target.closest('[data-ghost-action]');
     if (actionBtn) ghostAction(actionBtn.dataset.ghostAction);
   });
 
-  if (eyesFollow) {
-    window.addEventListener('pointermove', (e) => {
-      const rect = ghostBody.getBoundingClientRect();
-      const cx = rect.left + rect.width * 0.5;
-      const cy = rect.top + rect.height * 0.42;
-      const dx = e.clientX - cx;
-      const dy = e.clientY - cy;
-      const ang = Math.atan2(dy, dx);
-      const dist = Math.min(3.4, Math.hypot(dx, dy) / 70);
-      const svg = ghostBody.querySelector('svg');
-      const flipped = svg && svg.style.transform.indexOf('-1') !== -1;
-      container.style.setProperty('--eye-x', (Math.cos(ang) * dist * (flipped ? -1 : 1)).toFixed(2) + 'px');
-      container.style.setProperty('--eye-y', (Math.sin(ang) * dist).toFixed(2) + 'px');
-    });
-  }
-
   syncMana();
   startRoaming();
+
+  // First visits get a nudge toward the songs until one has been played.
+  let hintSeen = false;
+  try { hintSeen = localStorage.getItem('y2k-hint-seen') === '1'; } catch (err) {}
+  if (!hintSeen) {
+    const HINT = 'Drag me to a song.';
+    setTimeout(() => {
+      if (isPlaying || isDragging || modalContainer.classList.contains('active')) return;
+      const musicTab = document.getElementById('musicTab');
+      if (musicTab && musicTab.getAttribute('aria-pressed') !== 'true') musicTab.click();
+      if (speech) speech.textContent = HINT;
+      setTimeout(() => {
+        if (speech && speech.textContent === HINT && !isPlaying) speech.textContent = '✦ listen';
+      }, 8000);
+    }, 4000);
+  }
 
   setInterval(() => {
     const ring = document.getElementById('rest-circle');
@@ -1608,7 +1591,6 @@ function floatSoul(text, kind) {
 
 let chain = 0;
 let lastCast = 0;
-let pactUntil = 0;
 let hexed = false;
 
 function spendSoul(cost, speech) {
@@ -1630,14 +1612,8 @@ function spendSoul(cost, speech) {
 function ghostAction(type) {
   const speech = document.getElementById('ghost-speech');
   const ghost = document.getElementById('ghost-character');
-  const pactBtn = document.querySelector('[data-ghost-action="mana"]');
 
-  ghost.classList.remove('dancing', 'reaping', 'mana-glow', 'casting');
-
-  if (type === 'listen') {
-    if (typeof window.y2kToggle === 'function') window.y2kToggle();
-    return;
-  }
+  ghost.classList.remove('reaping', 'mana-glow');
 
   if (type === 'hex') {
     if (!spendSoul(25, speech)) return;
@@ -1656,22 +1632,6 @@ function ghostAction(type) {
     }
     setTimeout(() => ghost.classList.remove('mana-glow'), 900);
 
-  } else if (type === 'mana') {
-    if (Date.now() < pactUntil) {
-      speech.textContent = 'The pact is still warm.';
-      return;
-    }
-    pactUntil = Date.now() + 6000;
-    if (pactBtn) {
-      pactBtn.classList.add('is-cooling');
-      setTimeout(() => pactBtn.classList.remove('is-cooling'), 6000);
-    }
-    manaLevel = Math.min(100, manaLevel + 35);
-    syncMana();
-    speech.textContent = 'Pact sealed. Soul ' + manaLevel + '.';
-    floatSoul('+35', 'is-gain');
-    ghost.classList.add('mana-glow');
-
   } else if (type === 'summon') {
     if (!spendSoul(30, speech)) return;
     speech.textContent = 'Ten seconds. Catch them.';
@@ -1682,29 +1642,26 @@ function ghostAction(type) {
   } else if (type === 'reap') {
     if (!spendSoul(15, speech)) return;
     speech.textContent = 'Reaped.';
-    ghost.classList.remove('dancing');
     ghost.classList.add('reaping');
     spawnScythe();
     burstHere();
     setTimeout(() => ghost.classList.remove('reaping'), 900);
-
-  } else if (type === 'vanish') {
-    if (!spendSoul(20, speech)) return;
-    speech.textContent = 'Sent back.';
-    if (typeof window.y2kDismiss === 'function') {
-      const c = ghostCenter();
-      window.y2kDismiss(c.x, c.y);
-    }
-    ghost.classList.add('is-gone');
-    ghost.classList.remove('is-back');
-    setTimeout(() => {
-      ghost.classList.remove('is-gone');
-      ghost.classList.add('is-back');
-      speech.textContent = 'I remain.';
-      burstHere();
-      setTimeout(() => ghost.classList.remove('is-back'), 450);
-    }, 1500);
   }
+
+  noteCombo(type, speech);
+}
+
+// Reap, Hex, Summon cast back to back (one unbroken chain) shows the best catch.
+const BEST_COMBO = 'reap,hex,summon';
+let combo = [];
+
+function noteCombo(type, speech) {
+  combo = chain === 1 ? [type] : combo.concat(type).slice(-3);
+  if (combo.join() !== BEST_COMBO) return;
+  combo = [];
+  showBadge('bestBadge');
+  try { localStorage.setItem('y2k-best-seen', '1'); } catch (err) {}
+  speech.textContent = best ? 'Your best: ' + best + '.' : 'No mark yet.';
 }
 
 function burstHere() {
@@ -1733,19 +1690,6 @@ function spawnHexMark() {
   setTimeout(() => mark.remove(), 950);
 }
 
-function spawnCastRing() {
-  const c = ghostCenter();
-  for (let i = 0; i < 2; i++) {
-    const ring = document.createElement('div');
-    ring.className = 'cast-ring';
-    ring.style.left = c.x + 'px';
-    ring.style.top = c.y + 'px';
-    ring.style.animationDelay = (i * 120) + 'ms';
-    document.body.appendChild(ring);
-    setTimeout(() => ring.remove(), 1000);
-  }
-}
-
 let score = 0;
 let best = 0;
 let roundScore = 0;
@@ -1760,21 +1704,23 @@ function paintScore() {
 }
 paintScore();
 
-function popScore() {
-  const badge = document.querySelector('.hit-counter');
+function showBadge(id) {
+  const badge = document.getElementById(id);
   if (!badge) return;
   badge.classList.remove('is-secret');
   badge.classList.remove('is-pop');
   void badge.offsetWidth;
   if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) badge.classList.add('is-pop');
+}
+
+function popScore() {
+  showBadge('scoreBadge');
   try { localStorage.setItem('y2k-score-seen', '1'); } catch (err) {}
 }
 
 try {
-  if (localStorage.getItem('y2k-score-seen') === '1') {
-    const badge = document.querySelector('.hit-counter');
-    if (badge) badge.classList.remove('is-secret');
-  }
+  if (localStorage.getItem('y2k-score-seen') === '1') document.getElementById('scoreBadge').classList.remove('is-secret');
+  if (localStorage.getItem('y2k-best-seen') === '1') document.getElementById('bestBadge').classList.remove('is-secret');
 } catch (err) {}
 
 function addScore(n) {
@@ -1832,23 +1778,16 @@ let huntTick = null;
 let huntFrame = null;
 const huntReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function paintHunt() {}
-
 function beginHunt() {
   if (!(huntEnds > Date.now())) roundScore = 0;
   huntEnds = Date.now() + 10000;
-  paintHunt(10000);
   if (!huntTick) huntTick = setInterval(tickHunt, 200);
   if (!huntReduceMotion && !huntFrame) huntFrame = requestAnimationFrame(movePrey);
 }
 
 function tickHunt() {
   const left = huntEnds - Date.now();
-  if (left <= 0) {
-    finishHunt();
-    return;
-  }
-  paintHunt(left);
+  if (left <= 0) finishHunt();
 }
 
 function finishHunt() {
@@ -1859,7 +1798,6 @@ function finishHunt() {
   huntEnds = 0;
   if (huntTick) clearInterval(huntTick);
   huntTick = null;
-  paintHunt(0);
   document.querySelectorAll('.prey-ghost').forEach((node) => node.remove());
   if (caught > best) {
     best = caught;
@@ -1905,33 +1843,5 @@ function spawnFamiliars() {
     host.appendChild(el);
   });
   setTimeout(() => host.querySelectorAll('.familiar').forEach((node) => node.remove()), 5600);
-}
-
-function dropGhostDust() {
-  const c = ghostCenter();
-  const dust = document.createElement('div');
-  dust.className = 'ghost-dust';
-  dust.style.left = (c.x + (Math.random() - 0.5) * 18) + 'px';
-  dust.style.top = (c.y + 28) + 'px';
-  dust.style.background = Math.random() > 0.45 ? '#9a2448' : '#6a34b0';
-  document.body.appendChild(dust);
-  setTimeout(() => dust.remove(), 700);
-}
-
-function spawnSparkles() {
-  const c = ghostCenter();
-  const icons = ['✨', '⭐', '🌟', '🔮', '💫'];
-
-  for (let i = 0; i < 10; i++) {
-    const sparkle = document.createElement('div');
-    sparkle.className = 'magic-sparkle';
-    sparkle.textContent = icons[Math.floor(Math.random() * icons.length)];
-    sparkle.style.setProperty('--dx', ((Math.random() - 0.5) * 150) + 'px');
-    sparkle.style.setProperty('--dy', ((Math.random() - 0.7) * 140) + 'px');
-    sparkle.style.left = c.x + 'px';
-    sparkle.style.top = c.y + 'px';
-    document.body.appendChild(sparkle);
-    setTimeout(() => sparkle.remove(), 950);
-  }
 }
 })();
