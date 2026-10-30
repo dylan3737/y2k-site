@@ -328,6 +328,9 @@
       bubble.textContent = isPlaying ? track.title : '✦ listen';
       const listenBtn = document.querySelector('[data-ghost-action="listen"]');
       if (listenBtn) listenBtn.textContent = isPlaying ? 'Hush' : 'Listen';
+      document.querySelectorAll('.song-mark').forEach((mark) => {
+        mark.classList.toggle('is-on', isPlaying && Number(mark.dataset.song) === currentTrackIndex);
+      });
     }
 
     function playTrack() {
@@ -355,10 +358,18 @@
       else labelMusic();
     };
 
-    window.y2kBubble = function (index) {
+    window.y2kToggle = function () {
       if (isPlaying) pauseTrack();
-      else window.y2kPlayAt(index);
+      else playTrack();
     };
+
+    document.querySelectorAll('.song-mark').forEach((mark) => {
+      mark.addEventListener('click', () => {
+        const index = Number(mark.dataset.song);
+        if (mark.classList.contains('is-on')) window.y2kToggle();
+        else window.y2kPlayAt(index);
+      });
+    });
 
     const lastUpdatedEl = document.getElementById('lastUpdated');
     if (lastUpdatedEl) {
@@ -1129,9 +1140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (speech) {
     speech.addEventListener('click', (e) => {
       e.stopPropagation();
-      const rect = container ? container.getBoundingClientRect() : { left: 0, width: 0 };
-      const col = Math.min(5, Math.max(0, Math.floor(((rect.left + rect.width / 2) / Math.max(window.innerWidth, 1)) * 6)));
-      if (typeof window.y2kBubble === 'function') window.y2kBubble(col);
+      if (typeof window.y2kToggle === 'function') window.y2kToggle();
     });
   }
 
@@ -1174,6 +1183,18 @@ document.addEventListener('DOMContentLoaded', () => {
     ghostBody.classList.add('is-moving');
   }
 
+  function songUnder(x, y) {
+    const marks = document.querySelectorAll('.song-mark');
+    for (let i = 0; i < marks.length; i++) {
+      const rect = marks[i].getBoundingClientRect();
+      const pad = 28;
+      if (x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad) {
+        return marks[i];
+      }
+    }
+    return null;
+  }
+
   function moveDrag(clientX, clientY) {
     if (!isDragging) return;
     const b = getBounds();
@@ -1183,6 +1204,10 @@ document.addEventListener('DOMContentLoaded', () => {
     dragMoved += Math.hypot(pos.x - (container._lx || pos.x), pos.y - (container._ly || pos.y));
     container._lx = pos.x;
     container._ly = pos.y;
+    const hit = songUnder(pos.x + container.offsetWidth / 2, pos.y + 36);
+    document.querySelectorAll('.song-mark').forEach((mark) => {
+      mark.classList.toggle('is-near', mark === hit);
+    });
     stirFromMotion();
   }
 
@@ -1192,8 +1217,11 @@ document.addEventListener('DOMContentLoaded', () => {
     interactionPause = false;
     ghostBody.classList.remove('is-moving');
     clearIdle();
-    const col = Math.min(5, Math.max(0, Math.floor(((pos.x + container.offsetWidth / 2) / Math.max(window.innerWidth, 1)) * 6)));
-    if (dragMoved > 36 && typeof window.y2kPlayAt === 'function') window.y2kPlayAt(col);
+    const hit = songUnder(pos.x + container.offsetWidth / 2, pos.y + 36);
+    document.querySelectorAll('.song-mark').forEach((mark) => mark.classList.remove('is-near'));
+    if (hit && dragMoved > 12 && typeof window.y2kPlayAt === 'function') {
+      window.y2kPlayAt(Number(hit.dataset.song));
+    }
     pickNewTarget();
   }
 
@@ -1424,9 +1452,7 @@ function ghostAction(type) {
   ghost.classList.remove('dancing', 'reaping', 'mana-glow', 'casting');
 
   if (type === 'listen') {
-    const box = document.getElementById('ghost-pet-container').getBoundingClientRect();
-    const col = Math.min(5, Math.max(0, Math.floor(((box.left + box.width / 2) / Math.max(window.innerWidth, 1)) * 6)));
-    if (typeof window.y2kBubble === 'function') window.y2kBubble(col);
+    if (typeof window.y2kToggle === 'function') window.y2kToggle();
     return;
   }
 

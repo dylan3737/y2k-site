@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=29"/>
+  <link rel="stylesheet" href="style.css?v=30"/>
   
 </head>
 <body>
@@ -30,6 +30,15 @@
   </div>
 
   <!-- Music Player Widget with Dropdown Playlist -->
+  <div class="song-ring" aria-label="Songs">
+    <button type="button" class="song-mark" data-song="0" style="--a: 158deg">Lamp</button>
+    <button type="button" class="song-mark" data-song="1" style="--a: 198deg">Window</button>
+    <button type="button" class="song-mark" data-song="2" style="--a: 236deg">Drift</button>
+    <button type="button" class="song-mark" data-song="3" style="--a: 304deg">Still</button>
+    <button type="button" class="song-mark" data-song="4" style="--a: 342deg">Ash</button>
+    <button type="button" class="song-mark" data-song="5" style="--a: 22deg">Bell</button>
+  </div>
+
   <canvas id="canvas" aria-hidden="true"></canvas>
   <div class="fallback-bg" id="fallbackBg" aria-hidden="true"></div>
 
@@ -189,6 +198,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=36"></script>
+  <script src="script.js?v=37"></script>
 </body>
 </html>

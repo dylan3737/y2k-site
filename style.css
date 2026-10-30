@@ -218,6 +218,64 @@
       100% { transform: translate3d(-100%, 0, 0); }
     }
 
+    .song-ring {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .song-mark {
+      position: fixed;
+      z-index: 5;
+      width: 72px;
+      height: 72px;
+      margin: 0;
+      padding: 28px 6px 0;
+      border-radius: 50%;
+      border: 2px solid rgba(201, 182, 255, 0.8);
+      background: radial-gradient(circle, rgba(90, 40, 140, 0.45), rgba(22, 14, 34, 0.15) 70%);
+      color: #e7d9ff;
+      font-family: 'Silkscreen', monospace;
+      font-size: 8px;
+      line-height: 1.2;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      pointer-events: auto;
+      left: calc(50% + cos(var(--a)) * min(40vw, 430px) - 36px);
+      top: calc(48% + sin(var(--a)) * min(36vh, 270px) - 36px);
+      box-shadow: inset 0 0 14px rgba(140, 80, 200, 0.35);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .song-mark::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      width: 7px;
+      height: 7px;
+      margin-left: -3.5px;
+      border-radius: 50%;
+      background: #c9b6ff;
+      box-shadow: 0 0 8px #c9b6ff;
+    }
+
+    .song-mark.is-near,
+    .song-mark.is-on {
+      border-color: #fff;
+      background: radial-gradient(circle, rgba(140, 70, 200, 0.72), rgba(22, 14, 34, 0.35) 72%);
+      box-shadow: 0 0 22px rgba(150, 80, 220, 0.85), inset 0 0 12px rgba(201, 182, 255, 0.5);
+    }
+
+    .song-mark.is-on::before {
+      animation: songPulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes songPulse {
+      50% { transform: scale(1.45); opacity: 0.7; }
+    }
+
     .overlay {
       position: absolute;
       top: 0;
@@ -822,7 +880,7 @@
   right: 20px;
   top: auto;
   left: auto;
-  z-index: 3;
+  z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1225,12 +1283,31 @@
   .color-orb-svg {
     animation: none !important;
   }
+  .song-mark.is-on::before { animation: none; }
   .eye-pupil { transform: none; }
 }
 @media (max-width: 700px) {
   .overlay {
-    padding: 92px 12px 12px;
+    padding: 92px 12px 78px;
   }
+
+  .song-mark {
+    top: auto;
+    bottom: 10px;
+    width: 15vw;
+    height: 44px;
+    padding: 16px 0 0;
+    border-radius: 999px;
+    font-size: 7px;
+  }
+
+  .song-mark::before { top: 6px; }
+  .song-mark:nth-child(1) { left: 2vw; }
+  .song-mark:nth-child(2) { left: 18vw; }
+  .song-mark:nth-child(3) { left: 34vw; }
+  .song-mark:nth-child(4) { left: 50vw; }
+  .song-mark:nth-child(5) { left: 66vw; }
+  .song-mark:nth-child(6) { left: 82vw; }
 
   .music-widget-wrapper {
     top: 32px;
