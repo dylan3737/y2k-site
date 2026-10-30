@@ -498,10 +498,10 @@
     const themeBtn = document.getElementById('themeBtn');
 
     const THEME_KEY = 'y2k-theme';
-    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
     let storedTheme = null;
     try { storedTheme = localStorage.getItem(THEME_KEY); } catch (err) { storedTheme = null; }
-    let isDarkMode = storedTheme === 'light' ? false : storedTheme === 'dark' ? true : !prefersLight;
+    // Dark is the house look; light only once a visitor picks it with the switch.
+    let isDarkMode = storedTheme !== 'light';
 
     function syncThemeButton() {
       const light = !isDarkMode;
@@ -1460,10 +1460,21 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
+  // Lift a spot so the reaper and his buttons stay above the nav when he is over it.
+  function clearOfNav(x, y) {
+    const nav = document.querySelector('nav.bottom-nav');
+    if (!nav) return y;
+    const n = nav.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
+    if (x + rect.width < n.left || x > n.right) return y;
+    return Math.min(y, n.top - rect.height - 8);
+  }
+
   function pickNewTarget() {
     const b = getBounds();
     target.x = b.minX + Math.random() * Math.max(0, b.maxX - b.minX);
     target.y = b.minY + Math.random() * Math.max(0, b.maxY - b.minY);
+    target.y = Math.max(b.minY, clearOfNav(target.x, target.y));
   }
 
   function roamStep() {
@@ -1504,7 +1515,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function startRoaming() {
     const rect = container.getBoundingClientRect();
     pos.x = rect.left;
-    pos.y = rect.top;
+    pos.y = Math.max(getBounds().minY, clearOfNav(rect.left, rect.top));
     setPosition(pos.x, pos.y);
 
     if (!roamEnabled) return; // stay put but remain draggable
