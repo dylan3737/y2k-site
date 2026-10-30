@@ -1232,7 +1232,52 @@
   to { transform: rotate(360deg) translateX(62px) rotate(-360deg); }
 }
 
-.ghost-mana {
+.rest-circle {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 4;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  border: 2px dashed rgba(201, 182, 255, 0.55);
+  color: rgba(231, 217, 255, 0.75);
+  font-family: 'Silkscreen', monospace;
+  font-size: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 18px;
+  pointer-events: none;
+}
+
+.rest-circle.is-resting {
+  border-style: solid;
+  border-color: #e7d9ff;
+  box-shadow: 0 0 18px rgba(140, 80, 200, 0.75);
+  color: #fff;
+}
+
+.reap-spark {
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: 2px solid #c9b6ff;
+  border-radius: 50%;
+  filter: none;
+  box-shadow: 0 0 10px rgba(150, 40, 80, 0.85);
+}
+
+.reap-spark::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 11px;
+  width: 16px;
+  height: 2px;
+  background: #e7d9ff;
+  transform: rotate(-36deg);
+}
   width: 108px;
   height: 8px;
   margin-top: 2px;

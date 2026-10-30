@@ -1425,6 +1425,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   syncMana();
   startRoaming();
+
+  let wasResting = false;
+  setInterval(() => {
+    const ring = document.getElementById('rest-circle');
+    if (!ring) return;
+    const body = ghostBody.getBoundingClientRect();
+    const zone = ring.getBoundingClientRect();
+    const dist = Math.hypot(
+      (body.left + body.width / 2) - (zone.left + zone.width / 2),
+      (body.top + body.height / 2) - (zone.top + zone.height / 2)
+    );
+    const resting = dist < zone.width * 0.55 && !isDragging;
+    ring.classList.toggle('is-resting', resting);
+    if (resting && manaLevel < 100) {
+      manaLevel = Math.min(100, manaLevel + 2);
+      syncMana();
+    }
+    if (resting && !wasResting) {
+      const speech = document.getElementById('ghost-speech');
+      if (speech) speech.textContent = 'Rest.';
+    }
+    wasResting = resting;
+  }, 450);
 });
 
 // --- ACTIONS ---
@@ -1533,10 +1556,11 @@ function ghostAction(type) {
 
   } else if (type === 'reap') {
     if (!spendSoul(15, speech)) return;
-    speech.textContent = 'Reaped.';
+    speech.textContent = 'Cut them.';
     ghost.classList.remove('dancing');
     ghost.classList.add('reaping');
     spawnScythe();
+    spawnReapSparks();
     burstHere();
     setTimeout(() => ghost.classList.remove('reaping'), 900);
 
@@ -1636,14 +1660,14 @@ function addScore(n) {
   try { localStorage.setItem('y2k-score', String(score)); } catch (err) {}
 }
 
-function spawnCatchGhosts() {
+function spawnPrey(extraClass, count, points, label) {
   const room = 8 - document.querySelectorAll('.prey-ghost:not(.is-caught)').length;
-  const count = Math.min(5, room);
-  for (let i = 0; i < count; i++) {
+  const n = Math.min(count, room);
+  for (let i = 0; i < n; i++) {
     const el = document.createElement('button');
     el.type = 'button';
-    el.className = 'prey-ghost';
-    el.setAttribute('aria-label', 'Catch');
+    el.className = 'prey-ghost' + (extraClass ? ' ' + extraClass : '');
+    el.setAttribute('aria-label', label);
     const pad = 40;
     el._x = pad + Math.random() * Math.max(40, window.innerWidth - pad * 2 - 40);
     el._y = 72 + Math.random() * Math.max(40, window.innerHeight - 180);
@@ -1657,10 +1681,10 @@ function spawnCatchGhosts() {
       e.stopPropagation();
       if (el.classList.contains('is-caught')) return;
       el.classList.add('is-caught');
-      addScore(1);
+      addScore(points);
       const pop = document.createElement('div');
       pop.className = 'soul-pop is-gain';
-      pop.textContent = '+1';
+      pop.textContent = '+' + points;
       pop.style.left = el.style.left;
       pop.style.top = el.style.top;
       document.body.appendChild(pop);
@@ -1672,7 +1696,15 @@ function spawnCatchGhosts() {
     });
     document.body.appendChild(el);
   }
-  beginHunt();
+  if (n) beginHunt();
+}
+
+function spawnCatchGhosts() {
+  spawnPrey('', 5, 1, 'Catch');
+}
+
+function spawnReapSparks() {
+  spawnPrey('reap-spark', 4, 2, 'Cut');
 }
 
 let huntEnds = 0;
