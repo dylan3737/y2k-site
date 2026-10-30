@@ -267,15 +267,6 @@
       transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
 
-    .game-mark {
-      width: 86px;
-      height: 86px;
-      margin-left: -9px;
-      margin-top: -9px;
-      padding-top: 34px;
-      font-size: 7px;
-    }
-
     .game-all {
       position: fixed;
       right: 22px;
@@ -1447,7 +1438,8 @@
     padding: 92px 12px 12px;
   }
 
-  .song-mark {
+  .song-mark,
+  .game-mark {
     width: 54px;
     height: 54px;
     padding: 18px 2px 0;
@@ -1456,7 +1448,8 @@
     top: calc(56% + sin(var(--a)) * min(30vh, 180px) - 27px);
   }
 
-  .song-mark::before { top: 8px; }
+  .song-mark::before,
+  .game-mark::before { top: 8px; }
 
   .music-widget-wrapper {
     top: 32px;
