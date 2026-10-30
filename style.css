@@ -1319,11 +1319,21 @@
   pointer-events: none;
 }
 
+body.light-mode .rest-circle {
+  border-color: rgba(91, 42, 134, 0.55);
+  color: #5b2a86;
+}
+
 .rest-circle.is-resting {
   border-style: solid;
   border-color: #e7d9ff;
   box-shadow: 0 0 18px rgba(140, 80, 200, 0.75);
   color: #fff;
+}
+
+body.light-mode .rest-circle.is-resting {
+  border-color: #5b2a86;
+  color: #5b2a86;
 }
 
 .reap-spark {
