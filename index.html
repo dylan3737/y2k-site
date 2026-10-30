@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=28"/>
+  <link rel="stylesheet" href="style.css?v=29"/>
   <script
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.1/dist/umd/supabase.js"
     integrity="sha384-qmLe2vls59SnfpN2OJ/tjAASSNP+R7nmj+MyytoaCmVRjJbVGsUaFkxJW4jGpaqh"
@@ -29,65 +29,11 @@
   <!-- Retro Marquee Header Banner -->
   <div class="retro-ticker">
     <div class="ticker-text">
-      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: <span id="lastUpdated">TODAY</span> ★ PLAY THE TAPE ★ LEAVE A SONG ★
+      ★ WELCOME TO DYLAN DYAL'S DIGITAL REALM ★ LAST UPDATED: <span id="lastUpdated">TODAY</span> ★ THE PAGE IS THE SONG ★
     </div>
   </div>
 
   <!-- Music Player Widget with Dropdown Playlist -->
-  <div class="music-widget-wrapper" id="musicWidgetWrapper">
-    <div class="radio">
-      <div class="radio-top">
-        <span>NIGHT TAPE</span>
-        <span class="radio-led" id="radioLed" aria-hidden="true"></span>
-      </div>
-      <div class="tape-window" aria-hidden="true">
-        <span class="tape-reel"></span>
-        <span class="tape-reel"></span>
-      </div>
-      <div class="radio-display">
-        <div class="track-info">
-          <div class="track-title" id="currentTrackTitle">Lamp</div>
-          <div class="track-artist" id="currentTrackArtist">soft keys</div>
-        </div>
-      </div>
-      <div class="player-controls">
-        <button type="button" id="seekBack" aria-label="Previous track">◀</button>
-        <button type="button" class="play-btn" id="playBtn">PLAY</button>
-        <button type="button" id="seekNext" aria-label="Next track">▶</button>
-        <button type="button" class="playlist-toggle-btn" id="playlistToggleBtn" aria-label="Track list" aria-expanded="false">≡</button>
-      </div>
-    </div>
-
-    <div class="playlist-dropdown" id="playlistDropdown">
-      <div class="playlist-dropdown-header">[ TAPE ]</div>
-      <button type="button" class="playlist-item active" data-index="0">
-        <span>Lamp</span>
-        <span class="playlist-item-duration">soft keys</span>
-      </button>
-      <button type="button" class="playlist-item" data-index="1">
-        <span>Window</span>
-        <span class="playlist-item-duration">rain</span>
-      </button>
-      <button type="button" class="playlist-item" data-index="2">
-        <span>Drift</span>
-        <span class="playlist-item-duration">slow chords</span>
-      </button>
-      <button type="button" class="playlist-item" data-index="3">
-        <span>Still</span>
-        <span class="playlist-item-duration">pad</span>
-      </button>
-      <button type="button" class="playlist-item" data-index="4">
-        <span>Ash</span>
-        <span class="playlist-item-duration">drone</span>
-      </button>
-      <button type="button" class="playlist-item" data-index="5">
-        <span>Bell</span>
-        <span class="playlist-item-duration">far bell</span>
-      </button>
-      <button type="button" class="playlist-suggestion-link" data-open-modal="songSuggestion">♫ REQUEST A SONG</button>
-    </div>
-  </div>
-
   <canvas id="canvas" aria-hidden="true"></canvas>
   <div class="fallback-bg" id="fallbackBg" aria-hidden="true"></div>
 
@@ -250,6 +196,7 @@
         <div class="card">
           <h3>Elsewhere</h3>
           <p>Code and experiments live on <a style="color: var(--accent-pink);" href="https://github.com/dylan3737">GitHub</a>.</p>
+          <p style="margin-top: 10px;"><button type="button" class="project-link" data-open-modal="songSuggestion">Request a song</button></p>
         </div>
       </div>
 
@@ -257,7 +204,7 @@
   </div>
   <!-- Cute ghost in a hooded robe -->
 <div id="ghost-pet-container" class="ghost-pet">
-  <div id="ghost-speech" class="ghost-bubble">✦ drag me. spend soul.</div>
+  <div id="ghost-speech" class="ghost-bubble">✦ set me down</div>
 
   <div id="ghost-character" class="ghost-body">
     <img class="ghost-svg" src="ghost.png?v=11" alt="" width="92" draggable="false">
@@ -276,6 +223,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=34"></script>
+  <script src="script.js?v=35"></script>
 </body>
 </html>

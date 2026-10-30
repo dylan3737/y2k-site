@@ -290,15 +290,6 @@
       }
     }
     // Audio DOM Elements
-    const musicWidgetWrapper = document.getElementById('musicWidgetWrapper');
-    const playBtn = document.getElementById('playBtn');
-    const seekBack = document.getElementById('seekBack');
-    const seekNext = document.getElementById('seekNext');
-    const playlistToggleBtn = document.getElementById('playlistToggleBtn');
-    const playlistDropdown = document.getElementById('playlistDropdown');
-    const trackTitleEl = document.getElementById('currentTrackTitle');
-    const trackArtistEl = document.getElementById('currentTrackArtist');
-    const dropdownItems = document.querySelectorAll('.playlist-item');
 
     function tuneStatic() {
       if (!audioCtx) return;
@@ -321,19 +312,17 @@
 
     function loadTrack(index, fromUser) {
       currentTrackIndex = index;
-      const track = playlistData[index];
-
-      trackTitleEl.innerText = track.title;
-      trackArtistEl.innerText = track.artist;
-
-      dropdownItems.forEach((item, i) => {
-        item.classList.toggle('active', i === index);
-      });
-
       if (isPlaying) {
         if (fromUser) tuneStatic();
         playTrack();
       }
+    }
+
+    function labelMusic() {
+      const bubble = document.getElementById('ghost-speech');
+      if (!bubble) return;
+      const track = playlistData[currentTrackIndex];
+      bubble.textContent = isPlaying ? track.title : '✦ set me down';
     }
 
     function playTrack() {
@@ -341,73 +330,26 @@
       const track = playlistData[currentTrackIndex];
       startSynthLoop(track.preset);
       isPlaying = true;
-      musicWidgetWrapper.classList.add('playing');
-      playBtn.innerText = 'STOP';
+      labelMusic();
     }
 
     function pauseTrack() {
       stopSynthLoop();
       isPlaying = false;
-      musicWidgetWrapper.classList.remove('playing');
-      playBtn.innerText = 'PLAY';
+      labelMusic();
     }
 
-    playBtn.addEventListener('click', () => {
-      if (isPlaying) {
-        pauseTrack();
-      } else {
-        playTrack();
-      }
-    });
-
-    function seek(dir) {
-      const next = (currentTrackIndex + dir + playlistData.length) % playlistData.length;
-      loadTrack(next, true);
-    }
-
-    seekBack.addEventListener('click', (e) => {
-      e.stopPropagation();
-      seek(-1);
-    });
-    seekNext.addEventListener('click', (e) => {
-      e.stopPropagation();
-      seek(1);
-    });
-
-    let tuneGlow = null;
-    window.y2kTune = function () {
-      initAudioContext();
+    window.y2kPlayAt = function (index) {
+      const next = Math.max(0, Math.min(playlistData.length - 1, index));
+      if (next !== currentTrackIndex) loadTrack(next, isPlaying);
       if (!isPlaying) playTrack();
-      else seek(1);
-      musicWidgetWrapper.classList.add('is-tuned');
-      clearTimeout(tuneGlow);
-      tuneGlow = setTimeout(() => musicWidgetWrapper.classList.remove('is-tuned'), 2600);
-      return playlistData[currentTrackIndex].title;
+      else labelMusic();
     };
 
-    playlistToggleBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = playlistDropdown.classList.toggle('open');
-      playlistToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-
-    document.addEventListener('click', () => {
-      playlistDropdown.classList.remove('open');
-      playlistToggleBtn.setAttribute('aria-expanded', 'false');
-    });
-
-    dropdownItems.forEach((item, index) => {
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        playlistDropdown.classList.remove('open');
-        playlistToggleBtn.setAttribute('aria-expanded', 'false');
-        if (isPlaying) loadTrack(index, true);
-        else {
-          loadTrack(index, false);
-          playTrack();
-        }
-      });
-    });
+    window.y2kBubble = function (index) {
+      if (isPlaying) pauseTrack();
+      else window.y2kPlayAt(index);
+    };
 
     const lastUpdatedEl = document.getElementById('lastUpdated');
     if (lastUpdatedEl) {
@@ -1360,10 +1302,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const container = document.getElementById('ghost-pet-container');
   const ghostBody = document.getElementById('ghost-character');
   
+  const speech = document.getElementById('ghost-speech');
+  if (speech) {
+    speech.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = container ? container.getBoundingClientRect() : { left: 0, width: 0 };
+      const col = Math.min(5, Math.max(0, Math.floor(((rect.left + rect.width / 2) / Math.max(window.innerWidth, 1)) * 6)));
+      if (typeof window.y2kBubble === 'function') window.y2kBubble(col);
+    });
+  }
+
   if (!container || !ghostBody) return;
 
   // --- DRAGGABLE LOGIC ---
   let isDragging = false;
+  let dragMoved = 0;
   let offsetX = 0, offsetY = 0;
   let pos = { x: 0, y: 0 };
   let target = { x: 0, y: 0 };
@@ -1386,6 +1339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clearIdle();
     isDragging = true;
+    dragMoved = 0;
     interactionPause = true;
     const rect = container.getBoundingClientRect();
     offsetX = clientX - rect.left;
@@ -1403,6 +1357,9 @@ document.addEventListener('DOMContentLoaded', () => {
     pos.x = clamp(clientX - offsetX, b.minX, b.maxX);
     pos.y = clamp(clientY - offsetY, b.minY, b.maxY);
     setPosition(pos.x, pos.y);
+    dragMoved += Math.hypot(pos.x - (container._lx || pos.x), pos.y - (container._ly || pos.y));
+    container._lx = pos.x;
+    container._ly = pos.y;
     stirFromMotion();
   }
 
@@ -1412,17 +1369,8 @@ document.addEventListener('DOMContentLoaded', () => {
     interactionPause = false;
     ghostBody.classList.remove('is-moving');
     clearIdle();
-    const radio = document.querySelector('.radio');
-    if (radio && typeof window.y2kTune === 'function') {
-      const pet = container.getBoundingClientRect();
-      const box = radio.getBoundingClientRect();
-      const hit = pet.left < box.right && pet.right > box.left && pet.top < box.bottom && pet.bottom > box.top;
-      if (hit) {
-        const title = window.y2kTune();
-        const speech = document.getElementById('ghost-speech');
-        if (speech && title) speech.textContent = 'Leave ' + title + ' on.';
-      }
-    }
+    const col = Math.min(5, Math.max(0, Math.floor(((pos.x + container.offsetWidth / 2) / Math.max(window.innerWidth, 1)) * 6)));
+    if (dragMoved > 36 && typeof window.y2kPlayAt === 'function') window.y2kPlayAt(col);
     pickNewTarget();
   }
 

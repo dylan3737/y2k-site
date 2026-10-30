@@ -847,7 +847,8 @@
   text-align: center;
   max-width: 132px;
   color: #1a1028;
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .ghost-bubble::after {
