@@ -1244,6 +1244,20 @@ document.addEventListener('DOMContentLoaded', () => {
     stirFromMotion();
   }
 
+  let restLock = false;
+
+  function onRest() {
+    const ring = document.getElementById('rest-circle');
+    if (!ring) return false;
+    const body = ghostBody.getBoundingClientRect();
+    const zone = ring.getBoundingClientRect();
+    const dist = Math.hypot(
+      (body.left + body.width / 2) - (zone.left + zone.width / 2),
+      (body.top + body.height / 2) - (zone.top + zone.height / 2)
+    );
+    return dist < zone.width * 0.5 + body.width * 0.45;
+  }
+
   function stopDrag() {
     if (!isDragging) return;
     isDragging = false;
@@ -1255,7 +1269,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hit && dragMoved > 12 && typeof window.y2kPlayAt === 'function') {
       window.y2kPlayAt(Number(hit.dataset.song));
     }
-    pickNewTarget();
+    restLock = onRest();
+    if (!restLock) pickNewTarget();
   }
 
   // Mouse Listeners
@@ -1348,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function roamStep() {
     if (!roamEnabled) return;
 
-    if (!isDragging && !interactionPause) {
+    if (!isDragging && !interactionPause && !restLock) {
       const dx = target.x - pos.x;
       const dy = target.y - pos.y;
       const dist = Math.hypot(dx, dy);
@@ -1358,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!idleTimer) {
           idleTimer = setTimeout(() => {
             idleTimer = null;
-            if (roamEnabled && !isDragging && !interactionPause) pickNewTarget();
+            if (roamEnabled && !isDragging && !interactionPause && !restLock) pickNewTarget();
           }, 1500 + Math.random() * 2500);
         }
       } else {
@@ -1430,21 +1445,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     const ring = document.getElementById('rest-circle');
     if (!ring) return;
-    const body = ghostBody.getBoundingClientRect();
-    const zone = ring.getBoundingClientRect();
-    const dist = Math.hypot(
-      (body.left + body.width / 2) - (zone.left + zone.width / 2),
-      (body.top + body.height / 2) - (zone.top + zone.height / 2)
-    );
-    const resting = dist < zone.width * 0.55 && !isDragging;
+    const resting = onRest();
+    restLock = resting && !isDragging;
     ring.classList.toggle('is-resting', resting);
     if (resting && manaLevel < 100) {
-      manaLevel = Math.min(100, manaLevel + 2);
+      manaLevel = Math.min(100, manaLevel + 6);
       syncMana();
     }
     if (resting && !wasResting) {
       const speech = document.getElementById('ghost-speech');
-      if (speech) speech.textContent = 'Rest.';
+      if (speech) speech.textContent = manaLevel >= 100 ? 'Full.' : 'Rest.';
     }
     wasResting = resting;
   }, 450);
@@ -1560,7 +1570,6 @@ function ghostAction(type) {
     ghost.classList.remove('dancing');
     ghost.classList.add('reaping');
     spawnScythe();
-    spawnReapSparks();
     burstHere();
     setTimeout(() => ghost.classList.remove('reaping'), 900);
 
@@ -1701,10 +1710,6 @@ function spawnPrey(extraClass, count, points, label) {
 
 function spawnCatchGhosts() {
   spawnPrey('', 5, 1, 'Catch');
-}
-
-function spawnReapSparks() {
-  spawnPrey('reap-spark', 4, 2, 'Cut');
 }
 
 let huntEnds = 0;
