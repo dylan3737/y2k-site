@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=35"/>
+  <link rel="stylesheet" href="style.css?v=36"/>
   
 </head>
 <body>
@@ -43,6 +43,19 @@
     </label>
   </div>
 
+  <div class="game-ring" aria-label="Games">
+    <button type="button" class="game-mark" data-game="0" style="--a: 78deg">Ruinborne</button>
+    <button type="button" class="game-mark" data-game="1" style="--a: 102deg">Anomaly</button>
+    <button type="button" class="game-mark" data-game="2" style="--a: 126deg">Skyseed</button>
+    <button type="button" class="game-all" data-open-modal="portfolio">All work</button>
+  </div>
+  <aside class="game-card" id="gameCard" hidden>
+    <button type="button" class="game-card-close" id="gameCardClose" aria-label="Close">×</button>
+    <h3 id="gameCardTitle"></h3>
+    <p id="gameCardText"></p>
+    <a class="project-link" id="gameCardLink" href="">Play</a>
+  </aside>
+
   <canvas id="canvas" aria-hidden="true"></canvas>
   <div class="fallback-bg" id="fallbackBg" aria-hidden="true"></div>
 
@@ -56,7 +69,7 @@
     </div>
 
     <nav class="bottom-nav" aria-label="Site sections">
-      <button class="nav-link" data-target="portfolio">Portfolio</button>
+      <button class="nav-link" id="portfolioTab" type="button" aria-pressed="false">Portfolio</button>
       <button class="nav-link" id="musicTab" data-music aria-pressed="false">Music Box</button>
       <button class="nav-link" data-target="setup">Setup</button>
       <button class="nav-link" data-target="contact">Contact</button>
@@ -201,6 +214,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=45"></script>
+  <script src="script.js?v=46"></script>
 </body>
 </html>

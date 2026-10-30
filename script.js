@@ -276,6 +276,7 @@
           chord.forEach((note, i) => voice(note, 'sine', span * 0.98, 0.03 - i * 0.004, now));
           voice(chord[0] - 12, 'sine', span * 0.9, 0.045, now);
           if (song.bell) voice(chord[0] + 24, 'sine', 2.2, 0.028, now);
+          if (typeof window.y2kBreath === 'function') window.y2kBreath();
         }
         if (song.drums) {
           const beat = step % 16;
@@ -381,6 +382,61 @@
         else window.y2kPlayAt(index);
       });
     });
+
+    const games = [
+      {
+        title: 'Ruinborne',
+        text: 'A pastel roguelite dive. Pick a job, fight through the chambers, and carry boons and relics from one attempt to the next.',
+        href: 'https://dylan3737.itch.io/ruinborne',
+        link: 'Play on itch.io'
+      },
+      {
+        title: 'Anomaly',
+        text: 'A hooded gunslinger with a katana against waves of soldiers. Wall-runs, shootdodges, and bullet time.',
+        href: 'https://dylan3737.itch.io/anomaly',
+        link: 'Play on itch.io'
+      },
+      {
+        title: 'Skyseed',
+        text: 'A floating-island growth puzzle. Place every piece, one per turn, and find the order that finishes the island.',
+        href: 'https://dylan3737.itch.io/skyseed',
+        link: 'Play on itch.io'
+      }
+    ];
+
+    function hideGameCard() {
+      const card = document.getElementById('gameCard');
+      if (card) card.hidden = true;
+      document.querySelectorAll('.game-mark').forEach((mark) => mark.classList.remove('is-on'));
+    }
+
+    function showGameCard(index) {
+      const game = games[index];
+      const card = document.getElementById('gameCard');
+      if (!game || !card) return;
+      document.getElementById('gameCardTitle').textContent = game.title;
+      document.getElementById('gameCardText').textContent = game.text;
+      const link = document.getElementById('gameCardLink');
+      link.href = game.href;
+      link.textContent = game.link;
+      const body = document.getElementById('ghost-character').getBoundingClientRect();
+      let left = body.right + 14;
+      let top = body.top;
+      if (left + 230 > window.innerWidth) left = body.left - 244;
+      if (top + 170 > window.innerHeight) top = window.innerHeight - 180;
+      card.style.left = Math.max(12, left) + 'px';
+      card.style.top = Math.max(12, top) + 'px';
+      card.hidden = false;
+      document.querySelectorAll('.game-mark').forEach((mark) => {
+        mark.classList.toggle('is-on', Number(mark.dataset.game) === index);
+      });
+    }
+
+    document.querySelectorAll('.game-mark').forEach((mark) => {
+      mark.addEventListener('click', () => showGameCard(Number(mark.dataset.game)));
+    });
+    const gameCardClose = document.getElementById('gameCardClose');
+    if (gameCardClose) gameCardClose.addEventListener('click', hideGameCard);
 
     const volumeInput = document.getElementById('volume');
     if (volumeInput) {
@@ -999,6 +1055,20 @@
         }
       };
 
+      window.y2kBreath = function () {
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          splatStack.push({
+            x: 0.5 + Math.cos(a) * 0.1,
+            y: 0.5 + Math.sin(a) * 0.08,
+            dx: Math.cos(a) * 0.07,
+            dy: Math.sin(a) * 0.07,
+            color: [0.12, 0.02, 0.22],
+            radius: 2.6
+          });
+        }
+      };
+
       window.y2kBurst = function (clientX, clientY) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
@@ -1024,7 +1094,7 @@
 
     function isFluidGestureTarget(node) {
       return !(node && node.closest && node.closest(
-        '.modal-content, .music-widget-wrapper, nav.bottom-nav, .ghost-pet, a, button, input, textarea, select, label'
+        '.modal-content, .music-widget-wrapper, .game-card, .game-ring, nav.bottom-nav, .ghost-pet, a, button, input, textarea, select, label'
       ));
     }
 
@@ -1095,6 +1165,13 @@
 
     navLinks.forEach(link => {
       link.addEventListener('click', () => {
+        if (link.id === 'portfolioTab') {
+          const ring = document.querySelector('.game-ring');
+          const open = ring.classList.toggle('is-open');
+          link.setAttribute('aria-pressed', open ? 'true' : 'false');
+          if (!open && typeof hideGameCard === 'function') hideGameCard();
+          return;
+        }
         if (link.hasAttribute('data-music')) {
           const ring = document.querySelector('.song-ring');
           const open = ring.classList.toggle('is-open');
@@ -1208,11 +1285,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ghostBody.classList.add('is-moving');
   }
 
-  function songUnder() {
+  function markUnder(selector) {
     const body = ghostBody.getBoundingClientRect();
     const cx = body.left + body.width / 2;
     const cy = body.top + body.height / 2;
-    const marks = document.querySelectorAll('.song-mark');
+    const marks = document.querySelectorAll(selector);
     let best = null;
     let bestDist = Infinity;
     for (let i = 0; i < marks.length; i++) {
@@ -1228,6 +1305,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return best;
   }
 
+  function songUnder() { return markUnder('.song-mark'); }
+  function gameUnder() { return markUnder('.game-mark'); }
+
   function moveDrag(clientX, clientY) {
     if (!isDragging) return;
     const b = getBounds();
@@ -1238,8 +1318,12 @@ document.addEventListener('DOMContentLoaded', () => {
     container._lx = pos.x;
     container._ly = pos.y;
     const hit = songUnder();
+    const game = gameUnder();
     document.querySelectorAll('.song-mark').forEach((mark) => {
       mark.classList.toggle('is-near', mark === hit);
+    });
+    document.querySelectorAll('.game-mark').forEach((mark) => {
+      mark.classList.toggle('is-near', mark === game);
     });
     stirFromMotion();
   }
@@ -1282,10 +1366,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ghostBody.classList.remove('is-moving');
     clearIdle();
     const hit = songUnder();
+    const game = gameUnder();
     document.querySelectorAll('.song-mark').forEach((mark) => mark.classList.remove('is-near'));
+    document.querySelectorAll('.game-mark').forEach((mark) => mark.classList.remove('is-near'));
     if (hit && dragMoved > 12 && typeof window.y2kPlayAt === 'function') {
       window.y2kPlayAt(Number(hit.dataset.song));
     }
+    if (game && dragMoved > 12) showGameCard(Number(game.dataset.game));
     restLock = onRest() && manaLevel < 100;
     if (restLock) return;
     if (onRest()) leaveRest();

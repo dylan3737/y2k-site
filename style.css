@@ -218,28 +218,33 @@
       100% { transform: translate3d(-100%, 0, 0); }
     }
 
-    .song-ring {
+    .song-ring,
+    .game-ring {
       position: fixed;
       inset: 0;
       z-index: 5;
       pointer-events: none;
     }
 
-    .song-ring.is-open {
+    .song-ring.is-open,
+    .game-ring.is-open {
       display: block;
     }
 
-    .song-ring:not(.is-open) {
+    .song-ring:not(.is-open),
+    .game-ring:not(.is-open) {
       display: none;
     }
 
     nav.bottom-nav button.nav-link.is-playing,
-    #musicTab[aria-pressed="true"] {
+    #musicTab[aria-pressed="true"],
+    #portfolioTab[aria-pressed="true"] {
       background: #2a1840;
       box-shadow: 0 0 10px rgba(150, 80, 220, 0.8);
     }
 
-    .song-mark {
+    .song-mark,
+    .game-mark {
       position: fixed;
       z-index: 5;
       width: 68px;
@@ -260,6 +265,70 @@
       top: calc(58% + sin(var(--a)) * min(32vh, 260px) - 34px);
       box-shadow: inset 0 0 14px rgba(140, 80, 200, 0.35);
       transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .game-mark {
+      width: 86px;
+      height: 86px;
+      margin-left: -9px;
+      margin-top: -9px;
+      padding-top: 34px;
+      font-size: 7px;
+    }
+
+    .game-all {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 6;
+      pointer-events: auto;
+      padding: 6px 12px;
+      border: 2px solid rgba(201, 182, 255, 0.8);
+      border-radius: 999px;
+      background: rgba(22, 14, 34, 0.82);
+      color: #e7d9ff;
+      font-family: 'Silkscreen', monospace;
+      font-size: 8px;
+      cursor: pointer;
+    }
+
+    .game-card {
+      position: fixed;
+      z-index: 8;
+      width: 220px;
+      padding: 14px 14px 12px;
+      border: 2px solid #c9b6ff;
+      border-radius: 16px;
+      background: rgba(22, 14, 34, 0.92);
+      color: #e7d9ff;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    .game-card[hidden] { display: none; }
+
+    .game-card h3 {
+      margin: 0 28px 8px 0;
+      font-family: 'Silkscreen', monospace;
+      font-size: 11px;
+    }
+
+    .game-card p {
+      margin: 0 0 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .game-card-close {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      border: 0;
+      background: transparent;
+      color: #e7d9ff;
+      font-size: 16px;
+      cursor: pointer;
     }
 
     .volume {
@@ -287,6 +356,8 @@
       accent-color: #c9b6ff;
       cursor: pointer;
     }
+    .song-mark::before,
+    .game-mark::before {
       content: "";
       position: absolute;
       left: 50%;
@@ -300,7 +371,9 @@
     }
 
     .song-mark.is-near,
-    .song-mark.is-on {
+    .song-mark.is-on,
+    .game-mark.is-near,
+    .game-mark.is-on {
       border-color: #fff;
       background: radial-gradient(circle, rgba(140, 70, 200, 0.72), rgba(22, 14, 34, 0.35) 72%);
       box-shadow: 0 0 22px rgba(150, 80, 220, 0.85), inset 0 0 12px rgba(201, 182, 255, 0.5);
