@@ -285,7 +285,10 @@
           else if (beat % 2 === 0) hat(now, 0.012, 0.04);
         }
         const note = song.melody[step % song.melody.length];
-        if (note != null) voice(note, 'triangle', song.drums ? 0.55 : 1.4, 0.032, now);
+        if (note != null) {
+          voice(note, 'triangle', song.drums ? 0.55 : 1.4, 0.032, now);
+          if (typeof window.y2kNote === 'function') window.y2kNote(note);
+        }
         step++;
       }, ms);
     }
@@ -387,18 +390,21 @@
     const games = [
       {
         title: 'Ruinborne',
+        img: 'img/ruinborne.jpg',
         text: 'A pastel roguelite dive. Pick a job, fight through the chambers, and carry boons and relics from one attempt to the next.',
         href: 'https://dylan3737.itch.io/ruinborne',
         link: 'Play on itch.io'
       },
       {
         title: 'Anomaly',
+        img: 'img/anomaly.jpg',
         text: 'A hooded gunslinger with a katana against waves of soldiers. Wall-runs, shootdodges, and bullet time.',
         href: 'https://dylan3737.itch.io/anomaly',
         link: 'Play on itch.io'
       },
       {
         title: 'Skyseed',
+        img: 'img/skyseed.jpg',
         text: 'A floating-island growth puzzle. Place every piece, one per turn, and find the order that finishes the island.',
         href: 'https://dylan3737.itch.io/skyseed',
         link: 'Play on itch.io'
@@ -417,17 +423,20 @@
       if (!game || !card) return;
       document.getElementById('gameCardTitle').textContent = game.title;
       document.getElementById('gameCardText').textContent = game.text;
+      const img = document.getElementById('gameCardImg');
+      img.src = game.img;
+      img.alt = game.title + ' cover art';
       const link = document.getElementById('gameCardLink');
       link.href = game.href;
       link.textContent = game.link;
       const body = document.getElementById('ghost-character').getBoundingClientRect();
+      card.hidden = false;
       let left = body.right + 14;
       let top = body.top;
-      if (left + 230 > window.innerWidth) left = body.left - 244;
-      if (top + 170 > window.innerHeight) top = window.innerHeight - 180;
+      if (left + card.offsetWidth + 10 > window.innerWidth) left = body.left - card.offsetWidth - 24;
+      if (top + card.offsetHeight + 12 > window.innerHeight) top = window.innerHeight - card.offsetHeight - 12;
       card.style.left = Math.max(12, left) + 'px';
       card.style.top = Math.max(12, top) + 'px';
-      card.hidden = false;
       document.querySelectorAll('.game-mark').forEach((mark) => {
         mark.classList.toggle('is-on', Number(mark.dataset.game) === index);
       });
@@ -1052,6 +1061,19 @@
             radius: 2.6
           });
         }
+      };
+
+      window.y2kNote = function (note) {
+        const t = Math.min(1, Math.max(0, (note - 60) / 22));
+        const drift = Date.now() / 2400;
+        splatStack.push({
+          x: 0.18 + t * 0.64,
+          y: 0.5 + Math.sin(drift + t * 3) * 0.22,
+          dx: (Math.random() - 0.5) * 0.1,
+          dy: 0.16,
+          color: [0.34 + t * 0.22, 0.05 + (1 - t) * 0.08, 0.62 - t * 0.18],
+          radius: 1.1
+        });
       };
 
       window.y2kBurst = function (clientX, clientY) {
@@ -1781,6 +1803,7 @@ const huntReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').m
 function beginHunt() {
   if (!(huntEnds > Date.now())) roundScore = 0;
   huntEnds = Date.now() + 10000;
+  paintHunt(10000);
   if (!huntTick) huntTick = setInterval(tickHunt, 200);
   if (!huntReduceMotion && !huntFrame) huntFrame = requestAnimationFrame(movePrey);
 }
@@ -1788,6 +1811,16 @@ function beginHunt() {
 function tickHunt() {
   const left = huntEnds - Date.now();
   if (left <= 0) finishHunt();
+  else paintHunt(left);
+}
+
+// The ring around the reaper drains over the 10s catch round.
+function paintHunt(left) {
+  const ring = document.getElementById('huntRing');
+  if (!ring) return;
+  ring.hidden = left <= 0;
+  ring.style.setProperty('--left', Math.max(0, left / 10000).toFixed(3));
+  ring.classList.toggle('is-late', left > 0 && left < 3000);
 }
 
 function finishHunt() {
@@ -1798,6 +1831,7 @@ function finishHunt() {
   huntEnds = 0;
   if (huntTick) clearInterval(huntTick);
   huntTick = null;
+  paintHunt(0);
   document.querySelectorAll('.prey-ghost').forEach((node) => node.remove());
   if (caught > best) {
     best = caught;

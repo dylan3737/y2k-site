@@ -15,13 +15,14 @@
   <meta property="og:image:alt" content="Dylan Dyal in script over a dark purple fluid swirl, with the pixel reaper beside the name." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="theme-color" content="#0c0e18" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
   <!-- Google Fonts: Sassy Frass, Inter, & Silkscreen (8-bit Y2K) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=39"/>
+  <link rel="stylesheet" href="style.css?v=40"/>
   
 </head>
 <body>
@@ -57,6 +58,7 @@
   </div>
   <aside class="game-card" id="gameCard" hidden>
     <button type="button" class="game-card-close" id="gameCardClose" aria-label="Close">×</button>
+    <img id="gameCardImg" class="game-card-img" src="" alt="" width="420" height="333">
     <h3 id="gameCardTitle"></h3>
     <p id="gameCardText"></p>
     <a class="project-link" id="gameCardLink" href="">Play</a>
@@ -110,22 +112,26 @@
       <!-- Portfolio Section -->
       <div class="modal-section" id="portfolio">
         <h2 class="modal-title" id="portfolio-heading">[ PORTFOLIO ]</h2>
-        <div class="card">
+        <div class="card has-thumb">
+          <img class="card-thumb" src="img/ruinborne.jpg" alt="Ruinborne cover art" width="420" height="333" loading="lazy">
           <h3>Ruinborne</h3>
           <p>A pastel roguelite dive. Pick a job, fight through the chambers, and carry boons and relics from one attempt to the next. Playable in the browser.</p>
           <a class="project-link" href="https://dylan3737.itch.io/ruinborne">Play on itch.io</a>
         </div>
-        <div class="card">
+        <div class="card has-thumb">
+          <img class="card-thumb" src="img/anomaly.jpg" alt="Anomaly cover art" width="420" height="333" loading="lazy">
           <h3>Anomaly</h3>
           <p>A browser arcade game. A hooded gunslinger with a katana against waves of soldiers, with wall-runs, shootdodges, and bullet time. Built in three.js. The textures and sounds are generated in code.</p>
           <a class="project-link" href="https://dylan3737.itch.io/anomaly">Play on itch.io</a>
         </div>
-        <div class="card">
+        <div class="card has-thumb">
+          <img class="card-thumb" src="img/skyseed.jpg" alt="Skyseed cover art" width="420" height="333" loading="lazy">
           <h3>Skyseed</h3>
           <p>A floating-island growth puzzle in the spirit of Grow Island. Place every piece, one per turn, and find the order that lets the island reach its final form.</p>
           <a class="project-link" href="https://dylan3737.itch.io/skyseed">Play on itch.io</a>
         </div>
-        <div class="card">
+        <div class="card has-thumb">
+          <img class="card-thumb" src="img/expelled.jpg" alt="Expelled cover art" width="420" height="333" loading="lazy">
           <h3>Expelled</h3>
           <p>A dark-magician idle game in the Mafia Wars style. Playable in the browser.</p>
           <a class="project-link" href="https://dylan3737.github.io/expelled/">Play</a>
@@ -207,6 +213,7 @@
   <div id="ghost-speech" class="ghost-bubble">✦ listen</div>
 
   <div id="ghost-character" class="ghost-body">
+    <div id="huntRing" class="hunt-ring" hidden></div>
     <img class="ghost-svg" src="ghost.png?v=11" alt="" width="92" draggable="false">
   </div>
 
@@ -221,6 +228,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=48"></script>
+  <script src="script.js?v=49"></script>
 </body>
 </html>

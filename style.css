@@ -295,6 +295,15 @@
 
     .game-card[hidden] { display: none; }
 
+    .game-card-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(201, 182, 255, 0.4);
+    }
+
     .game-card h3 {
       margin: 0 28px 8px 0;
       font-family: 'Silkscreen', monospace;
@@ -605,6 +614,28 @@
     }
 
     .card h3 { font-size: 1.05rem; margin-bottom: 6px; color: var(--accent-pink); }
+
+    .card.has-thumb {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      column-gap: 16px;
+      align-items: start;
+    }
+
+    .card.has-thumb .card-thumb {
+      grid-row: 1 / span 3;
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--nav-border);
+    }
+
+    .card.has-thumb .project-link { justify-self: start; }
+
+    @media (max-width: 520px) {
+      .card.has-thumb { grid-template-columns: 1fr; }
+      .card.has-thumb .card-thumb { grid-row: auto; margin-bottom: 12px; }
+    }
     .card p { font-size: 0.88rem; color: var(--muted-text); line-height: 1.5; }
 
     /* Setup/Gear List Styling */
@@ -804,6 +835,33 @@
 @keyframes soulRise {
   to { transform: translateY(-32px); opacity: 0; }
 }
+
+@property --left {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+/* Drains around the reaper over the 10s catch round. */
+.hunt-ring {
+  --ring: #c9b6ff;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: 130%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(var(--ring) calc(var(--left) * 360deg), rgba(201, 182, 255, 0.12) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  transition: --left 0.2s linear;
+  pointer-events: none;
+}
+
+.hunt-ring.is-late { --ring: #c45a78; }
+.hunt-ring[hidden] { display: none; }
 
 .familiar {
   position: absolute;
