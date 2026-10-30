@@ -119,6 +119,8 @@
       }
     }
 
+    let musicBus = null;
+
     function midiHz(note) {
       return 440 * Math.pow(2, (note - 69) / 12);
     }
@@ -147,8 +149,9 @@
 
     function shaped(peak, dur, when) {
       const gain = audioCtx.createGain();
+      const level = Math.max(0.004, peak);
       gain.gain.setValueAtTime(0.0001, when);
-      gain.gain.exponentialRampToValueAtTime(peak, when + 0.04);
+      gain.gain.exponentialRampToValueAtTime(level, when + 0.04);
       gain.gain.exponentialRampToValueAtTime(0.0001, when + dur);
       return gain;
     }
@@ -322,15 +325,21 @@
       const bubble = document.getElementById('ghost-speech');
       if (!bubble) return;
       const track = playlistData[currentTrackIndex];
-      bubble.textContent = isPlaying ? track.title : '✦ set me down';
+      bubble.textContent = isPlaying ? track.title : '✦ listen';
+      const listenBtn = document.querySelector('[data-ghost-action="listen"]');
+      if (listenBtn) listenBtn.textContent = isPlaying ? 'Hush' : 'Listen';
     }
 
     function playTrack() {
       initAudioContext();
-      const track = playlistData[currentTrackIndex];
-      startSynthLoop(track.preset);
-      isPlaying = true;
-      labelMusic();
+      const go = () => {
+        const track = playlistData[currentTrackIndex];
+        startSynthLoop(track.preset);
+        isPlaying = true;
+        labelMusic();
+      };
+      if (audioCtx.state === 'suspended') audioCtx.resume().then(go);
+      else go();
     }
 
     function pauseTrack() {
@@ -398,192 +407,6 @@
       }
     });
 
-    // --- Guestbook & Song Suggestions (Supabase-backed, shared & public) ---
-   // 1. Create a free project at supabase.com
-   // 2. Run the two SQL setup blocks (create tables, then enable RLS + public policies)
-   // 3. Paste your Project URL and anon public key below.
-   //    The anon key is meant to be public — it's safe in client-side code as
-   //    long as your Row Level Security policies are set correctly.
-const SUPABASE_URL = 'https://busaiboomhpoxlevjzre.supabase.co'; // project root — not /rest/v1/
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1c2FpYm9vbWhwb3hsZXZqenJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MTIwNTEsImV4cCI6MjEwNDk4ODA1MX0.tEDOOKt84bPUX3rs5ji3Z__auPgLhuFWwF74tMo9sVc';
-
-const supabaseConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
-const supabaseClient = (supabaseConfigured && window.supabase)
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
-
-function escapeHTML(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-const SUBMIT_COOLDOWN_MS = 45000;
-const lastSubmitAt = { song: 0 };
-const recentPayloads = { song: '' };
-
-function looksLikeSpam(text) {
-  const value = (text || '').trim();
-  if (value.length < 2) return 'Please write a little more.';
-  if (/(.)\1{8,}/.test(value)) return 'That looks like filler — try a real message.';
-  const urls = value.match(/https?:\/\/|www\.|\.com\b|\.net\b|\.xyz\b|\.ru\b/gi) || [];
-  if (urls.length >= 2) return 'Too many links — keep it to a note, not a promo.';
-  const lower = value.toLowerCase();
-  const spamTokens = ['crypto pump', 'casino', 'viagra', 'cialis', 'loan approval', 'seo backlink', 'telegram.me'];
-  if (spamTokens.some(token => lower.includes(token))) return 'That message was blocked.';
-  return null;
-}
-
-function canSubmit(kind, payloadKey) {
-  const now = Date.now();
-  if (now - lastSubmitAt[kind] < SUBMIT_COOLDOWN_MS) {
-    const wait = Math.ceil((SUBMIT_COOLDOWN_MS - (now - lastSubmitAt[kind])) / 1000);
-    return `Please wait ${wait}s before sending another note.`;
-  }
-  if (recentPayloads[kind] && recentPayloads[kind] === payloadKey) {
-    return 'You already sent that.';
-  }
-  return null;
-}
-
-function markSubmitted(kind, payloadKey) {
-  lastSubmitAt[kind] = Date.now();
-  recentPayloads[kind] = payloadKey;
-}
-
-function formatEntryTime(isoString) {
-  try {
-    return new Date(isoString).toLocaleString(undefined, {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
-  } catch (err) {
-    return '';
-  }
-}
-
-function renderEntryList(container, entries, emptyMessage, renderItem) {
-  if (!container) return;
-  container.innerHTML = '';
-
-  if (!entries || entries.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'guestbook-empty';
-    empty.textContent = emptyMessage;
-    container.appendChild(empty);
-    return;
-  }
-
-  entries.forEach(entry => {
-    container.insertAdjacentHTML('beforeend', renderItem(entry));
-  });
-}
-
-// --- Song Suggestions ---
-const songForm = document.getElementById('songForm');
-const songNameInput = document.getElementById('songName');
-const songNotesInput = document.getElementById('songNotes');
-const songSubmitBtn = document.getElementById('songSubmit');
-const songStatus = document.getElementById('songStatus');
-const songSuggestionsEl = document.getElementById('songSuggestionsList');
-const songHoneypotInput = document.getElementById('songWebsite');
-
-function renderSongEntry(entry) {
-  return `
-    <div class="guestbook-entry">
-      <div class="guestbook-entry-name">${escapeHTML(entry.song)}</div>
-      <div class="guestbook-entry-message">${escapeHTML(entry.notes)}</div>
-      <div class="guestbook-entry-time">${formatEntryTime(entry.created_at)}</div>
-    </div>`;
-}
-
-async function loadSongSuggestions() {
-  if (!supabaseClient) {
-    renderEntryList(songSuggestionsEl, [], 'Song suggestions aren\'t connected yet — check back soon!', renderSongEntry);
-    return;
-  }
-  const { data, error } = await supabaseClient
-    .from('song_suggestions')
-    .select('song, notes, created_at')
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) {
-    console.error('Failed to load song suggestions:', error);
-    renderEntryList(songSuggestionsEl, [], 'Couldn\'t load suggestions right now.', renderSongEntry);
-    return;
-  }
-  renderEntryList(songSuggestionsEl, data, 'No suggestions yet — be the first!', renderSongEntry);
-}
-
-if (songForm) {
-  songForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const song = songNameInput.value.trim();
-    const notes = songNotesInput.value.trim();
-    if (!song || !notes) return;
-
-    const spamReason = looksLikeSpam(song) || looksLikeSpam(notes);
-    if (spamReason) {
-      songStatus.textContent = spamReason;
-      setTimeout(() => { songStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    const payloadKey = song.toLowerCase() + '\n' + notes.toLowerCase();
-    const rateReason = canSubmit('song', payloadKey);
-    if (rateReason) {
-      songStatus.textContent = rateReason;
-      setTimeout(() => { songStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    // Honeypot: see the matching comment in the guestbook handler above.
-    if (songHoneypotInput && songHoneypotInput.value.trim() !== '') {
-      songNameInput.value = '';
-      songNotesInput.value = '';
-      songStatus.textContent = '★ Song suggestion sent!';
-      setTimeout(() => { songStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    if (!supabaseClient) {
-      songStatus.textContent = 'Song suggestions aren\'t connected yet.';
-      setTimeout(() => { songStatus.textContent = ''; }, 4000);
-      return;
-    }
-
-    songSubmitBtn.disabled = true;
-    songStatus.textContent = 'Sending…';
-
-    try {
-      const { error } = await supabaseClient
-        .from('song_suggestions')
-        .insert({ song, notes });
-
-      if (error) throw error;
-
-      songNameInput.value = '';
-      songNotesInput.value = '';
-      markSubmitted('song', payloadKey);
-      songStatus.textContent = '★ Song suggestion sent!';
-      loadSongSuggestions();
-    } catch (err) {
-      console.error('Submission error:', err);
-      const msg = err && err.message;
-      songStatus.textContent = msg && msg.indexOf('Too many notes') !== -1
-        ? 'Too many notes. Please wait a few minutes.'
-        : 'Failed to send. Please try again.';
-    } finally {
-      songSubmitBtn.disabled = false;
-      setTimeout(() => {
-        songStatus.textContent = '';
-      }, 4000);
-    }
-  });
-}
-
-loadSongSuggestions();
     // WebGL Fluid Solver Initialization
     const canvas = document.getElementById('canvas');
     const themeBtn = document.getElementById('themeBtn');
@@ -1599,6 +1422,13 @@ function ghostAction(type) {
   const pactBtn = document.querySelector('[data-ghost-action="mana"]');
 
   ghost.classList.remove('dancing', 'reaping', 'mana-glow', 'casting');
+
+  if (type === 'listen') {
+    const box = document.getElementById('ghost-pet-container').getBoundingClientRect();
+    const col = Math.min(5, Math.max(0, Math.floor(((box.left + box.width / 2) / Math.max(window.innerWidth, 1)) * 6)));
+    if (typeof window.y2kBubble === 'function') window.y2kBubble(col);
+    return;
+  }
 
   if (type === 'hex') {
     if (!spendSoul(25, speech)) return;

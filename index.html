@@ -16,10 +16,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=29"/>
-  <script
-    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.1/dist/umd/supabase.js"
-    integrity="sha384-qmLe2vls59SnfpN2OJ/tjAASSNP+R7nmj+MyytoaCmVRjJbVGsUaFkxJW4jGpaqh"
-    crossorigin="anonymous"></script>
   
 </head>
 <body>
@@ -147,11 +143,7 @@
           </div>
           <div class="setup-item">
             <h4>SOUND</h4>
-            <p>Web Audio, synths and rain</p>
-          </div>
-          <div class="setup-item">
-            <h4>NOTES</h4>
-            <p>Supabase song requests</p>
+            <p>Web Audio, where the reaper stands</p>
           </div>
           <div class="setup-item">
             <h4>CODE</h4>
@@ -160,31 +152,6 @@
         </div>
       </div>
 
-      <!-- Contact Section -->
-      <div class="modal-section" id="songSuggestion">
-        <h2 class="modal-title" id="songSuggestion-heading">[ SUGGEST A SONG ]</h2>
-        <form class="guestbook-form" id="songForm">
-          <label for="songName" style="font-size: 0.75rem; color: var(--muted-text);">Song / Artist Name</label>
-          <input type="text" id="songName" name="song" maxlength="100" placeholder="e.g. Tycho - Awake" required />
-          
-          <label for="songNotes" style="font-size: 0.75rem; color: var(--muted-text);">Why should it be added?</label>
-          <textarea id="songNotes" name="notes" maxlength="280" placeholder="Gives cool late night retro vibes..." required></textarea>
-
-          <!-- Honeypot: real visitors never see or fill this in. Bots that
-               auto-fill every field will, so we quietly reject the submission. -->
-          <div class="hp-field" aria-hidden="true">
-            <label for="songWebsite">Leave this blank</label>
-            <input type="text" id="songWebsite" name="hp_field" tabindex="-1" autocomplete="off" />
-          </div>
-
-          <button type="submit" class="guestbook-submit" id="songSubmit">Send Suggestion</button>
-          <div class="guestbook-status" id="songStatus" role="status" aria-live="polite"></div>
-        </form>
-        <div class="guestbook-entries" id="songSuggestionsList">
-          <p class="guestbook-empty">Loading suggestions…</p>
-        </div>
-        <p class="guestbook-note">Suggestions are public and visible to every visitor.</p>
-      </div>
       <!-- Contact Section -->
       <div class="modal-section" id="contact">
         <h2 class="modal-title" id="contact-heading">[ CONTACT ]</h2>
@@ -196,7 +163,6 @@
         <div class="card">
           <h3>Elsewhere</h3>
           <p>Code and experiments live on <a style="color: var(--accent-pink);" href="https://github.com/dylan3737">GitHub</a>.</p>
-          <p style="margin-top: 10px;"><button type="button" class="project-link" data-open-modal="songSuggestion">Request a song</button></p>
         </div>
       </div>
 
@@ -204,7 +170,7 @@
   </div>
   <!-- Cute ghost in a hooded robe -->
 <div id="ghost-pet-container" class="ghost-pet">
-  <div id="ghost-speech" class="ghost-bubble">✦ set me down</div>
+  <div id="ghost-speech" class="ghost-bubble">✦ listen</div>
 
   <div id="ghost-character" class="ghost-body">
     <img class="ghost-svg" src="ghost.png?v=11" alt="" width="92" draggable="false">
@@ -215,7 +181,7 @@
   </div>
 
   <div class="ghost-actions">
-    <button data-ghost-action="reap" data-cost="15">Reap<span>15</span></button>
+    <button type="button" data-ghost-action="listen">Listen</button>
     <button data-ghost-action="mana">Pact<span>+35</span></button>
     <button data-ghost-action="summon" data-cost="30">Summon<span>30</span></button>
     <button data-ghost-action="hex" data-cost="25">Hex<span>25</span></button>
@@ -223,6 +189,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=35"></script>
+  <script src="script.js?v=36"></script>
 </body>
 </html>
