@@ -4,10 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dylan Dyal ★ Personal Webspace</title>
-  <meta name="description" content="Dylan Dyal's personal webspace — a Y2K-inspired corner of the internet with creative-coding projects and a radio." />
+  <meta name="description" content="Dylan Dyal's personal webspace — a Y2K-inspired corner of the internet with creative-coding projects and a music box." />
   <meta property="og:title" content="Dylan Dyal ★ Personal Webspace" />
-  <meta property="og:description" content="A Y2K-inspired personal site: WebGL fluid art, creative-coding projects, and a radio." />
+  <meta property="og:description" content="A Y2K-inspired personal site: WebGL fluid art, creative-coding projects, and a music box." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://dylan3737.github.io/y2k-site/" />
+  <meta property="og:image" content="https://dylan3737.github.io/y2k-site/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Dylan Dyal in script over a dark purple fluid swirl, with the pixel reaper beside the name." />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="theme-color" content="#0c0e18" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
 
@@ -15,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=38"/>
+  <link rel="stylesheet" href="style.css?v=39"/>
   
 </head>
 <body>
@@ -64,7 +70,8 @@
       <h1 class="name">Dylan Dyal</h1>
       <div class="subtitle">✦ Avid Learner // Creative Technologist ✦</div>
       <div class="nineties-bar">
-        <span class="hit-counter is-secret">SCORE <span id="scoreCount">000000</span></span>
+        <span class="hit-counter is-secret" id="scoreBadge">SCORE <span id="scoreCount">000000</span></span>
+        <span class="hit-counter is-secret" id="bestBadge">BEST <span id="bestCount">00</span></span>
       </div>
     </div>
 
@@ -214,6 +221,6 @@
   </div>
 </div>
 
-  <script src="script.js?v=47"></script>
+  <script src="script.js?v=48"></script>
 </body>
 </html>
