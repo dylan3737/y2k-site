@@ -44,6 +44,13 @@
         freq: "106.7",
         type: "synth",
         preset: "bell"
+      },
+      {
+        title: "Wraith",
+        artist: "the dead",
+        freq: "66.6",
+        type: "synth",
+        preset: "wraith"
       }
     ];
 
@@ -176,6 +183,29 @@
       osc.stop(when + dur + 0.05);
     }
 
+    // A slow sine with a little vibrato, for the Wraith's wail.
+    function wail(note, dur, peak, when) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(midiHz(note), when);
+      const lfo = audioCtx.createOscillator();
+      lfo.frequency.value = 4.6;
+      const depth = audioCtx.createGain();
+      depth.gain.value = midiHz(note) * 0.012;
+      lfo.connect(depth);
+      depth.connect(osc.frequency);
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.0001, when);
+      gain.gain.exponentialRampToValueAtTime(peak, when + dur * 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      osc.connect(gain);
+      gain.connect(musicBus);
+      osc.start(when);
+      lfo.start(when);
+      osc.stop(when + dur + 0.05);
+      lfo.stop(when + dur + 0.05);
+    }
+
     function hat(when, peak, dur) {
       const src = audioCtx.createBufferSource();
       src.buffer = makeNoiseBuffer();
@@ -256,6 +286,16 @@
         bell: true,
         chords: [[49, 56, 61, 65], [47, 54, 59, 63], [45, 52, 57, 61], [44, 51, 56, 61]],
         melody: [68, null, null, 73, null, null, null, null, 70, null, null, null, null, null, 65, null, null, null, 68, null, null, null, 63, null, null, null, null, null, null, null, null, null]
+      },
+      wraith: {
+        bpm: 48,
+        drums: false,
+        hold: 16,
+        rain: false,
+        bell: true,
+        wail: true,
+        chords: [[50, 53, 57, 62], [51, 55, 58, 62], [48, 51, 55, 60], [49, 53, 56, 61]],
+        melody: [74, null, null, null, null, null, 75, null, null, null, null, null, 74, null, null, null, 70, null, null, null, null, null, 69, null, null, null, null, null, 62, null, null, null]
       }
     };
 
@@ -286,7 +326,8 @@
         }
         const note = song.melody[step % song.melody.length];
         if (note != null) {
-          voice(note, 'triangle', song.drums ? 0.55 : 1.4, 0.032, now);
+          if (song.wail) wail(note, 2.6, 0.03, now);
+          else voice(note, 'triangle', song.drums ? 0.55 : 1.4, 0.032, now);
           if (typeof window.y2kNote === 'function') window.y2kNote(note);
         }
         step++;
@@ -762,8 +803,11 @@
       varying vec2 vUv;
       uniform sampler2D uTexture;
       uniform float uInvert;
+      uniform float uEclipse;
       void main () {
           vec3 c = texture2D(uTexture, vUv).rgb;
+          float m = max(c.r, max(c.g, c.b));
+          c = mix(c, vec3(m * 1.15, m * 0.06, m * 0.12), uEclipse);
           if (uInvert > 0.5) {
               c = 1.0 - c;
           }
@@ -853,7 +897,7 @@
           divergence: uniformMap(divergenceProg, ['texelSize', 'uVelocity']),
           pressure: uniformMap(pressureProg, ['texelSize', 'uDivergence', 'uPressure']),
           gradSub: uniformMap(gradSubProg, ['texelSize', 'uPressure', 'uVelocity']),
-          display: uniformMap(displayProg, ['uTexture', 'uInvert'])
+          display: uniformMap(displayProg, ['uTexture', 'uInvert', 'uEclipse'])
         };
         let targets = allocTargets(ext.halfFloat);
         if (!targets && ext.halfFloat !== gl.UNSIGNED_BYTE) {
@@ -888,6 +932,8 @@
     })() : null;
 
     let lastTime = Date.now();
+    let eclipseUntil = 0;
+    window.y2kEclipse = function (ms) { eclipseUntil = Date.now() + ms; };
 
     function update() {
       resizeCanvas();
@@ -958,6 +1004,7 @@
       gl.useProgram(displayProg);
       gl.uniform1i(U.display.uTexture, dye.read.attach(0));
       gl.uniform1f(U.display.uInvert, isDarkMode ? 0.0 : 1.0);
+      gl.uniform1f(U.display.uEclipse, Math.min(1, Math.max(0, (eclipseUntil - Date.now()) / 1500)));
       blit(null);
 
       requestAnimationFrame(update);
@@ -1575,7 +1622,10 @@ document.addEventListener('DOMContentLoaded', () => {
     restLock = resting && !isDragging && manaLevel < 100;
     ring.classList.toggle('is-resting', restLock);
     const speech = document.getElementById('ghost-speech');
-    if (restLock && !wasLocked && speech) speech.textContent = 'Rest.';
+    if (restLock && !wasLocked && speech) {
+      const hint = Math.random() < 0.5 ? riteHint() : null;
+      speech.textContent = hint || 'Rest.';
+    }
     if (wasLocked && !restLock && !isDragging) leaveRest();
   }, 450);
 });
@@ -1668,23 +1718,145 @@ function ghostAction(type) {
     spawnScythe();
     burstHere();
     setTimeout(() => ghost.classList.remove('reaping'), 900);
+
+  } else if (type === 'lantern') {
+    if (!spendSoul(10, speech)) return;
+    speech.textContent = 'Look closer.';
+    lightLantern();
   }
 
   noteCombo(type, speech);
 }
 
-// Reap, Hex, Summon cast back to back (one unbroken chain) shows the best catch.
-const BEST_COMBO = 'reap,hex,summon';
+// The lantern follows the pointer for 5s and shows what is written in the dark.
+let lanternTimer = null;
+
+function moveLantern(x, y) {
+  const root = document.documentElement;
+  root.style.setProperty('--lx', x + 'px');
+  root.style.setProperty('--ly', y + 'px');
+}
+
+function lightLantern() {
+  const c = ghostCenter();
+  moveLantern(c.x, c.y);
+  document.body.classList.add('is-lantern');
+  clearTimeout(lanternTimer);
+  lanternTimer = setTimeout(() => document.body.classList.remove('is-lantern'), 5000);
+}
+
+window.addEventListener('pointermove', (e) => {
+  if (document.body.classList.contains('is-lantern')) moveLantern(e.clientX, e.clientY);
+});
+
+// Rites: three actions cast in one unbroken chain. The lantern shows their hints.
+const RITES = [
+  { id: 'best', name: 'Tally', seq: ['reap', 'hex', 'summon'], hint: 'Cut, curse, call.', effect: 'Shows your best catch.', spot: [10, 24] },
+  { id: 'harvest', name: 'Harvest', seq: ['reap', 'reap', 'reap'], hint: 'Three cuts, one breath.', effect: 'One great swing takes every ghost on screen.', spot: [66, 20] },
+  { id: 'eclipse', name: 'Eclipse', seq: ['hex', 'hex', 'hex'], hint: 'Curse the dark three times.', effect: 'The fluid runs red for thirty seconds.', spot: [8, 68] },
+  { id: 'wraith', name: 'Wraith', seq: ['hex', 'summon', 'reap'], hint: 'Curse, call, cut.', effect: 'Wakes a seventh song.', spot: [62, 64] }
+];
 let combo = [];
+let ritesFound = [];
+try { ritesFound = JSON.parse(localStorage.getItem('y2k-rites') || '[]'); } catch (err) { ritesFound = []; }
+try { if (localStorage.getItem('y2k-best-seen') === '1' && ritesFound.indexOf('best') === -1) ritesFound.push('best'); } catch (err) {}
 
 function noteCombo(type, speech) {
   combo = chain === 1 ? [type] : combo.concat(type).slice(-3);
-  if (combo.join() !== BEST_COMBO) return;
+  const rite = RITES.find((r) => r.seq.join() === combo.join());
+  if (!rite) return;
   combo = [];
-  showBadge('bestBadge');
-  try { localStorage.setItem('y2k-best-seen', '1'); } catch (err) {}
-  speech.textContent = best ? 'Your best: ' + best + '.' : 'No mark yet.';
+  const first = ritesFound.indexOf(rite.id) === -1;
+  if (first) {
+    ritesFound.push(rite.id);
+    try { localStorage.setItem('y2k-rites', JSON.stringify(ritesFound)); } catch (err) {}
+    paintRites();
+    showBadge('ritesBadge');
+  }
+  castRite(rite.id, speech, first);
 }
+
+function castRite(id, speech, first) {
+  if (id === 'best') {
+    showBadge('bestBadge');
+    speech.textContent = best ? 'Your best: ' + best + '.' : 'No mark yet.';
+  } else if (id === 'harvest') {
+    speech.textContent = 'Harvest.';
+    const sweep = document.createElement('div');
+    sweep.className = 'harvest-sweep';
+    document.body.appendChild(sweep);
+    setTimeout(() => sweep.remove(), 900);
+    document.querySelectorAll('.prey-ghost:not(.is-caught)').forEach((el, i) => {
+      setTimeout(() => el.click(), 120 + i * 70);
+    });
+  } else if (id === 'eclipse') {
+    speech.textContent = 'Eclipse.';
+    if (typeof window.y2kEclipse === 'function') window.y2kEclipse(30000);
+    document.body.classList.add('is-eclipse');
+    clearTimeout(castRite.eclipseTimer);
+    castRite.eclipseTimer = setTimeout(() => document.body.classList.remove('is-eclipse'), 30000);
+  } else if (id === 'wraith') {
+    unsealWraith();
+    const ring = document.querySelector('.song-ring');
+    const musicTab = document.getElementById('musicTab');
+    if (ring && !ring.classList.contains('is-open') && musicTab) musicTab.click();
+    if (typeof window.y2kPlayAt === 'function') window.y2kPlayAt(6);
+    speech.textContent = first ? 'A new song wakes.' : 'Wraith.';
+  }
+}
+
+function unsealWraith() {
+  const mark = document.querySelector('.song-mark[data-song="6"]');
+  if (mark) mark.classList.remove('is-sealed');
+}
+
+function paintRites() {
+  const count = document.getElementById('ritesCount');
+  if (count) count.textContent = ritesFound.length + '/' + RITES.length;
+  const list = document.getElementById('riteList');
+  if (list) {
+    list.innerHTML = '';
+    RITES.forEach((rite) => {
+      const found = ritesFound.indexOf(rite.id) !== -1;
+      const item = document.createElement('li');
+      item.className = 'rite' + (found ? ' is-found' : '');
+      const name = document.createElement('h3');
+      name.textContent = found ? rite.name : '???';
+      const line = document.createElement('p');
+      line.textContent = found ? rite.seq.join(' · ') : rite.hint;
+      item.append(name, line);
+      if (found) {
+        const effect = document.createElement('p');
+        effect.className = 'rite-effect';
+        effect.textContent = rite.effect;
+        item.append(effect);
+      }
+      list.appendChild(item);
+    });
+  }
+}
+
+function riteHint() {
+  const open = RITES.filter((r) => ritesFound.indexOf(r.id) === -1);
+  return open.length ? open[Math.floor(Math.random() * open.length)].hint : null;
+}
+
+(function setUpRites() {
+  const layer = document.getElementById('riteHints');
+  if (layer) {
+    RITES.forEach((rite) => {
+      const span = document.createElement('span');
+      span.textContent = rite.hint;
+      span.style.left = rite.spot[0] + '%';
+      span.style.top = rite.spot[1] + '%';
+      layer.appendChild(span);
+    });
+  }
+  if (ritesFound.length) document.getElementById('ritesBadge').classList.remove('is-secret');
+  if (ritesFound.indexOf('best') !== -1) document.getElementById('bestBadge').classList.remove('is-secret');
+  if (ritesFound.indexOf('wraith') !== -1) unsealWraith();
+  paintRites();
+})();
 
 function burstHere() {
   if (typeof window.y2kBurst !== 'function') return;
@@ -1742,7 +1914,6 @@ function popScore() {
 
 try {
   if (localStorage.getItem('y2k-score-seen') === '1') document.getElementById('scoreBadge').classList.remove('is-secret');
-  if (localStorage.getItem('y2k-best-seen') === '1') document.getElementById('bestBadge').classList.remove('is-secret');
 } catch (err) {}
 
 function addScore(n) {

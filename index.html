@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=40"/>
+  <link rel="stylesheet" href="style.css?v=41"/>
   
 </head>
 <body>
@@ -44,6 +44,7 @@
     <button type="button" class="song-mark" data-song="3" style="--a: 304deg">Still</button>
     <button type="button" class="song-mark" data-song="4" style="--a: 342deg">Ash</button>
     <button type="button" class="song-mark" data-song="5" style="--a: 22deg">Bell</button>
+    <button type="button" class="song-mark is-sealed" data-song="6" style="--a: 270deg">Wraith</button>
     <label class="volume">
       <span>VOL</span>
       <input id="volume" type="range" min="0" max="100" value="70" aria-label="Volume">
@@ -65,6 +66,8 @@
   </aside>
 
   <canvas id="canvas" aria-hidden="true"></canvas>
+  <div class="rite-hints" id="riteHints" aria-hidden="true"></div>
+  <div class="lantern-glow" aria-hidden="true"></div>
   <div class="fallback-bg" id="fallbackBg" aria-hidden="true"></div>
 
   <div class="overlay" id="mainContent">
@@ -74,6 +77,7 @@
       <div class="nineties-bar">
         <span class="hit-counter is-secret" id="scoreBadge">SCORE <span id="scoreCount">000000</span></span>
         <span class="hit-counter is-secret" id="bestBadge">BEST <span id="bestCount">00</span></span>
+        <button type="button" class="hit-counter rites-badge is-secret" id="ritesBadge" data-open-modal="grimoire">RITES <span id="ritesCount">0/4</span></button>
       </div>
     </div>
 
@@ -158,6 +162,13 @@
         </div>
       </div>
 
+      <!-- Grimoire: rites found so far -->
+      <div class="modal-section" id="grimoire">
+        <h2 class="modal-title" id="grimoire-heading">[ GRIMOIRE ]</h2>
+        <p class="grimoire-intro">A rite is three actions cast in one breath, each within two seconds of the last. Some are written in the dark.</p>
+        <ol class="rite-list" id="riteList"></ol>
+      </div>
+
       <!-- Setup & Tech Stack Section -->
       <div class="modal-section" id="setup">
         <h2 class="modal-title" id="setup-heading">[ TECH SETUP & GEAR ]</h2>
@@ -225,9 +236,10 @@
     <button data-ghost-action="reap" data-cost="15">Reap<span>15</span></button>
     <button data-ghost-action="summon" data-cost="30">Summon<span>30</span></button>
     <button data-ghost-action="hex" data-cost="25">Hex<span>25</span></button>
+    <button data-ghost-action="lantern" data-cost="10">Lantern<span>10</span></button>
   </div>
 </div>
 
-  <script src="script.js?v=49"></script>
+  <script src="script.js?v=50"></script>
 </body>
 </html>

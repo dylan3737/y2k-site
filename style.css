@@ -367,6 +367,8 @@
       box-shadow: 0 0 8px #c9b6ff;
     }
 
+    .song-mark.is-sealed { display: none; }
+
     .song-mark.is-near,
     .song-mark.is-on,
     .game-mark.is-near,
@@ -449,6 +451,15 @@
       border: 2px outset #c9b6ff;
       letter-spacing: 2px;
     }
+
+    .rites-badge {
+      font: inherit;
+      letter-spacing: 2px;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .rites-badge:hover { background: #2a1840; }
 
     .hit-counter.is-secret {
       display: none;
@@ -615,6 +626,64 @@
 
     .card h3 { font-size: 1.05rem; margin-bottom: 6px; color: var(--accent-pink); }
 
+    .grimoire-intro {
+      font-size: 0.85rem;
+      color: var(--muted-text);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .rite-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .rite {
+      border: 1px dashed var(--nav-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .rite h3 {
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--muted-text);
+      margin-bottom: 4px;
+    }
+
+    .rite p {
+      font-size: 0.82rem;
+      color: var(--muted-text);
+      font-style: italic;
+    }
+
+    .rite.is-found {
+      border-style: solid;
+      background: var(--card-bg);
+    }
+
+    .rite.is-found h3 { color: var(--accent-yellow); }
+    body.light-mode .rite.is-found h3 { color: #7a4a00; }
+
+    .rite.is-found p {
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.7rem;
+      font-style: normal;
+      text-transform: uppercase;
+      color: var(--text-color);
+    }
+
+    .rite.is-found .rite-effect {
+      margin-top: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      text-transform: none;
+      color: var(--muted-text);
+    }
+
     .card.has-thumb {
       display: grid;
       grid-template-columns: 150px 1fr;
@@ -755,6 +824,76 @@
 }
 
 .mana-glow { animation: manaPulse 0.7s ease-in-out 2 !important; }
+
+/* Rite hints are always on the page; only the lantern's light shows them. */
+.rite-hints {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  -webkit-mask-image: radial-gradient(circle 150px at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
+  mask-image: radial-gradient(circle 150px at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
+}
+
+.rite-hints span {
+  position: absolute;
+  max-width: 34vw;
+  font-family: 'Silkscreen', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 1.5;
+  color: #fffb96;
+  text-shadow: 0 0 8px rgba(255, 220, 120, 0.8);
+}
+
+body.light-mode .rite-hints span {
+  color: #7a4a00;
+  text-shadow: none;
+}
+
+.lantern-glow {
+  position: fixed;
+  left: var(--lx, -999px);
+  top: var(--ly, -999px);
+  z-index: 2;
+  width: 300px;
+  height: 300px;
+  margin: -150px 0 0 -150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 228, 150, 0.2), transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+body.is-lantern .rite-hints,
+body.is-lantern .lantern-glow { opacity: 1; }
+
+.harvest-sweep {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  width: 80vmin;
+  height: 80vmin;
+  margin: -40vmin 0 0 -40vmin;
+  pointer-events: none;
+  background: url("scythe.png?v=1") center / contain no-repeat;
+  transform-origin: 30% 86%;
+  filter: drop-shadow(0 0 24px rgba(150, 70, 230, 0.95));
+  animation: harvestSweep 0.85s ease-in-out forwards;
+}
+
+@keyframes harvestSweep {
+  0% { transform: rotate(-80deg) scale(0.7); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: rotate(70deg) scale(1.1); opacity: 0; }
+}
+
+body.is-eclipse h1.name { text-shadow: 0 0 18px #b0102a, 0 10px 28px rgba(0, 0, 0, 0.9); }
+body.is-eclipse .fallback-bg { filter: hue-rotate(-60deg) saturate(1.6); }
 
 .scythe-cut {
   position: fixed;
@@ -937,12 +1076,11 @@ body.light-mode .rest-circle.is-resting {
 }
 
 .ghost-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 4px;
   margin-top: 8px;
-  max-width: 132px;
+  width: 100%;
 }
 
 .ghost-actions button {
