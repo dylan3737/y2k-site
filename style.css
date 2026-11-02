@@ -27,7 +27,7 @@
       top: -40px;
       left: 8px;
       z-index: 100;
-      background: var(--accent-cyan);
+      background: #01cdfe;
       color: #000;
       padding: 8px 14px;
       border-radius: 6px;
@@ -74,7 +74,10 @@
       --text-shadow: 0 0 10px #d946ef, 0 0 20px #0284c7;
       --modal-bg: rgba(255, 255, 255, 0.96);
       --card-bg: rgba(0, 0, 0, 0.04);
-      --muted-text: #64748b;
+      --muted-text: #556070;
+      --accent-pink: #b0186f;
+      --accent-cyan: #0369a1;
+      --accent-yellow: #8a5a00;
     }
 
     body, html {
@@ -368,6 +371,13 @@
     }
 
     .song-mark.is-sealed { display: none; }
+
+    body.light-mode .song-mark,
+    body.light-mode .game-mark {
+      background: radial-gradient(circle, rgba(70, 30, 110, 0.95), rgba(22, 14, 34, 0.9) 70%);
+    }
+
+    .game-card .project-link { color: #01cdfe; }
 
     .song-mark.is-near,
     .song-mark.is-on,
@@ -733,6 +743,26 @@
       color: var(--muted-text);
     }
 
+    .email-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .copy-btn {
+      background: #160e22;
+      color: #e7d9ff;
+      border: 2px outset #c9b6ff;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.6rem;
+    }
+
+    .copy-btn:hover { background: #2a1840; color: #fff; }
+
     .project-link {
       display: inline-block;
       margin-top: 8px;
@@ -833,8 +863,9 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.6s ease;
-  -webkit-mask-image: radial-gradient(circle 150px at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
-  mask-image: radial-gradient(circle 150px at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
+  --lr: 150px;
+  -webkit-mask-image: radial-gradient(circle var(--lr) at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
+  mask-image: radial-gradient(circle var(--lr) at var(--lx, -999px) var(--ly, -999px), #000 35%, transparent 100%);
 }
 
 .rite-hints span {
@@ -870,6 +901,42 @@ body.light-mode .rite-hints span {
 
 body.is-lantern .rite-hints,
 body.is-lantern .lantern-glow { opacity: 1; }
+
+body.is-vigil .rite-hints { --lr: 300px; }
+body.is-vigil .lantern-glow { transform: scale(2); }
+
+.sigil {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(60vmin, 420px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: sigilFade 8s ease-in-out forwards;
+}
+
+.sigil svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #ffd36a;
+  stroke-width: 0.8;
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  filter: drop-shadow(0 0 4px rgba(255, 200, 90, 0.9));
+  animation: sigilDraw 2.4s ease-out forwards, sigilTurn 8s linear forwards;
+}
+
+body.light-mode .sigil svg { stroke: #8a5a00; filter: none; }
+
+@keyframes sigilDraw { to { stroke-dashoffset: 0; } }
+@keyframes sigilTurn { to { transform: rotate(60deg); } }
+@keyframes sigilFade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
 
 .harvest-sweep {
   position: fixed;
@@ -1037,8 +1104,11 @@ body.is-eclipse .fallback-bg { filter: hue-rotate(-60deg) saturate(1.6); }
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 18px;
-  pointer-events: none;
+  background: none;
+  cursor: pointer;
 }
+
+.rest-circle:hover { border-color: #e7d9ff; color: #fff; }
 
 body.light-mode .rest-circle {
   border-color: rgba(91, 42, 134, 0.55);
@@ -1134,6 +1204,7 @@ body.light-mode .rest-circle.is-resting {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sigil svg { animation: none; stroke-dashoffset: 0; }
   .familiar,
   .prey-ghost,
   .ghost-body {

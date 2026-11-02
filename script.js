@@ -449,6 +449,13 @@
         text: 'A floating-island growth puzzle. Place every piece, one per turn, and find the order that finishes the island.',
         href: 'https://dylan3737.itch.io/skyseed',
         link: 'Play on itch.io'
+      },
+      {
+        title: 'Expelled',
+        img: 'img/expelled.jpg',
+        text: 'A dark-magician idle game in the Mafia Wars style. Scheme, duel, bind thralls, and rise.',
+        href: 'https://dylan3737.github.io/expelled/',
+        link: 'Play'
       }
     ];
 
@@ -1123,6 +1130,20 @@
         });
       };
 
+      window.y2kSigil = function () {
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          splatStack.push({
+            x: 0.5 + Math.cos(a) * 0.16,
+            y: 0.5 + Math.sin(a) * 0.16 * (canvas.width / canvas.height),
+            dx: -Math.sin(a) * 0.3,
+            dy: Math.cos(a) * 0.3,
+            color: [0.5, 0.42, 0.08],
+            radius: 0.8
+          });
+        }
+      };
+
       window.y2kBurst = function (clientX, clientY) {
         const x = clientX / window.innerWidth;
         const y = 1.0 - clientY / window.innerHeight;
@@ -1243,6 +1264,34 @@
       if (trigger) openModal(trigger.dataset.openModal);
     });
 
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.copy;
+        const done = () => {
+          btn.textContent = 'Copied';
+          setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
+        };
+        const fallback = () => {
+          const area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'fixed';
+          area.style.opacity = '0';
+          document.body.appendChild(area);
+          area.select();
+          try {
+            if (document.execCommand('copy')) done();
+            else btn.textContent = 'Select it';
+          } catch (err) {
+            btn.textContent = 'Select it';
+          }
+          area.remove();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+        else fallback();
+      });
+    });
+
     closeModalBtn.addEventListener('click', closeModalDialog);
     modalContainer.addEventListener('click', (e) => {
       if (e.target === modalContainer) closeModalDialog();
@@ -1310,6 +1359,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let interactionPause = false;
   let idleTimer = null;
   let roamEnabled = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let hurry = false;
 
   function clearIdle() {
     if (!idleTimer) return;
@@ -1324,6 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof clientX !== 'number' || typeof clientY !== 'number' || Number.isNaN(clientX) || Number.isNaN(clientY)) return;
 
     clearIdle();
+    hurry = false;
     isDragging = true;
     dragMoved = 0;
     interactionPause = true;
@@ -1475,7 +1526,8 @@ document.addEventListener('DOMContentLoaded', () => {
       minX: 8 - offX,
       minY: 8 - offY,
       maxX: window.innerWidth - offX - body.width - 8,
-      maxY: window.innerHeight - offY - body.height - 8
+      // Keep the whole column (bubble, reaper, soul bar, buttons) on screen.
+      maxY: window.innerHeight - rect.height - 8
     };
   }
 
@@ -1538,6 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const dist = Math.hypot(dx, dy);
 
       if (dist < 4) {
+        hurry = false;
         ghostBody.classList.remove('is-moving');
         if (!idleTimer) {
           idleTimer = setTimeout(() => {
@@ -1548,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         clearIdle();
         ghostBody.classList.add('is-moving');
-        const speed = Math.min(1.1, dist * 0.04);
+        const speed = Math.min(hurry ? 4 : 1.1, dist * 0.04);
         pos.x += (dx / dist) * speed;
         pos.y += (dy / dist) * speed;
         setPosition(pos.x, pos.y);
@@ -1610,6 +1663,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 4000);
   }
 
+  // Clicking the rest circle (or Enter on it) sends the reaper over to rest,
+  // so soul can be restored without dragging.
+  const restButton = document.getElementById('rest-circle');
+  if (restButton) {
+    restButton.addEventListener('click', () => {
+      if (manaLevel >= 100) {
+        if (speech) speech.textContent = 'Soul is full.';
+        return;
+      }
+      const zone = restButton.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
+      const body = ghostBody.getBoundingClientRect();
+      const b = getBounds();
+      const x = clamp(zone.left + zone.width / 2 - (body.left - rect.left) - body.width / 2, b.minX, b.maxX);
+      const y = clamp(zone.top + zone.height / 2 - (body.top - rect.top) - body.height / 2, b.minY, b.maxY);
+      clearIdle();
+      interactionPause = false;
+      if (roamEnabled) {
+        target.x = x;
+        target.y = y;
+        hurry = true;
+      } else {
+        pos.x = x;
+        pos.y = y;
+        setPosition(x, y);
+      }
+      if (speech) speech.textContent = 'Going to rest.';
+    });
+  }
+
+  // Lines for the visitor's time of day, now and then while he idles.
+  function timeLine() {
+    const h = new Date().getHours();
+    if (h < 5) return 'Up late.';
+    if (h < 9) return 'Early. The dead sleep in.';
+    if (h < 12) return 'Morning. Still here.';
+    if (h < 17) return 'Long day?';
+    if (h < 21) return 'Dusk. My hour.';
+    return 'Night. Stay a while.';
+  }
+
+  function sayIdle(text) {
+    if (!speech || isPlaying || isDragging || speech.textContent !== '✦ listen') return;
+    speech.textContent = text;
+    setTimeout(() => {
+      if (speech.textContent === text && !isPlaying) speech.textContent = '✦ listen';
+    }, 6000);
+  }
+
+  if (hintSeen) setTimeout(() => sayIdle(timeLine()), 2500);
+  setInterval(() => { if (Math.random() < 0.4) sayIdle(timeLine()); }, 70000);
+
+  let trickle = 0;
   setInterval(() => {
     const ring = document.getElementById('rest-circle');
     if (!ring) return;
@@ -1617,6 +1723,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const wasLocked = restLock;
     if (resting && !isDragging && manaLevel < 100) {
       manaLevel = Math.min(100, manaLevel + 6);
+      syncMana();
+    } else if (manaLevel < 100 && ++trickle % 9 === 0) {
+      // A slow trickle (about 1 every 4s) away from the circle.
+      manaLevel += 1;
       syncMana();
     }
     restLock = resting && !isDragging && manaLevel < 100;
@@ -1737,12 +1847,13 @@ function moveLantern(x, y) {
   root.style.setProperty('--ly', y + 'px');
 }
 
-function lightLantern() {
+function lightLantern(ms, wide) {
   const c = ghostCenter();
   moveLantern(c.x, c.y);
   document.body.classList.add('is-lantern');
+  if (wide) document.body.classList.add('is-vigil');
   clearTimeout(lanternTimer);
-  lanternTimer = setTimeout(() => document.body.classList.remove('is-lantern'), 5000);
+  lanternTimer = setTimeout(() => document.body.classList.remove('is-lantern', 'is-vigil'), ms || 5000);
 }
 
 window.addEventListener('pointermove', (e) => {
@@ -1754,7 +1865,9 @@ const RITES = [
   { id: 'best', name: 'Tally', seq: ['reap', 'hex', 'summon'], hint: 'Cut, curse, call.', effect: 'Shows your best catch.', spot: [10, 24] },
   { id: 'harvest', name: 'Harvest', seq: ['reap', 'reap', 'reap'], hint: 'Three cuts, one breath.', effect: 'One great swing takes every ghost on screen.', spot: [66, 20] },
   { id: 'eclipse', name: 'Eclipse', seq: ['hex', 'hex', 'hex'], hint: 'Curse the dark three times.', effect: 'The fluid runs red for thirty seconds.', spot: [8, 68] },
-  { id: 'wraith', name: 'Wraith', seq: ['hex', 'summon', 'reap'], hint: 'Curse, call, cut.', effect: 'Wakes a seventh song.', spot: [62, 64] }
+  { id: 'wraith', name: 'Wraith', seq: ['hex', 'summon', 'reap'], hint: 'Curse, call, cut.', effect: 'Wakes a seventh song.', spot: [62, 64] },
+  { id: 'vigil', name: 'Vigil', seq: ['lantern', 'lantern', 'lantern'], hint: 'Keep the light three times.', effect: 'The lantern burns wide for thirty seconds.', spot: [76, 42] },
+  { id: 'sigil', name: 'Sigil', seq: ['lantern', 'hex', 'lantern'], hint: 'Light, curse, light.', effect: 'Burns a sigil into the dark.', spot: [4, 46] }
 ];
 let combo = [];
 let ritesFound = [];
@@ -1802,6 +1915,18 @@ function castRite(id, speech, first) {
     if (ring && !ring.classList.contains('is-open') && musicTab) musicTab.click();
     if (typeof window.y2kPlayAt === 'function') window.y2kPlayAt(6);
     speech.textContent = first ? 'A new song wakes.' : 'Wraith.';
+  } else if (id === 'vigil') {
+    speech.textContent = 'Vigil.';
+    lightLantern(30000, true);
+  } else if (id === 'sigil') {
+    speech.textContent = 'Marked.';
+    const sigil = document.createElement('div');
+    sigil.className = 'sigil';
+    sigil.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><circle cx="50" cy="50" r="38"/>' +
+      '<path d="M50 8 L86 71 L14 71 Z M50 92 L14 29 L86 29 Z"/></svg>';
+    document.body.appendChild(sigil);
+    setTimeout(() => sigil.remove(), 8000);
+    if (typeof window.y2kSigil === 'function') window.y2kSigil();
   }
 }
 
