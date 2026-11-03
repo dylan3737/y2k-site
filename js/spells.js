@@ -12,14 +12,14 @@ import { noteCast, isUnlocked } from './rites.js';
 // Each school of magic has a colour: buttons, Grimoire entries and the
 // fluid bursts of its spells all use it.
 export const SCHOOLS = {
-  death: '#ff4d6d',
-  spirit: '#3ee6ff',
-  curse: '#b27dff',
-  light: '#ffc94d',
-  time: '#36e0c0',
-  message: '#7d9bff',
-  music: '#ff5fb8',
-  soul: '#8dff6a'
+  death: '#ff9aa8',
+  spirit: '#9ee7f2',
+  curse: '#c8b3ff',
+  light: '#ffe29a',
+  time: '#a6ecd6',
+  message: '#a9bdff',
+  music: '#ffb3d9',
+  soul: '#c4f5a4'
 };
 
 const WRAITH_SONG = 6;

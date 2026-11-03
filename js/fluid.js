@@ -495,9 +495,10 @@ function resizeCanvas() {
   }
 }
 
+// Pastel dye: every channel starts high so no colour gets too saturated.
 function generateColor() {
-  let c = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2];
-  return [c[0] * 0.35, c[1] * 0.35, c[2] * 0.35];
+  const c = [0.55 + Math.random() * 0.45, 0.55 + Math.random() * 0.45, 0.55 + Math.random() * 0.45];
+  return [c[0] * 0.3, c[1] * 0.3, c[2] * 0.3];
 }
 
 function updatePointer(clientX, clientY) {
@@ -534,12 +535,12 @@ export function wake(clientX, clientY, vx, vy) {
     y: y,
     dx: dx,
     dy: dy,
-    color: [0.22, 0.04, 0.38],
+    color: [0.24, 0.17, 0.32],
     radius: 0.35
   });
 }
 
-export function pulse(clientX, clientY, color = [0.42, 0.08, 0.72]) {
+export function pulse(clientX, clientY, color = [0.42, 0.32, 0.6]) {
   if (!webglAvailable) return;
   const x = clientX / window.innerWidth;
   const y = 1.0 - clientY / window.innerHeight;
@@ -562,7 +563,7 @@ export function breath() {
       y: 0.5 + Math.sin(a) * 0.08,
       dx: Math.cos(a) * 0.07,
       dy: Math.sin(a) * 0.07,
-      color: [0.12, 0.02, 0.22],
+      color: [0.14, 0.1, 0.2],
       radius: 2.6
     });
   }
@@ -577,7 +578,7 @@ export function note(note) {
     y: 0.5 + Math.sin(drift + t * 3) * 0.22,
     dx: (Math.random() - 0.5) * 0.1,
     dy: 0.16,
-    color: [0.34 + t * 0.22, 0.05 + (1 - t) * 0.08, 0.62 - t * 0.18],
+    color: [0.36 + t * 0.18, 0.28 + (1 - t) * 0.1, 0.52 - t * 0.12],
     radius: 1.1
   });
 }
@@ -591,13 +592,13 @@ export function sigil() {
       y: 0.5 + Math.sin(a) * 0.16 * (canvas.width / canvas.height),
       dx: -Math.sin(a) * 0.3,
       dy: Math.cos(a) * 0.3,
-      color: [0.5, 0.42, 0.08],
+      color: [0.5, 0.44, 0.26],
       radius: 0.8
     });
   }
 }
 
-export function burst(clientX, clientY, color = [0.48, 0.1, 0.82]) {
+export function burst(clientX, clientY, color = [0.48, 0.36, 0.66]) {
   if (!webglAvailable) return;
   const x = clientX / window.innerWidth;
   const y = 1.0 - clientY / window.innerHeight;

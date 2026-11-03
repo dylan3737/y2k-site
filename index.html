@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=46"/>
+  <link rel="stylesheet" href="style.css?v=47"/>
   
 </head>
 <body>
@@ -38,13 +38,13 @@
 
   <!-- Song ring (Music Box) and game ring (Portfolio) -->
   <div class="song-ring" aria-label="Songs">
-    <button type="button" class="song-mark" data-song="0" style="--a: 158deg; --c: #ffc94d">Lamp</button>
-    <button type="button" class="song-mark" data-song="1" style="--a: 198deg; --c: #7d9bff">Window</button>
-    <button type="button" class="song-mark" data-song="2" style="--a: 236deg; --c: #36e0c0">Drift</button>
+    <button type="button" class="song-mark" data-song="0" style="--a: 158deg; --c: #ffe29a">Lamp</button>
+    <button type="button" class="song-mark" data-song="1" style="--a: 198deg; --c: #a9bdff">Window</button>
+    <button type="button" class="song-mark" data-song="2" style="--a: 236deg; --c: #a6ecd6">Drift</button>
     <button type="button" class="song-mark" data-song="3" style="--a: 304deg; --c: #c9b6ff">Still</button>
-    <button type="button" class="song-mark" data-song="4" style="--a: 342deg; --c: #ff8a3d">Ash</button>
-    <button type="button" class="song-mark" data-song="5" style="--a: 22deg; --c: #3ee6ff">Bell</button>
-    <button type="button" class="song-mark is-sealed" data-song="6" style="--a: 270deg; --c: #ff4d6d">Wraith</button>
+    <button type="button" class="song-mark" data-song="4" style="--a: 342deg; --c: #ffc4a3">Ash</button>
+    <button type="button" class="song-mark" data-song="5" style="--a: 22deg; --c: #9ee7f2">Bell</button>
+    <button type="button" class="song-mark is-sealed" data-song="6" style="--a: 270deg; --c: #ff9aa8">Wraith</button>
     <label class="volume">
       <span>VOL</span>
       <input id="volume" type="range" min="0" max="100" value="70" aria-label="Volume">
@@ -52,10 +52,10 @@
   </div>
 
   <div class="game-ring" aria-label="Games">
-    <button type="button" class="game-mark" data-game="0" style="--a: 78deg; --c: #ff7ac8">Ruinborne</button>
-    <button type="button" class="game-mark" data-game="1" style="--a: 102deg; --c: #ff8a3d">Anomaly</button>
-    <button type="button" class="game-mark" data-game="2" style="--a: 126deg; --c: #8dff6a">Skyseed</button>
-    <button type="button" class="game-mark" data-game="3" style="--a: 54deg; --c: #b27dff">Expelled</button>
+    <button type="button" class="game-mark" data-game="0" style="--a: 78deg; --c: #ffb8dc">Ruinborne</button>
+    <button type="button" class="game-mark" data-game="1" style="--a: 102deg; --c: #ffc4a3">Anomaly</button>
+    <button type="button" class="game-mark" data-game="2" style="--a: 126deg; --c: #c4f5a4">Skyseed</button>
+    <button type="button" class="game-mark" data-game="3" style="--a: 54deg; --c: #c8b3ff">Expelled</button>
     <button type="button" class="game-all" data-open-modal="portfolio">All work</button>
   </div>
   <aside class="game-card" id="gameCard" hidden>
@@ -83,10 +83,10 @@
     </div>
 
     <nav class="bottom-nav" aria-label="Site sections">
-      <button class="nav-link" style="--c: #3ee6ff" id="portfolioTab" type="button" aria-pressed="false">Portfolio</button>
-      <button class="nav-link" style="--c: #ff5fb8" id="musicTab" data-music aria-pressed="false">Music Box</button>
-      <button class="nav-link" style="--c: #8dff6a" data-target="setup">Setup</button>
-      <button class="nav-link" style="--c: #ffc94d" data-target="contact">Contact</button>
+      <button class="nav-link" style="--c: #9ee7f2" id="portfolioTab" type="button" aria-pressed="false">Portfolio</button>
+      <button class="nav-link" style="--c: #ffb3d9" id="musicTab" data-music aria-pressed="false">Music Box</button>
+      <button class="nav-link" style="--c: #c4f5a4" data-target="setup">Setup</button>
+      <button class="nav-link" style="--c: #ffe29a" data-target="contact">Contact</button>
       <button class="theme-toggle" id="themeBtn" aria-label="Switch to light theme" aria-pressed="false">
         <svg class="theme-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <mask id="moon-mask">
@@ -258,6 +258,6 @@
     <button type="button" class="pill-btn" data-open-modal="grimoire">Open the Grimoire</button>
   </aside>
 
-  <script type="module" src="js/main.js?v=55"></script>
+  <script type="module" src="js/main.js?v=56"></script>
 </body>
 </html>

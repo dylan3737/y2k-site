@@ -41,7 +41,7 @@ window.addEventListener('mousemove', (e) => {
     span.innerText = sparkles[Math.floor(Math.random() * sparkles.length)];
     span.style.left = e.clientX + 'px';
     span.style.top = e.clientY + 'px';
-    span.style.color = ['#ff71ce', '#01cdfe', '#05ffa1', '#fffb96'][Math.floor(Math.random() * 4)];
+    span.style.color = ['#ffa6d5', '#8fdcf0', '#b5f2d0', '#fff1a8'][Math.floor(Math.random() * 4)];
     document.body.appendChild(span);
     setTimeout(() => span.remove(), 800);
   }
