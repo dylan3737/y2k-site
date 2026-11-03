@@ -141,9 +141,9 @@ export const SPELLS = {
       say('Every song, in turn.');
     }
   },
-  murder: {
-    name: 'Murder', cost: 10, tier: 1, school: 'message',
-    cast(say) { sendRavens([RAVEN_NOTES.email, RAVEN_NOTES.github, RAVEN_NOTES.itch]); say('The ravens fly.'); }
+  flock: {
+    name: 'Flock', cost: 10, tier: 1, school: 'message',
+    cast(say) { sendRavens([RAVEN_NOTES.email, RAVEN_NOTES.github, RAVEN_NOTES.itch]); say('Say hello.'); }
   },
   stasis: {
     name: 'Stasis', cost: 45, tier: 1, school: 'time',

@@ -23,8 +23,8 @@ const RITES = [
     hint: 'Raise them, and raise them, and raise them all.', effect: 'Every project rises at once.' },
   { result: 'procession', seq: ['ferry', 'ferry', 'ferry'], spot: [80, 84],
     hint: 'Cross the river three times and the music never stops.', effect: 'Plays every song in turn.' },
-  { result: 'murder', seq: ['raven', 'raven', 'raven'], spot: [86, 8],
-    hint: 'Three black wings carry every word.', effect: 'Ravens bring every way to reach Dylan.' },
+  { result: 'flock', seq: ['raven', 'raven', 'raven'], spot: [86, 8],
+    hint: 'Three friendly wings, one for every way to say hello.', effect: 'A flock of ravens brings every way to reach Dylan.' },
   { result: 'stasis', seq: ['hourglass', 'bind', 'hourglass'], spot: [30, 84],
     hint: 'Turn the glass, chain the dead, turn it back.', effect: 'Time stops for ten seconds.' },
   { result: 'thrall', seq: ['summon', 'raise', 'bind'], spot: [44, 14],
@@ -33,15 +33,17 @@ const RITES = [
     hint: 'The haunting song, the endless crossing, the long night.', effect: 'Plays the Requiem, the last song.' },
   { result: 'danse', seq: ['thrall', 'harvest', 'procession'], spot: [88, 60],
     hint: 'Your servant, your scythe, your music: dance.', effect: 'A twenty-second round with eight ghosts, a thrall and a beat.' },
-  { result: 'necropolis', seq: ['legion', 'murder', 'sigil'], spot: [16, 92],
+  { result: 'necropolis', seq: ['legion', 'flock', 'sigil'], spot: [16, 92],
     hint: 'All your works, all your words, and a mark to open the ground.', effect: 'Opens the graves of Dylan’s older projects.' }
 ];
 
-// Old saves named rites by id; the six that survived carry over.
-const RENAMED = { best: 'tally' };
+// Old saves named some rites differently; those carry over under their new names.
+const RENAMED = { best: 'tally', murder: 'flock' };
 let unlocked = [];
 try { unlocked = JSON.parse(load('y2k-grimoire', 'null')); } catch (err) { unlocked = null; }
-if (!Array.isArray(unlocked)) {
+if (Array.isArray(unlocked)) {
+  unlocked = unlocked.map((id) => RENAMED[id] || id);
+} else {
   let old = [];
   try { old = JSON.parse(load('y2k-rites', '[]')); } catch (err) { old = []; }
   if (load('y2k-best-seen') === '1') old.push('best');

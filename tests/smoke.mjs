@@ -180,7 +180,7 @@ try {
   await rite(['lantern', 'hex', 'lantern'], 'sigil', /Marked/, (p) => p.evaluate(() => !!document.querySelector('.sigil')));
   await rite(['raise', 'raise', 'raise'], 'legion', /Rise, all/, (p) => p.evaluate(() => document.querySelectorAll('.gallery-card').length === 4));
   await rite(['ferry', 'ferry', 'ferry'], 'procession', /Every song/);
-  await rite(['raven', 'raven', 'raven'], 'murder', /ravens/, (p) => p.evaluate(() => document.querySelectorAll('.raven-note').length >= 3));
+  await rite(['raven', 'raven', 'raven'], 'flock', /Say hello/, (p) => p.evaluate(() => document.querySelectorAll('.raven-note').length >= 3));
 
   // Rites that need a running round
   const inRound = async (seq, result, expectSpeech, extra) => {
@@ -204,12 +204,12 @@ try {
   check('a broken chain casts no rite', (await page.textContent('#ritesCount')) === '0/14');
 
   // High rites are cast from unlocked rites in the Spellbook
-  const all = '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","murder","stasis","thrall"]';
+  const all = '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","flock","stasis","thrall"]';
   page = await open({ storage: { 'y2k-grimoire': all } });
   check('unlocked rites are remembered', (await page.textContent('#ritesCount')) === '11/14');
-  for (const a of ['legion', 'murder', 'sigil']) await act(page, a);
+  for (const a of ['legion', 'flock', 'sigil']) await act(page, a);
   await page.waitForTimeout(300);
-  check('a high rite (Legion > Murder > Sigil) opens the Necropolis', /old graves/.test(await speech(page)) && await page.isVisible('.gallery.is-necropolis'));
+  check('a high rite (Legion > Flock > Sigil) opens the Necropolis', /old graves/.test(await speech(page)) && await page.isVisible('.gallery.is-necropolis'));
   await page.keyboard.press('Escape');
 
   // Pinning
@@ -222,10 +222,12 @@ try {
   // Old saves carry over
   page = await open({ storage: { 'y2k-rites': '["best","wraith","banshee"]' } });
   check('rites found in the old version carry over', (await page.textContent('#ritesCount')) === '2/14');
+  page = await open({ storage: { 'y2k-grimoire': '["murder"]' } });
+  check('a saved Murder carries over as Flock', !!(await page.$('#spellbook [data-spell="flock"]')));
 
   // Every rite found
-  page = await open({ storage: { 'y2k-grimoire': '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","murder","stasis","thrall","requiem","danse"]' } });
-  for (const a of ['legion', 'murder', 'sigil']) await act(page, a);
+  page = await open({ storage: { 'y2k-grimoire': '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","flock","stasis","thrall","requiem","danse"]' } });
+  for (const a of ['legion', 'flock', 'sigil']) await act(page, a);
   await page.waitForTimeout(2300);
   check('finding every rite completes the Grimoire', (await page.textContent('#ritesCount')) === '14/14' && await hasClass(page, '#ritesBadge', 'is-complete') && (await speech(page)) === 'You know every rite.');
 
