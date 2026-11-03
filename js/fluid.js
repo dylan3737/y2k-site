@@ -249,8 +249,13 @@ const displayFS = `
       vec3 c = texture2D(uTexture, vUv).rgb;
       float m = max(c.r, max(c.g, c.b));
       c = mix(c, vec3(m * 1.15, m * 0.06, m * 0.12), uEclipse);
+      // A faint wash behind the dye: midnight blue to plum in the dark,
+      // and pastel peach to sky in the light.
+      float t = clamp(vUv.x * 0.6 + (1.0 - vUv.y) * 0.4, 0.0, 1.0);
       if (uInvert > 0.5) {
-          c = 1.0 - c;
+          c = (1.0 - c) * mix(vec3(1.0, 0.95, 0.92), vec3(0.92, 0.96, 1.0), t);
+      } else {
+          c = c + mix(vec3(0.02, 0.04, 0.12), vec3(0.10, 0.02, 0.09), t);
       }
       gl_FragColor = vec4(c, 1.0);
   }
@@ -534,7 +539,7 @@ export function wake(clientX, clientY, vx, vy) {
   });
 }
 
-export function pulse(clientX, clientY) {
+export function pulse(clientX, clientY, color = [0.42, 0.08, 0.72]) {
   if (!webglAvailable) return;
   const x = clientX / window.innerWidth;
   const y = 1.0 - clientY / window.innerHeight;
@@ -543,7 +548,7 @@ export function pulse(clientX, clientY) {
     y: y,
     dx: (Math.random() - 0.5) * 0.25,
     dy: (Math.random() - 0.5) * 0.25,
-    color: [0.42, 0.08, 0.72],
+    color,
     radius: 1
   });
 }
@@ -592,7 +597,7 @@ export function sigil() {
   }
 }
 
-export function burst(clientX, clientY) {
+export function burst(clientX, clientY, color = [0.48, 0.1, 0.82]) {
   if (!webglAvailable) return;
   const x = clientX / window.innerWidth;
   const y = 1.0 - clientY / window.innerHeight;
@@ -603,7 +608,7 @@ export function burst(clientX, clientY) {
       y: y,
       dx: Math.cos(a) * 0.38,
       dy: Math.sin(a) * 0.38,
-      color: [0.48, 0.1, 0.82],
+      color,
       radius: 1.35
     });
   }

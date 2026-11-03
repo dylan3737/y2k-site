@@ -21,8 +21,10 @@ Plain HTML, CSS and JavaScript modules. There is no build step: GitHub Pages ser
 | `js/games.js` | The game ring and its cards |
 | `js/ui.js` | Nav, dialogs, copy buttons, cursor and click effects |
 | `js/reaper.js` | Dragging, roaming, resting and idle lines |
-| `js/actions.js` | His actions, soul, and the ghost-catching round |
-| `js/rites.js` | Rites and the Grimoire |
+| `js/spells.js` | Every spell: name, cost, school colour, and what it does |
+| `js/spellbook.js` | The Spellbook panel and the four pinned spells |
+| `js/actions.js` | Soul, the effects spells are built from, and the ghost-catching round |
+| `js/rites.js` | Rites (recipes that make new spells) and the Grimoire |
 
 ## Working on it
 

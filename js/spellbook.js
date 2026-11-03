@@ -1,6 +1,6 @@
 // The Spellbook: four pinned spells sit under the reaper, and a panel lists every
 // spell he knows, grouped by tier, to cast or pin.
-import { SPELLS, castSpell } from './spells.js';
+import { SPELLS, SCHOOLS, castSpell } from './spells.js';
 import { unlockedSpells, onUnlock } from './rites.js';
 import { syncMana } from './actions.js';
 import { load, save } from './store.js';
@@ -31,6 +31,7 @@ function spellButton(id) {
   btn.className = 'spell-btn tier-' + spell.tier;
   btn.dataset.spell = id;
   btn.dataset.cost = spell.cost;
+  btn.style.setProperty('--school', SCHOOLS[spell.school]);
   btn.append(spell.name);
   const cost = document.createElement('span');
   cost.textContent = spell.cost;

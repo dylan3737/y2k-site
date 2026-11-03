@@ -2,7 +2,7 @@
 // The rite fires that spell at once and adds it to the Spellbook for good.
 // Result spells can be cast into higher rites too. Hints for rites not yet
 // found are written in the dark, where the lantern can find them.
-import { castSpell, SPELLS } from './spells.js';
+import { castSpell, SPELLS, SCHOOLS } from './spells.js';
 import { showBadge } from './actions.js';
 import { load, save, forget } from './store.js';
 
@@ -107,6 +107,7 @@ function paintRites() {
     const spell = SPELLS[rite.result];
     const item = document.createElement('li');
     item.className = 'rite tier-' + spell.tier + (found ? ' is-found' : '');
+    if (found) item.style.setProperty('--school', SCHOOLS[spell.school]);
     const name = document.createElement('h3');
     name.textContent = found ? spell.name : '???';
     const tier = document.createElement('span');

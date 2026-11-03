@@ -9,6 +9,19 @@ import {
 import { games } from './games.js';
 import { noteCast, isUnlocked } from './rites.js';
 
+// Each school of magic has a colour: buttons, Grimoire entries and the
+// fluid bursts of its spells all use it.
+export const SCHOOLS = {
+  death: '#ff4d6d',
+  spirit: '#3ee6ff',
+  curse: '#b27dff',
+  light: '#ffc94d',
+  time: '#36e0c0',
+  message: '#7d9bff',
+  music: '#ff5fb8',
+  soul: '#8dff6a'
+};
+
 const WRAITH_SONG = 6;
 const REQUIEM_SONG = 7;
 const BEAT_SONG = 0;
@@ -16,28 +29,28 @@ const BEAT_SONG = 0;
 export const SPELLS = {
   // --- Base spells ---
   reap: {
-    name: 'Reap', cost: 15, tier: 0,
+    name: 'Reap', cost: 15, tier: 0, school: 'death',
     cast(say) { reapSwing(); say('Reaped.'); }
   },
   summon: {
-    name: 'Summon', cost: 30, tier: 0,
+    name: 'Summon', cost: 30, tier: 0, school: 'spirit',
     cast(say) { summonRound(); say('Ten seconds. Catch them.'); }
   },
   hex: {
-    name: 'Hex', cost: 25, tier: 0,
+    name: 'Hex', cost: 25, tier: 0, school: 'curse',
     cast(say) { say(hexPrey() ? 'They crawl.' : 'Hexed.'); }
   },
   lantern: {
-    name: 'Lantern', cost: 10, tier: 0,
+    name: 'Lantern', cost: 10, tier: 0, school: 'light',
     cast(say) { lightLantern(); say('Look closer.'); }
   },
   bind: {
-    name: 'Bind', cost: 20, tier: 0,
+    name: 'Bind', cost: 20, tier: 0, school: 'curse',
     ready: () => looseGhosts().length ? null : 'Nothing to bind.',
     cast(say) { bindPrey(4000); say('Bound.'); }
   },
   raise: {
-    name: 'Raise', cost: 20, tier: 0,
+    name: 'Raise', cost: 20, tier: 0, school: 'spirit',
     cast(say) {
       const index = nextRaise();
       raiseProject(index);
@@ -45,33 +58,33 @@ export const SPELLS = {
     }
   },
   ferry: {
-    name: 'Ferry', cost: 10, tier: 0,
+    name: 'Ferry', cost: 10, tier: 0, school: 'music',
     cast(say) { ferry(say); }
   },
   raven: {
-    name: 'Raven', cost: 5, tier: 0,
+    name: 'Raven', cost: 5, tier: 0, school: 'message',
     cast(say) { sendRavens([RAVEN_NOTES.email]); say('A message for Dylan.'); }
   },
   hourglass: {
-    name: 'Hourglass', cost: 25, tier: 0,
+    name: 'Hourglass', cost: 25, tier: 0, school: 'time',
     cast(say) { stopTime(3000); say('Time waits.'); }
   },
   siphon: {
-    name: 'Siphon', cost: 0, tier: 0,
+    name: 'Siphon', cost: 0, tier: 0, school: 'soul',
     ready: siphonRefusal,
     cast(say) { say('Drained ' + siphon() + '.'); }
   },
 
   // --- Tier 1: three base casts ---
   tally: {
-    name: 'Tally', cost: 5, tier: 1,
+    name: 'Tally', cost: 5, tier: 1, school: 'light',
     cast(say) {
       showBadge('bestBadge');
       say(bestScore() ? 'Your best: ' + bestScore() + '.' : 'No mark yet.');
     }
   },
   harvest: {
-    name: 'Harvest', cost: 35, tier: 1,
+    name: 'Harvest', cost: 35, tier: 1, school: 'death',
     cast(say) {
       const sweep = document.createElement('div');
       sweep.className = 'harvest-sweep';
@@ -82,7 +95,7 @@ export const SPELLS = {
     }
   },
   eclipse: {
-    name: 'Eclipse', cost: 30, tier: 1,
+    name: 'Eclipse', cost: 30, tier: 1, school: 'curse',
     cast(say) {
       fluid.eclipse(30000);
       document.body.classList.add('is-eclipse');
@@ -92,7 +105,7 @@ export const SPELLS = {
     }
   },
   wraith: {
-    name: 'Wraith', cost: 10, tier: 1,
+    name: 'Wraith', cost: 10, tier: 1, school: 'music',
     cast(say) {
       openMusicBox();
       audio.playAt(WRAITH_SONG);
@@ -100,11 +113,11 @@ export const SPELLS = {
     }
   },
   vigil: {
-    name: 'Vigil', cost: 25, tier: 1,
+    name: 'Vigil', cost: 25, tier: 1, school: 'light',
     cast(say) { lightLantern(30000, true); say('Vigil.'); }
   },
   sigil: {
-    name: 'Sigil', cost: 20, tier: 1,
+    name: 'Sigil', cost: 20, tier: 1, school: 'curse',
     cast(say) {
       const sigil = document.createElement('div');
       sigil.className = 'sigil';
@@ -117,11 +130,11 @@ export const SPELLS = {
     }
   },
   legion: {
-    name: 'Legion', cost: 40, tier: 1,
+    name: 'Legion', cost: 40, tier: 1, school: 'spirit',
     cast(say) { showGallery('legion', 'Every project rises', games.map(gameEntry)); say('Rise, all of you.'); }
   },
   procession: {
-    name: 'Procession', cost: 20, tier: 1,
+    name: 'Procession', cost: 20, tier: 1, school: 'music',
     cast(say) {
       openMusicBox();
       audio.procession(playableSongs());
@@ -129,21 +142,21 @@ export const SPELLS = {
     }
   },
   murder: {
-    name: 'Murder', cost: 10, tier: 1,
+    name: 'Murder', cost: 10, tier: 1, school: 'message',
     cast(say) { sendRavens([RAVEN_NOTES.email, RAVEN_NOTES.github, RAVEN_NOTES.itch]); say('The ravens fly.'); }
   },
   stasis: {
-    name: 'Stasis', cost: 45, tier: 1,
+    name: 'Stasis', cost: 45, tier: 1, school: 'time',
     cast(say) { stopTime(10000); say('Stasis.'); }
   },
   thrall: {
-    name: 'Thrall', cost: 30, tier: 1,
+    name: 'Thrall', cost: 30, tier: 1, school: 'spirit',
     cast(say) { thrall(15000); say('Hunt for me.'); }
   },
 
   // --- Tier 2: three tier-1 spells ---
   requiem: {
-    name: 'Requiem', cost: 15, tier: 2,
+    name: 'Requiem', cost: 15, tier: 2, school: 'music',
     cast(say) {
       openMusicBox();
       audio.playAt(REQUIEM_SONG);
@@ -151,7 +164,7 @@ export const SPELLS = {
     }
   },
   danse: {
-    name: 'Danse Macabre', cost: 50, tier: 2,
+    name: 'Danse Macabre', cost: 50, tier: 2, school: 'death',
     cast(say) {
       summonRound(8, 20000);
       thrall(20000);
@@ -161,7 +174,7 @@ export const SPELLS = {
     }
   },
   necropolis: {
-    name: 'Necropolis', cost: 20, tier: 2,
+    name: 'Necropolis', cost: 20, tier: 2, school: 'spirit',
     cast(say) { showGallery('necropolis', 'The old graves', OLD_PROJECTS); say('The old graves open.'); }
   }
 };

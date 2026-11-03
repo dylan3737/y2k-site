@@ -108,7 +108,7 @@ export function raiseProject(index, at) {
     '<circle cx="14" cy="20" r="3"/><circle cx="26" cy="20" r="3"/></svg></span>';
   document.body.appendChild(circle);
   const r = circle.getBoundingClientRect();
-  fluid.pulse(r.left + r.width / 2, r.top + r.height / 2);
+  fluid.pulse(r.left + r.width / 2, r.top + r.height / 2, [0.1, 0.55, 0.7]);
   setTimeout(() => showGameCard(index, circle), reducedMotion ? 0 : 1300);
   setTimeout(() => circle.remove(), 4200);
 }
@@ -193,9 +193,9 @@ window.addEventListener('pointermove', (e) => {
   if (document.body.classList.contains('is-lantern')) moveLantern(e.clientX, e.clientY);
 });
 
-export function burstHere() {
+export function burstHere(color) {
   const c = ghostCenter();
-  fluid.burst(c.x, c.y);
+  fluid.burst(c.x, c.y, color);
 }
 
 export function reapSwing() {
@@ -204,7 +204,7 @@ export function reapSwing() {
   void ghost.offsetWidth;
   ghost.classList.add('reaping');
   spawnScythe();
-  burstHere();
+  burstHere([0.62, 0.06, 0.16]);
   setTimeout(() => ghost.classList.remove('reaping'), 900);
 }
 
@@ -388,7 +388,7 @@ function spawnPrey(extraClass, count, points, label, ms) {
 export function summonRound(count = 5, ms = HUNT_MS) {
   spawnFamiliars();
   spawnPrey('', count, 1, 'Catch', ms);
-  burstHere();
+  burstHere([0.08, 0.5, 0.62]);
 }
 
 let huntEnds = 0;
