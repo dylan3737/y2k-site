@@ -306,16 +306,21 @@ export function initReaper() {
   // Keep him on screen and off the nav when the layout changes: a resize or
   // rotation, or the pixel font arriving and wrapping the nav onto two rows.
   function refit() {
-    if (isDragging || restLock) return;
+    if (isDragging || restLock || hurry) return;
     const b = getBounds(true);
     pos.x = clamp(pos.x, b.minX, b.maxX);
     pos.y = clamp(clearOfNav(pos.x, pos.y), b.minY, b.maxY);
     setPosition(pos.x, pos.y);
-    if (roamEnabled && !hurry) pickNewTarget();
+    target.x = clamp(target.x, b.minX, b.maxX);
+    target.y = clamp(clearOfNav(target.x, target.y), b.minY, b.maxY);
   }
 
   window.addEventListener('resize', refit);
-  if (document.fonts) document.fonts.ready.then(refit);
+  if (document.fonts) document.fonts.addEventListener('loadingdone', refit);
+  // His column changes size when the font arrives or his bubble wraps.
+  if ('ResizeObserver' in window) new ResizeObserver(refit).observe(container);
+  const nav = document.querySelector('nav.bottom-nav');
+  if (nav && 'ResizeObserver' in window) new ResizeObserver(refit).observe(nav);
 
   // Reaper action buttons (Reap/Summon/Hex) use data-ghost-action
   // attributes rather than inline onclick, so delegate from the container.

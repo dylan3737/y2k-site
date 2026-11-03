@@ -51,6 +51,13 @@ const playlistData = [
     freq: "66.6",
     type: "synth",
     preset: "wraith"
+  },
+  {
+    title: "Requiem",
+    artist: "every rite",
+    freq: "77.7",
+    type: "synth",
+    preset: "requiem"
   }
 ];
 
@@ -296,6 +303,18 @@ const songs = {
     wail: true,
     chords: [[50, 53, 57, 62], [51, 55, 58, 62], [48, 51, 55, 60], [49, 53, 56, 61]],
     melody: [74, null, null, null, null, null, 75, null, null, null, null, null, 74, null, null, null, 70, null, null, null, null, null, 69, null, null, null, null, null, 62, null, null, null]
+  },
+  // The reward for finding every rite: it starts in the Wraith's minor and
+  // resolves to major, a farewell rather than a haunting.
+  requiem: {
+    bpm: 44,
+    drums: false,
+    hold: 16,
+    rain: false,
+    bell: true,
+    wail: true,
+    chords: [[50, 53, 57, 62], [46, 53, 58, 62], [48, 55, 60, 64], [53, 57, 60, 65]],
+    melody: [69, null, null, null, 70, null, null, null, 74, null, null, null, null, null, null, null, 72, null, null, null, 76, null, null, null, 77, null, null, null, null, null, null, null]
   }
 };
 
@@ -405,6 +424,38 @@ function pauseTrack() {
   stopSynthLoop();
   isPlaying = false;
   labelMusic();
+}
+
+// Wail: two voices glide up and fall back, wavering, like a scream far off.
+export function cry(scale = 1) {
+  initAudioContext();
+  ensureBus();
+  const now = audioCtx.currentTime + 0.02;
+  const dur = 1.2 * scale;
+  [0, 1].forEach((i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.detune.value = i ? 14 : -14;
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + dur * 0.35);
+    osc.frequency.exponentialRampToValueAtTime(300, now + dur);
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 6.5;
+    const depth = audioCtx.createGain();
+    depth.gain.value = 18;
+    lfo.connect(depth);
+    depth.connect(osc.frequency);
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.045, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(gain);
+    gain.connect(musicBus);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + dur + 0.05);
+    lfo.stop(now + dur + 0.05);
+  });
 }
 
 export function playing() {

@@ -83,7 +83,7 @@ try {
     check(`${section} dialog opens and Escape closes it`, shown && !(await hasClass(page, '#modalContainer', 'active')));
   }
   await page.click('[data-target="contact"]'); await page.waitForTimeout(350);
-  await page.click('.copy-btn'); await page.waitForTimeout(150);
+  await page.click('[data-copy]'); await page.waitForTimeout(150);
   check('copy button copies the email', (await page.evaluate(() => navigator.clipboard.readText())) === 'dylthesage@gmail.com');
   check('no errors after music, cards and dialogs', page.errors.length === 0, page.errors.join('; '));
 
@@ -119,6 +119,21 @@ try {
   await page.waitForFunction(() => +document.getElementById('ghostMana').getAttribute('aria-valuenow') >= 100, null, { timeout: 30000 }).catch(() => {});
   check('Enter on the rest circle walks him over and refills soul', (await soul(page)) >= 100, 'soul ' + (await soul(page)));
 
+  // Wail and Shroud
+  page = await open();
+  await act(page, 'summon');
+  await page.waitForTimeout(2500);
+  await act(page, 'wail');
+  check('wail cries out and shakes the page', (await speech(page)) === 'Begone.' && await hasClass(page, 'body', 'is-shaking'));
+  await page.waitForTimeout(2500);
+  const before = await page.textContent('#scoreCount');
+  await act(page, 'shroud');
+  check('shroud fades him into mist', await hasClass(page, '#ghost-character', 'is-shrouded'));
+  await page.waitForTimeout(4600);
+  const after = await page.textContent('#scoreCount');
+  check('ghosts drift to the shrouded reaper and are caught', Number(after) > Number(before), before + ' -> ' + after);
+  check('no errors from wail and shroud', page.errors.length === 0, page.errors.join('; '));
+
   // Rites
   const rite = async (seq, expectSpeech, extra) => {
     const p = await open();
@@ -137,6 +152,30 @@ try {
   await rite(['hex', 'summon', 'reap'], /song wakes/, (p) => p.evaluate(() => !document.querySelector('.song-mark[data-song="6"]').classList.contains('is-sealed')));
   await rite(['lantern', 'lantern', 'lantern'], /Vigil/, (p) => hasClass(p, 'body', 'is-vigil'));
   await rite(['lantern', 'hex', 'lantern'], /Marked/, (p) => p.evaluate(() => !!document.querySelector('.sigil')));
+  await rite(['wail', 'wail', 'wail'], /BANSHEE/, (p) => hasClass(p, 'body', 'is-shaking'));
+  await rite(['shroud', 'summon', 'shroud'], /answer/, (p) => p.evaluate(() =>
+    document.querySelectorAll('.prey-ghost').length >= 5 && document.getElementById('ghost-character').classList.contains('is-shrouded')));
+
+  // The last rite completes the Grimoire and plays the Requiem
+  page = await open({ storage: { 'y2k-rites': '["best","eclipse","wraith","vigil","sigil","banshee","seance"]' } });
+  check('seven of eight rites are remembered', (await page.textContent('#ritesCount')) === '7/8');
+  for (const a of ['reap', 'reap', 'reap']) await act(page, a);
+  await page.waitForTimeout(3600);
+  const done = await page.evaluate(() => ({
+    badge: document.getElementById('ritesCount').textContent,
+    complete: document.getElementById('ritesBadge').classList.contains('is-complete'),
+    end: !document.getElementById('grimoireEnd').hidden,
+    say: document.getElementById('ghost-speech').textContent
+  }));
+  check('finding every rite completes the Grimoire and plays the Requiem', done.badge === '8/8' && done.complete && done.end && done.say === 'Requiem', JSON.stringify(done));
+
+  // Forget wipes rites and scores after asking once more
+  await page.click('#ritesBadge'); await page.waitForTimeout(350);
+  await page.click('#forgetAsk');
+  check('forget asks before wiping', await page.isVisible('#forgetYes'));
+  await page.click('#forgetYes');
+  await page.waitForLoadState('load'); await page.waitForTimeout(400);
+  check('forget clears every rite', (await page.textContent('#ritesCount')) === '0/8' && await hasClass(page, '#ritesBadge', 'is-secret'));
 
   page = await open();
   await act(page, 'reap');

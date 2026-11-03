@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=43"/>
+  <link rel="stylesheet" href="style.css?v=44"/>
   
 </head>
 <body>
@@ -78,7 +78,7 @@
       <div class="nineties-bar">
         <span class="hit-counter is-secret" id="scoreBadge">SCORE <span id="scoreCount">000000</span></span>
         <span class="hit-counter is-secret" id="bestBadge">BEST <span id="bestCount">00</span></span>
-        <button type="button" class="hit-counter rites-badge is-secret" id="ritesBadge" data-open-modal="grimoire">RITES <span id="ritesCount">0/6</span></button>
+        <button type="button" class="hit-counter rites-badge is-secret" id="ritesBadge" data-open-modal="grimoire">RITES <span id="ritesCount">0/8</span></button>
       </div>
     </div>
 
@@ -168,6 +168,18 @@
         <h2 class="modal-title" id="grimoire-heading">[ GRIMOIRE ]</h2>
         <p class="grimoire-intro">A rite is three actions cast in one breath, each within two seconds of the last. Some are written in the dark.</p>
         <ol class="rite-list" id="riteList"></ol>
+        <div class="grimoire-end" id="grimoireEnd" hidden>
+          <h3>✦ Every rite is known ✦</h3>
+          <p>The last song is yours.</p>
+          <button type="button" class="pill-btn" id="playRequiem">Play Requiem</button>
+        </div>
+        <div class="grimoire-forget">
+          <button type="button" class="forget-btn" id="forgetAsk">Forget everything</button>
+          <span id="forgetConfirm" hidden>Forget every rite and score?
+            <button type="button" class="forget-btn" id="forgetYes">Yes, forget</button>
+            <button type="button" class="forget-btn" id="forgetNo">Keep them</button>
+          </span>
+        </div>
       </div>
 
       <!-- Setup & Tech Stack Section -->
@@ -239,9 +251,11 @@
     <button data-ghost-action="summon" data-cost="30">Summon<span>30</span></button>
     <button data-ghost-action="hex" data-cost="25">Hex<span>25</span></button>
     <button data-ghost-action="lantern" data-cost="10">Lantern<span>10</span></button>
+    <button data-ghost-action="wail" data-cost="15">Wail<span>15</span></button>
+    <button data-ghost-action="shroud" data-cost="20">Shroud<span>20</span></button>
   </div>
 </div>
 
-  <script type="module" src="js/main.js?v=52"></script>
+  <script type="module" src="js/main.js?v=53"></script>
 </body>
 </html>

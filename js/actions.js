@@ -1,4 +1,5 @@
 // The reaper's actions, his soul, and the ghost-catching round.
+import * as audio from './audio.js';
 import * as fluid from './fluid.js';
 import { noteCombo } from './rites.js';
 import { load, save, reducedMotion } from './store.js';
@@ -104,12 +105,62 @@ export function ghostAction(type) {
     if (!spendSoul(10, speech)) return;
     speech.textContent = 'Look closer.';
     lightLantern();
+
+  } else if (type === 'wail') {
+    if (!spendSoul(15, speech)) return;
+    speech.textContent = 'Begone.';
+    audio.cry();
+    const c = ghostCenter();
+    fluid.shock(c.x, c.y);
+    shake(450);
+    scatterPrey(c);
+
+  } else if (type === 'shroud') {
+    if (!spendSoul(20, speech)) return;
+    speech.textContent = 'Unseen.';
+    shroud(5000);
   }
 
   noteCombo(type, speech, chain);
 }
 
 // The lantern follows the pointer for 5s and shows what is written in the dark.
+// Wail jolts the page; reduced motion skips the jolt.
+export function shake(ms) {
+  if (reducedMotion) return;
+  document.body.classList.remove('is-shaking');
+  void document.body.offsetWidth;
+  document.body.classList.add('is-shaking');
+  clearTimeout(shake.timer);
+  shake.timer = setTimeout(() => document.body.classList.remove('is-shaking'), ms);
+}
+
+function scatterPrey(from) {
+  const now = performance.now();
+  document.querySelectorAll('.prey-ghost:not(.is-caught)').forEach((el) => {
+    const dx = el._x - from.x;
+    const dy = el._y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    el._tx = Math.min(window.innerWidth - 60, Math.max(20, el._x + (dx / len) * 320));
+    el._ty = Math.min(window.innerHeight - 90, Math.max(60, el._y + (dy / len) * 320));
+    el._next = now + 900;
+  });
+}
+
+// Shroud fades him into mist. While it lasts, ghosts in a round drift to him,
+// and any that reach him are caught.
+let shroudUntil = 0;
+
+export function shroud(ms) {
+  const ghost = document.getElementById('ghost-character');
+  shroudUntil = Math.max(shroudUntil, Date.now() + ms);
+  ghost.classList.add('is-shrouded');
+  clearTimeout(shroud.timer);
+  shroud.timer = setTimeout(() => ghost.classList.remove('is-shrouded'), shroudUntil - Date.now());
+  const c = ghostCenter();
+  fluid.mist(c.x, c.y);
+}
+
 let lanternTimer = null;
 
 function moveLantern(x, y) {
@@ -197,7 +248,7 @@ function addScore(n) {
   save('y2k-score', String(score));
 }
 
-function spawnPrey(extraClass, count, points, label) {
+function spawnPrey(extraClass, count, points, label, ms) {
   const room = 8 - document.querySelectorAll('.prey-ghost:not(.is-caught)').length;
   const n = Math.min(count, room);
   for (let i = 0; i < n; i++) {
@@ -233,21 +284,38 @@ function spawnPrey(extraClass, count, points, label) {
     });
     document.body.appendChild(el);
   }
-  if (n) beginHunt();
+  if (n) beginHunt(ms);
 }
 
 function spawnCatchGhosts() {
   spawnPrey('', 5, 1, 'Catch');
 }
 
+// Rites can call a bigger, longer round.
+export function summonGhosts(count, ms) {
+  spawnPrey('', count, 1, 'Catch', ms);
+  if (huntEnds && ms) {
+    huntEnds = Math.max(huntEnds, Date.now() + ms);
+    huntTotal = Math.max(huntTotal, ms);
+  }
+}
+
+export function huntEndsAt() {
+  return huntEnds;
+}
+
 let huntEnds = 0;
 let huntTick = null;
 let huntFrame = null;
 
-function beginHunt() {
+const HUNT_MS = 10000;
+let huntTotal = HUNT_MS;
+
+function beginHunt(ms = HUNT_MS) {
   if (!(huntEnds > Date.now())) roundScore = 0;
-  huntEnds = Date.now() + 10000;
-  paintHunt(10000);
+  huntEnds = Math.max(huntEnds, Date.now() + ms);
+  huntTotal = Math.max(ms, huntEnds - Date.now());
+  paintHunt(huntEnds - Date.now());
   if (!huntTick) huntTick = setInterval(tickHunt, 200);
   if (!reducedMotion && !huntFrame) huntFrame = requestAnimationFrame(movePrey);
 }
@@ -263,7 +331,7 @@ function paintHunt(left) {
   const ring = document.getElementById('huntRing');
   if (!ring) return;
   ring.hidden = left <= 0;
-  ring.style.setProperty('--left', Math.max(0, left / 10000).toFixed(3));
+  ring.style.setProperty('--left', Math.max(0, left / huntTotal).toFixed(3));
   ring.classList.toggle('is-late', left > 0 && left < 3000);
 }
 
@@ -295,9 +363,15 @@ function movePrey(now) {
   const pad = 28;
   const maxX = Math.max(pad, window.innerWidth - pad - 40);
   const maxY = Math.max(80, window.innerHeight - 80);
+  const lure = shroudUntil > Date.now() ? ghostCenter() : null;
   nodes.forEach((el) => {
     const step = hexed ? 0.012 : 0.045;
-    if (now > el._next) {
+    if (lure) {
+      el._tx = lure.x - 20 + Math.sin(now / 300 + el._x) * 18;
+      el._ty = lure.y - 24 + Math.cos(now / 300 + el._y) * 18;
+      el._next = now + 400;
+      if (Math.hypot(el._x + 20 - lure.x, el._y + 24 - lure.y) < 40) el.click();
+    } else if (now > el._next) {
       el._tx = pad + Math.random() * (maxX - pad);
       el._ty = 70 + Math.random() * (maxY - 70);
       el._next = now + (hexed ? 1500 : 600) + Math.random() * 800;

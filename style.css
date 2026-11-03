@@ -686,6 +686,55 @@
       color: var(--text-color);
     }
 
+    .grimoire-end {
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--accent-yellow);
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .grimoire-end h3 {
+      font-family: 'Silkscreen', monospace;
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--accent-yellow);
+      margin-bottom: 4px;
+    }
+
+    .grimoire-end p {
+      font-size: 0.85rem;
+      color: var(--muted-text);
+      margin-bottom: 10px;
+    }
+
+    .grimoire-forget {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--nav-border);
+      font-size: 0.8rem;
+      color: var(--muted-text);
+    }
+
+    .forget-btn {
+      background: none;
+      border: 1px solid var(--nav-border);
+      border-radius: 999px;
+      padding: 3px 10px;
+      margin-left: 6px;
+      color: var(--muted-text);
+      font: inherit;
+      font-size: 0.75rem;
+    }
+
+    .forget-btn:first-child { margin-left: 0; }
+    .forget-btn:hover { color: var(--text-color); border-color: var(--text-color); }
+
+    .rites-badge.is-complete {
+      border-color: #ffd36a;
+      box-shadow: 0 0 10px rgba(255, 211, 106, 0.6);
+    }
+
     .rite.is-found .rite-effect {
       margin-top: 6px;
       font-family: 'Inter', sans-serif;
@@ -751,7 +800,8 @@
       margin-top: 10px;
     }
 
-    .copy-btn {
+    .copy-btn,
+    .pill-btn {
       background: #160e22;
       color: #e7d9ff;
       border: 2px outset #c9b6ff;
@@ -761,7 +811,8 @@
       font-size: 0.6rem;
     }
 
-    .copy-btn:hover { background: #2a1840; color: #fff; }
+    .copy-btn:hover,
+    .pill-btn:hover { background: #2a1840; color: #fff; }
 
     .project-link {
       display: inline-block;
@@ -957,6 +1008,21 @@ body.light-mode .sigil svg { stroke: #8a5a00; filter: none; }
   0% { transform: rotate(-80deg) scale(0.7); opacity: 0; }
   20% { opacity: 1; }
   100% { transform: rotate(70deg) scale(1.1); opacity: 0; }
+}
+
+.ghost-body.is-shrouded {
+  opacity: 0.18;
+  filter: blur(2px) drop-shadow(0 0 10px rgba(200, 200, 230, 0.6));
+}
+
+body.is-shaking { animation: pageShake 0.45s ease-in-out; }
+
+@keyframes pageShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 3px); }
+  40% { transform: translate(5px, -4px); }
+  60% { transform: translate(-4px, -2px); }
+  80% { transform: translate(3px, 3px); }
 }
 
 body.is-eclipse h1.name { text-shadow: 0 0 18px #b0102a, 0 10px 28px rgba(0, 0, 0, 0.9); }
