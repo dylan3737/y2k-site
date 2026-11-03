@@ -366,10 +366,13 @@ function spawnPrey(extraClass, count, points, label, ms) {
       e.stopPropagation();
       if (el.classList.contains('is-caught')) return;
       el.classList.add('is-caught');
-      addScore(points);
+      const feasting = feastUntil > Date.now();
+      const worth = feasting ? points * 2 : points;
+      addScore(worth);
+      if (feasting) gainSoul(5);
       const pop = document.createElement('div');
       pop.className = 'soul-pop is-gain';
-      pop.textContent = '+' + points;
+      pop.textContent = '+' + worth;
       pop.style.left = el.style.left;
       pop.style.top = el.style.top;
       document.body.appendChild(pop);
@@ -385,6 +388,29 @@ function spawnPrey(extraClass, count, points, label, ms) {
 }
 
 // Summon: five ghosts for ten seconds; rites can call bigger, longer rounds.
+// Feast: until the round ends, catches are worth double and restore 5 soul.
+let feastUntil = 0;
+
+export function feast() {
+  feastUntil = huntEnds;
+  document.body.classList.add('is-feast');
+}
+
+// Borrowed Time: the running round gets longer, and golden ghosts worth 3 join it.
+export function borrowTime(ms, golden) {
+  if (!huntEnds) return false;
+  huntEnds += ms;
+  huntTotal += ms;
+  if (feastUntil) feastUntil = huntEnds;
+  spawnPrey('is-golden', golden, 3, 'Catch the golden ghost');
+  paintHunt(huntEnds - Date.now());
+  return true;
+}
+
+export function roundRunning() {
+  return huntEnds > Date.now();
+}
+
 export function summonRound(count = 5, ms = HUNT_MS) {
   spawnFamiliars();
   spawnPrey('', count, 1, 'Catch', ms);
@@ -435,6 +461,8 @@ function finishHunt() {
   roundScore = 0;
   hexed = false;
   huntEnds = 0;
+  feastUntil = 0;
+  document.body.classList.remove('is-feast');
   if (huntTick) clearInterval(huntTick);
   huntTick = null;
   paintHunt(0);

@@ -195,18 +195,34 @@ try {
   };
   await inRound(['hourglass', 'bind', 'hourglass'], 'stasis', /Stasis/, (p) => hasClass(p, 'body', 'is-timestop'));
   await inRound(['summon', 'raise', 'bind'], 'thrall', /Hunt for me/, (p) => p.evaluate(() => !!document.querySelector('.thrall')));
+  // Borrowed Time's own Summon starts the round it extends.
+  await rite(['hourglass', 'summon', 'hourglass'], 'borrowed', /Ten more seconds/, (p) =>
+    p.evaluate(() => document.querySelectorAll('.prey-ghost.is-golden').length > 0));
+
+  // Feast: catch a ghost first so Siphon has score to drain
+  page = await open();
+  await act(page, 'summon');
+  await page.evaluate(() => document.querySelector('.prey-ghost').click());
+  await page.waitForTimeout(2500);
+  for (const a of ['reap', 'siphon', 'reap']) await act(page, a);
+  await page.waitForTimeout(250);
+  const feastSaid = await speech(page);
+  const beforeFeast = Number(await page.textContent('#scoreCount'));
+  await page.evaluate(() => document.querySelector('.prey-ghost:not(.is-caught)').click());
+  await page.waitForTimeout(300);
+  check('rite reap > siphon > reap casts feast (catches worth double)', /Feast/.test(feastSaid) && Number(await page.textContent('#scoreCount')) === beforeFeast + 2, feastSaid);
 
   page = await open();
   await act(page, 'reap');
   await page.waitForTimeout(2500);
   await act(page, 'hex');
   await act(page, 'summon');
-  check('a broken chain casts no rite', (await page.textContent('#ritesCount')) === '0/14');
+  check('a broken chain casts no rite', (await page.textContent('#ritesCount')) === '0/16');
 
   // High rites are cast from unlocked rites in the Spellbook
   const all = '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","flock","stasis","thrall"]';
   page = await open({ storage: { 'y2k-grimoire': all } });
-  check('unlocked rites are remembered', (await page.textContent('#ritesCount')) === '11/14');
+  check('unlocked rites are remembered', (await page.textContent('#ritesCount')) === '11/16');
   for (const a of ['legion', 'flock', 'sigil']) await act(page, a);
   await page.waitForTimeout(300);
   check('a high rite (Legion > Flock > Sigil) opens the Necropolis', /old graves/.test(await speech(page)) && await page.isVisible('.gallery.is-necropolis'));
@@ -221,15 +237,15 @@ try {
 
   // Old saves carry over
   page = await open({ storage: { 'y2k-rites': '["best","wraith","banshee"]' } });
-  check('rites found in the old version carry over', (await page.textContent('#ritesCount')) === '2/14');
+  check('rites found in the old version carry over', (await page.textContent('#ritesCount')) === '2/16');
   page = await open({ storage: { 'y2k-grimoire': '["murder"]' } });
   check('a saved Murder carries over as Flock', !!(await page.$('#spellbook [data-spell="flock"]')));
 
   // Every rite found
-  page = await open({ storage: { 'y2k-grimoire': '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","flock","stasis","thrall","requiem","danse"]' } });
+  page = await open({ storage: { 'y2k-grimoire': '["tally","harvest","eclipse","wraith","vigil","sigil","legion","procession","flock","stasis","thrall","requiem","danse","feast","borrowed"]' } });
   for (const a of ['legion', 'flock', 'sigil']) await act(page, a);
   await page.waitForTimeout(2300);
-  check('finding every rite completes the Grimoire', (await page.textContent('#ritesCount')) === '14/14' && await hasClass(page, '#ritesBadge', 'is-complete') && (await speech(page)) === 'You know every rite.');
+  check('finding every rite completes the Grimoire', (await page.textContent('#ritesCount')) === '16/16' && await hasClass(page, '#ritesBadge', 'is-complete') && (await speech(page)) === 'You know every rite.');
 
   // Forget
   await page.keyboard.press('Escape');
@@ -238,7 +254,7 @@ try {
   check('forget asks before wiping', await page.isVisible('#forgetYes'));
   await page.click('#forgetYes');
   await page.waitForLoadState('load'); await page.waitForTimeout(400);
-  check('forget clears every rite', (await page.textContent('#ritesCount')) === '0/14' && await hasClass(page, '#ritesBadge', 'is-secret'));
+  check('forget clears every rite', (await page.textContent('#ritesCount')) === '0/16' && await hasClass(page, '#ritesBadge', 'is-secret'));
 } finally {
   await browser.close();
   server.close();

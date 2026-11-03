@@ -1425,6 +1425,14 @@ body.light-mode .rest-circle.is-resting {
 
 .thrall svg { fill: rgba(205, 245, 222, 0.9); filter: drop-shadow(0 0 8px rgba(181, 242, 208, 0.9)); }
 
+.prey-ghost.is-golden {
+  filter: sepia(1) saturate(2.4) hue-rotate(-12deg) brightness(1.15) drop-shadow(0 0 8px rgba(255, 226, 154, 0.95));
+}
+
+body.is-feast .prey-ghost:not(.is-golden) {
+  filter: drop-shadow(0 0 8px rgba(196, 245, 164, 0.95));
+}
+
 .prey-ghost.is-bound {
   border-radius: 50%;
   box-shadow: 0 0 0 2px #c9b6ff, 0 0 0 4px rgba(22, 14, 34, 0.9), 0 0 0 6px #c9b6ff;

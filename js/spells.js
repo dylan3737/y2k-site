@@ -4,7 +4,8 @@ import * as audio from './audio.js';
 import * as fluid from './fluid.js';
 import {
   spendSoul, chainLength, looseGhosts, bindPrey, hexPrey, reapSwing, summonRound, raiseProject, nextRaise,
-  ferry, sendRavens, RAVEN_NOTES, stopTime, lightLantern, siphon, siphonRefusal, thrall, showBadge, bestScore
+  ferry, sendRavens, RAVEN_NOTES, stopTime, lightLantern, siphon, siphonRefusal, thrall, showBadge, bestScore,
+  feast, borrowTime, roundRunning
 } from './actions.js';
 import { games } from './games.js';
 import { noteCast, isUnlocked } from './rites.js';
@@ -152,6 +153,16 @@ export const SPELLS = {
   thrall: {
     name: 'Thrall', cost: 30, tier: 1, school: 'spirit',
     cast(say) { thrall(15000); say('Hunt for me.'); }
+  },
+  feast: {
+    name: 'Feast', cost: 25, tier: 1, school: 'soul',
+    ready: () => roundRunning() ? null : 'Nothing to feast on.',
+    cast(say) { feast(); say('Feast. Double souls.'); }
+  },
+  borrowed: {
+    name: 'Borrowed Time', cost: 35, tier: 1, school: 'time',
+    ready: () => roundRunning() ? null : 'No round to borrow for.',
+    cast(say) { borrowTime(10000, 3); say('Ten more seconds.'); }
   },
 
   // --- Tier 2: three tier-1 spells ---
