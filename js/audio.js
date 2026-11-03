@@ -426,38 +426,6 @@ function pauseTrack() {
   labelMusic();
 }
 
-// Wail: two voices glide up and fall back, wavering, like a scream far off.
-export function cry(scale = 1) {
-  initAudioContext();
-  ensureBus();
-  const now = audioCtx.currentTime + 0.02;
-  const dur = 1.2 * scale;
-  [0, 1].forEach((i) => {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'triangle';
-    osc.detune.value = i ? 14 : -14;
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + dur * 0.35);
-    osc.frequency.exponentialRampToValueAtTime(300, now + dur);
-    const lfo = audioCtx.createOscillator();
-    lfo.frequency.value = 6.5;
-    const depth = audioCtx.createGain();
-    depth.gain.value = 18;
-    lfo.connect(depth);
-    depth.connect(osc.frequency);
-    const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.045, now + 0.12);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    osc.connect(gain);
-    gain.connect(musicBus);
-    osc.start(now);
-    lfo.start(now);
-    osc.stop(now + dur + 0.05);
-    lfo.stop(now + dur + 0.05);
-  });
-}
-
 export function playing() {
   return isPlaying;
 }
@@ -467,6 +435,23 @@ export function playAt(index) {
   if (next !== currentTrackIndex) loadTrack(next, isPlaying);
   if (!isPlaying) playTrack();
   else labelMusic();
+}
+
+// Procession: move on to the next song in the list every 45s while playing.
+let processionTimer = null;
+
+export function procession(list) {
+  clearInterval(processionTimer);
+  let i = Math.max(0, list.indexOf(currentTrackIndex));
+  playAt(list[i]);
+  processionTimer = setInterval(() => {
+    if (!isPlaying) {
+      clearInterval(processionTimer);
+      return;
+    }
+    i = (i + 1) % list.length;
+    playAt(list[i]);
+  }, 45000);
 }
 
 export function toggle() {

@@ -113,32 +113,33 @@ document.addEventListener('click', (e) => {
   if (trigger) openModal(trigger.dataset.openModal);
 });
 
-document.querySelectorAll('[data-copy]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const text = btn.dataset.copy;
-    const done = () => {
-      btn.textContent = 'Copied';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
-    };
-    const fallback = () => {
-      const area = document.createElement('textarea');
-      area.value = text;
-      area.setAttribute('readonly', '');
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      try {
-        if (document.execCommand('copy')) done();
-        else btn.textContent = 'Select it';
-      } catch (err) {
-        btn.textContent = 'Select it';
-      }
-      area.remove();
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
-    else fallback();
-  });
+// Copy buttons anywhere on the page, including ones added later.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-copy]');
+  if (!btn) return;
+  const text = btn.dataset.copy;
+  const done = () => {
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
+  };
+  const fallback = () => {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try {
+      if (document.execCommand('copy')) done();
+      else btn.textContent = 'Select it';
+    } catch (err) {
+      btn.textContent = 'Select it';
+    }
+    area.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
 });
 
 closeModalBtn.addEventListener('click', closeModalDialog);

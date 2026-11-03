@@ -1,5 +1,5 @@
 // The game ring: one mark per game, and a card with its cover when one is picked.
-const games = [
+export const games = [
   {
     title: 'Ruinborne',
     img: 'img/ruinborne.jpg',

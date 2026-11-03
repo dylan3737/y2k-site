@@ -3,9 +3,16 @@ import * as audio from './audio.js';
 import * as fluid from './fluid.js';
 import { showGameCard } from './games.js';
 import { isModalOpen } from './ui.js';
-import { ghostAction, soul, gainSoul, syncMana } from './actions.js';
+import { soul, gainSoul, syncMana } from './actions.js';
 import { riteHint } from './rites.js';
 import { load, reducedMotion } from './store.js';
+
+// Ferry: actions ask the reaper to walk somewhere and act when he arrives.
+let walkToImpl = null;
+
+export function walkTo(el, onArrive) {
+  if (walkToImpl) walkToImpl(el, onArrive);
+}
 
 export function initReaper() {
   const container = document.getElementById('ghost-pet-container');
@@ -31,6 +38,7 @@ export function initReaper() {
   let idleTimer = null;
   const roamEnabled = !reducedMotion;
   let hurry = false;
+  let onArrive = null;
 
   function clearIdle() {
     if (!idleTimer) return;
@@ -46,6 +54,7 @@ export function initReaper() {
 
     clearIdle();
     hurry = false;
+    onArrive = null;
     isDragging = true;
     dragMoved = 0;
     interactionPause = true;
@@ -197,9 +206,9 @@ export function initReaper() {
     const offX = body.left - rect.left;
     const offY = body.top - rect.top;
     return {
-      minX: 8 - offX,
+      minX: wholeColumn ? 8 : 8 - offX,
       minY: 8 - offY,
-      maxX: window.innerWidth - offX - body.width - 8,
+      maxX: wholeColumn ? window.innerWidth - rect.width - 8 : window.innerWidth - offX - body.width - 8,
       // The extra 18px leaves room for his bubble growing to a second line.
       maxY: wholeColumn ? window.innerHeight - rect.height - 26 : window.innerHeight - offY - body.height - 8
     };
@@ -264,6 +273,11 @@ export function initReaper() {
 
       if (dist < 4) {
         hurry = false;
+        if (onArrive) {
+          const done = onArrive;
+          onArrive = null;
+          done();
+        }
         ghostBody.classList.remove('is-moving');
         if (!idleTimer) {
           idleTimer = setTimeout(() => {
@@ -322,13 +336,6 @@ export function initReaper() {
   const nav = document.querySelector('nav.bottom-nav');
   if (nav && 'ResizeObserver' in window) new ResizeObserver(refit).observe(nav);
 
-  // Reaper action buttons (Reap/Summon/Hex) use data-ghost-action
-  // attributes rather than inline onclick, so delegate from the container.
-  container.addEventListener('click', (e) => {
-    const actionBtn = e.target.closest('[data-ghost-action]');
-    if (actionBtn) ghostAction(actionBtn.dataset.ghostAction);
-  });
-
   syncMana();
   startRoaming();
 
@@ -356,26 +363,37 @@ export function initReaper() {
         if (speech) speech.textContent = 'Soul is full.';
         return;
       }
-      const zone = restButton.getBoundingClientRect();
-      const rect = container.getBoundingClientRect();
-      const body = ghostBody.getBoundingClientRect();
-      const b = getBounds();
-      const x = clamp(zone.left + zone.width / 2 - (body.left - rect.left) - body.width / 2, b.minX, b.maxX);
-      const y = clamp(zone.top + zone.height / 2 - (body.top - rect.top) - body.height / 2, b.minY, b.maxY);
-      clearIdle();
-      interactionPause = false;
-      if (roamEnabled) {
-        target.x = x;
-        target.y = y;
-        hurry = true;
-      } else {
-        pos.x = x;
-        pos.y = y;
-        setPosition(x, y);
-      }
+      walkToImpl(restButton);
       if (speech) speech.textContent = 'Going to rest.';
     });
   }
+
+  // Hurry over so his body sits on `el`, then run `arrive` (if any).
+  walkToImpl = (el, arrive) => {
+    const zone = el.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
+    const body = ghostBody.getBoundingClientRect();
+    const b = getBounds();
+    const x = clamp(zone.left + zone.width / 2 - (body.left - rect.left) - body.width / 2, b.minX, b.maxX);
+    const y = clamp(zone.top + zone.height / 2 - (body.top - rect.top) - body.height / 2, b.minY, b.maxY);
+    clearIdle();
+    interactionPause = false;
+    onArrive = arrive || null;
+    if (roamEnabled) {
+      target.x = x;
+      target.y = y;
+      hurry = true;
+    } else {
+      pos.x = x;
+      pos.y = y;
+      setPosition(x, y);
+      if (onArrive) {
+        const done = onArrive;
+        onArrive = null;
+        done();
+      }
+    }
+  };
 
   // Lines for the visitor's time of day, now and then while he idles.
   function timeLine() {

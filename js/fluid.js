@@ -378,12 +378,20 @@ export function eclipse(ms) {
   eclipseUntil = Date.now() + ms;
 }
 
+// Hourglass: while frozen the fluid holds still and new stirs wait.
+let frozenUntil = 0;
+
+export function freeze(ms) {
+  frozenUntil = Math.max(frozenUntil, Date.now() + ms);
+}
+
 function update() {
   resizeCanvas();
-  const dt = Math.min((Date.now() - lastTime) / 1000, 0.016);
+  const frozen = Date.now() < frozenUntil;
+  const dt = frozen ? 0 : Math.min((Date.now() - lastTime) / 1000, 0.016);
   lastTime = Date.now();
 
-  while (splatStack.length > 0) {
+  while (!frozen && splatStack.length > 0) {
     const s = splatStack.pop();
     splat(s.x, s.y, s.dx, s.dy, s.color, s.radius);
   }
@@ -394,7 +402,7 @@ function update() {
   gl.uniform1i(U.advect.uVelocity, velocity.read.attach(0));
   gl.uniform1i(U.advect.uSource, velocity.read.attach(0));
   gl.uniform1f(U.advect.dt, dt);
-  gl.uniform1f(U.advect.dissipation, config.VELOCITY_DISSIPATION);
+  gl.uniform1f(U.advect.dissipation, frozen ? 1.0 : config.VELOCITY_DISSIPATION);
   blit(velocity.write);
   velocity.swap();
 
@@ -439,7 +447,7 @@ function update() {
   gl.uniform1i(U.advect.uVelocity, velocity.read.attach(0));
   gl.uniform1i(U.advect.uSource, dye.read.attach(1));
   gl.uniform1f(U.advect.dt, dt);
-  gl.uniform1f(U.advect.dissipation, config.DENSITY_DISSIPATION);
+  gl.uniform1f(U.advect.dissipation, frozen ? 1.0 : config.DENSITY_DISSIPATION);
   blit(dye.write);
   dye.swap();
 
@@ -580,58 +588,6 @@ export function sigil() {
       dy: Math.cos(a) * 0.3,
       color: [0.5, 0.42, 0.08],
       radius: 0.8
-    });
-  }
-}
-
-// Wail: a fast ring pushed outward from the reaper.
-export function shock(clientX, clientY) {
-  if (!webglAvailable) return;
-  const x = clientX / window.innerWidth;
-  const y = 1.0 - clientY / window.innerHeight;
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    splatStack.push({
-      x: x + Math.cos(a) * 0.02,
-      y: y + Math.sin(a) * 0.02,
-      dx: Math.cos(a) * 0.9,
-      dy: Math.sin(a) * 0.9,
-      color: [0.3, 0.12, 0.42],
-      radius: 0.5
-    });
-  }
-}
-
-// Shroud: a slow grey puff where he fades.
-export function mist(clientX, clientY) {
-  if (!webglAvailable) return;
-  const x = clientX / window.innerWidth;
-  const y = 1.0 - clientY / window.innerHeight;
-  for (let i = 0; i < 6; i++) {
-    splatStack.push({
-      x: x + (Math.random() - 0.5) * 0.04,
-      y: y + (Math.random() - 0.5) * 0.04,
-      dx: (Math.random() - 0.5) * 0.08,
-      dy: 0.05 + Math.random() * 0.05,
-      color: [0.16, 0.15, 0.2],
-      radius: 1.6
-    });
-  }
-}
-
-// Banshee: a spiral storm that winds around the whole page.
-export function storm() {
-  if (!webglAvailable) return;
-  for (let i = 0; i < 28; i++) {
-    const a = (i / 28) * Math.PI * 6;
-    const r = 0.06 + (i / 28) * 0.36;
-    splatStack.push({
-      x: 0.5 + Math.cos(a) * r,
-      y: 0.5 + Math.sin(a) * r,
-      dx: -Math.sin(a) * 0.7,
-      dy: Math.cos(a) * 0.7,
-      color: i % 2 ? [0.5, 0.06, 0.2] : [0.32, 0.08, 0.58],
-      radius: 0.9
     });
   }
 }
