@@ -4,7 +4,7 @@ import * as fluid from './fluid.js';
 import { showGameCard } from './games.js';
 import { isModalOpen } from './ui.js';
 import { soul, gainSoul, syncMana } from './actions.js';
-import { riteHint, unlockedSpells } from './rites.js';
+import { unlockedSpells } from './rites.js';
 import { load, reducedMotion } from './store.js';
 
 // Ferry: actions ask the reaper to walk somewhere and act when he arrives.
@@ -57,6 +57,8 @@ export function initReaper() {
     onArrive = null;
     isDragging = true;
     dragMoved = 0;
+    restLock = false;
+    ghostBody.classList.remove('is-resting');
     interactionPause = true;
     const rect = container.getBoundingClientRect();
     offsetX = clientX - rect.left;
@@ -113,31 +115,12 @@ export function initReaper() {
 
   let restLock = false;
 
-  function onRest() {
-    const ring = document.getElementById('rest-circle');
-    if (!ring) return false;
-    const body = ghostBody.getBoundingClientRect();
-    const zone = ring.getBoundingClientRect();
-    const dist = Math.hypot(
-      (body.left + body.width / 2) - (zone.left + zone.width / 2),
-      (body.top + body.height / 2) - (zone.top + zone.height / 2)
-    );
-    return dist < zone.width * 0.5 + body.width * 0.45;
-  }
-
   function leaveRest() {
     restLock = false;
     interactionPause = false;
     clearIdle();
-    const ring = document.getElementById('rest-circle');
-    const zone = ring ? ring.getBoundingClientRect() : null;
-    for (let i = 0; i < 8; i++) {
-      pickNewTarget();
-      if (!zone) break;
-      const dx = (target.x + container.offsetWidth / 2) - (zone.left + zone.width / 2);
-      const dy = (target.y + 48) - (zone.top + zone.height / 2);
-      if (Math.hypot(dx, dy) > 200) break;
-    }
+    ghostBody.classList.remove('is-resting');
+    pickNewTarget();
     const speech = document.getElementById('ghost-speech');
     if (speech) speech.textContent = 'Rested.';
   }
@@ -156,10 +139,15 @@ export function initReaper() {
       audio.playAt(Number(hit.dataset.song));
     }
     if (game && dragMoved > 12) showGameCard(Number(game.dataset.game));
-    restLock = onRest() && soul() < 100;
-    if (restLock) return;
-    if (onRest()) leaveRest();
-    else pickNewTarget();
+    // Setting him down, off a song or a game, is how he rests.
+    restLock = dragMoved > 12 && !hit && !game && soul() < 100;
+    ghostBody.classList.toggle('is-resting', restLock);
+    if (restLock) {
+      const speech = document.getElementById('ghost-speech');
+      if (speech) speech.textContent = 'Scythe down.';
+      return;
+    }
+    pickNewTarget();
   }
 
   // Mouse Listeners
@@ -362,20 +350,6 @@ export function initReaper() {
     }, 4000);
   }
 
-  // Clicking the rest circle (or Enter on it) sends the reaper over to rest,
-  // so soul can be restored without dragging.
-  const restButton = document.getElementById('rest-circle');
-  if (restButton) {
-    restButton.addEventListener('click', () => {
-      if (soul() >= 100) {
-        if (speech) speech.textContent = 'Soul is full.';
-        return;
-      }
-      walkToImpl(restButton);
-      if (speech) speech.textContent = 'Going to rest.';
-    });
-  }
-
   // Hurry over so his body sits on `el`, then run `arrive` (if any).
   walkToImpl = (el, arrive) => {
     const zone = el.getBoundingClientRect();
@@ -427,24 +401,11 @@ export function initReaper() {
 
   let trickle = 0;
   setInterval(() => {
-    const ring = document.getElementById('rest-circle');
-    if (!ring) return;
-    const resting = onRest();
     const wasLocked = restLock;
-    if (resting && !isDragging && soul() < 100) {
-      gainSoul(6);
-    } else if (soul() < 100 && ++trickle % 9 === 0) {
-      // A slow trickle (about 1 every 4s) away from the circle.
-      gainSoul(1);
-    }
-    restLock = resting && !isDragging && soul() < 100;
-    ring.classList.toggle('is-resting', restLock);
-    ghostBody.classList.toggle('is-resting', restLock);
-    const speech = document.getElementById('ghost-speech');
-    if (restLock && !wasLocked && speech) {
-      const hint = Math.random() < 0.5 ? riteHint() : null;
-      speech.textContent = hint || 'Scythe down.';
-    }
+    if (restLock && !isDragging && soul() < 100) gainSoul(6);
+    else if (soul() < 100 && ++trickle % 9 === 0) gainSoul(1);
+    if (restLock && (isDragging || soul() >= 100)) restLock = false;
+    ghostBody.classList.toggle('is-resting', restLock && !isDragging);
     if (wasLocked && !restLock && !isDragging) leaveRest();
   }, 450);
 

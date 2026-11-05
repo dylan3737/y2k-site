@@ -130,11 +130,16 @@ try {
   check('summon starts a catch round with a timer ring', !(await page.evaluate(() => document.getElementById('huntRing').hidden)));
   const afterSummon = await soul(page);
   await page.waitForTimeout(4300);
-  check('soul trickles back away from the circle', (await soul(page)) > afterSummon);
-  await page.focus('#rest-circle');
-  await page.keyboard.press('Enter');
+  check('soul trickles back on its own', (await soul(page)) > afterSummon);
+  const body = await page.locator('#ghost-character').boundingBox();
+  await page.mouse.move(body.x + 30, body.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(body.x + 120, body.y + 70, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForFunction(() => document.getElementById('ghost-character').classList.contains('is-resting'), null, { timeout: 2000 }).catch(() => {});
+  check('setting him down makes him rest', await page.evaluate(() => document.getElementById('ghost-character').classList.contains('is-resting')));
   await page.waitForFunction(() => +document.getElementById('ghostMana').getAttribute('aria-valuenow') >= 100, null, { timeout: 30000 }).catch(() => {});
-  check('Enter on the rest circle walks him over and refills soul', (await soul(page)) >= 100, 'soul ' + (await soul(page)));
+  check('resting where you leave him refills soul', (await soul(page)) >= 100, 'soul ' + (await soul(page)));
 
   // Teaching: the first cast explains rites; pips count the chain
   page = await open({ taught: false });

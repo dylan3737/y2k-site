@@ -1174,45 +1174,6 @@ body.is-eclipse .fallback-bg { filter: hue-rotate(-60deg) saturate(1.6); }
   to { transform: rotate(360deg) translateX(62px) rotate(-360deg); }
 }
 
-.rest-circle {
-  position: fixed;
-  left: 24px;
-  bottom: 24px;
-  z-index: 4;
-  width: 86px;
-  height: 86px;
-  border-radius: 50%;
-  border: 2px dashed rgba(201, 182, 255, 0.55);
-  color: rgba(231, 217, 255, 0.75);
-  font-family: 'Silkscreen', monospace;
-  font-size: 8px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 18px;
-  background: none;
-  cursor: pointer;
-}
-
-.rest-circle:hover { border-color: #e7d9ff; color: #fff; }
-
-body.light-mode .rest-circle {
-  border-color: rgba(91, 42, 134, 0.55);
-  color: #5b2a86;
-}
-
-.rest-circle.is-resting {
-  border-style: solid;
-  border-color: #e7d9ff;
-  box-shadow: 0 0 18px rgba(140, 80, 200, 0.75);
-  color: #fff;
-}
-
-body.light-mode .rest-circle.is-resting {
-  border-color: #5b2a86;
-  color: #5b2a86;
-}
-
 .ghost-mana {
   width: 108px;
   height: 8px;
@@ -1696,11 +1657,6 @@ body.is-timestop .prey-ghost { filter: grayscale(0.85) brightness(0.9); transiti
     padding: 92px 12px 12px;
   }
 
-  .rest-circle {
-    left: 16px;
-    bottom: 64px;
-  }
-
   .song-mark,
   .game-mark {
     width: 54px;
@@ -1753,9 +1709,3 @@ body.is-timestop .prey-ghost { filter: grayscale(0.85) brightness(0.9); transiti
   }
 }
 
-@media (max-width: 400px) {
-  /* The nav wraps to two rows here, so the circle sits above both. */
-  .rest-circle {
-    bottom: 100px;
-  }
-}
