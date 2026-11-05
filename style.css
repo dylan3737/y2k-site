@@ -919,6 +919,15 @@
   filter: drop-shadow(0 0 9px rgba(164, 64, 230, 0.95)) drop-shadow(0 0 16px rgba(160, 24, 52, 0.55));
 }
 
+.ghost-body.is-resting {
+  animation: restSettle 0.55s ease forwards;
+  filter: drop-shadow(0 10px 8px rgba(40, 12, 60, 0.45));
+}
+
+@keyframes restSettle {
+  to { transform: translateY(16px) rotate(12deg); }
+}
+
 @keyframes floatBody {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-10px) rotate(1.4deg); }
@@ -1676,8 +1685,9 @@ body.is-timestop .prey-ghost { filter: grayscale(0.85) brightness(0.9); transiti
   .gallery-card { animation: none; }
   .familiar,
   .prey-ghost,
-  .ghost-body {
+  .ghost-body.is-resting {
     animation: none !important;
+    transform: translateY(16px) rotate(12deg);
   }
   .song-mark.is-on::before { animation: none; }
 }

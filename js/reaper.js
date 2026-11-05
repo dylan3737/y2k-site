@@ -439,10 +439,11 @@ export function initReaper() {
     }
     restLock = resting && !isDragging && soul() < 100;
     ring.classList.toggle('is-resting', restLock);
+    ghostBody.classList.toggle('is-resting', restLock);
     const speech = document.getElementById('ghost-speech');
     if (restLock && !wasLocked && speech) {
       const hint = Math.random() < 0.5 ? riteHint() : null;
-      speech.textContent = hint || 'Rest.';
+      speech.textContent = hint || 'Scythe down.';
     }
     if (wasLocked && !restLock && !isDragging) leaveRest();
   }, 450);
