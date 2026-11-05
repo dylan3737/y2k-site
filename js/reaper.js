@@ -4,7 +4,7 @@ import * as fluid from './fluid.js';
 import { showGameCard } from './games.js';
 import { isModalOpen } from './ui.js';
 import { soul, gainSoul, syncMana } from './actions.js';
-import { riteHint } from './rites.js';
+import { riteHint, unlockedSpells } from './rites.js';
 import { load, reducedMotion } from './store.js';
 
 // Ferry: actions ask the reaper to walk somewhere and act when he arrives.
@@ -339,9 +339,17 @@ export function initReaper() {
   syncMana();
   startRoaming();
 
-  // First visits get a nudge toward the songs until one has been played.
+  // Until the first rite, the only lesson is this line. After that, a first
+  // visit still gets a nudge toward the songs.
+  const knowsRite = unlockedSpells().length > 0;
   const hintSeen = load('y2k-hint-seen') === '1';
-  if (!hintSeen) {
+  if (!knowsRite) {
+    const CAST = 'Cast three, quickly.';
+    setTimeout(() => {
+      if (audio.playing() || isDragging || isModalOpen()) return;
+      if (speech) speech.textContent = CAST;
+    }, 1200);
+  } else if (!hintSeen) {
     const HINT = 'Drag me to a song.';
     setTimeout(() => {
       if (audio.playing() || isDragging || isModalOpen()) return;

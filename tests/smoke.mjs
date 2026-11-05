@@ -59,10 +59,16 @@ try {
   await page.reload(); await page.waitForTimeout(300);
   check('light mode is remembered', await hasClass(page, 'body', 'light-mode'));
 
-  // First-visit hint
+  // First visit, before any rite: one line, and the Music Box stays shut.
   page = await open({ hint: false });
+  await page.waitForTimeout(1800);
+  check('first visit says to cast three', (await speech(page)) === 'Cast three, quickly.');
+  check('music box stays closed until a rite is known', !(await hasClass(page, '.song-ring', 'is-open')));
+
+  // Once a rite is known, a first visit still opens the Music Box.
+  page = await open({ hint: false, storage: { 'y2k-grimoire': '["harvest"]' } });
   await page.waitForTimeout(4400);
-  check('first visit hint opens the Music Box', (await speech(page)) === 'Drag me to a song.' && await hasClass(page, '.song-ring', 'is-open'));
+  check('after a rite, the first visit opens the Music Box', (await speech(page)) === 'Drag me to a song.' && await hasClass(page, '.song-ring', 'is-open'));
 
   // Music, game card, dialogs, copy
   page = await open();

@@ -9,6 +9,6 @@ import './actions.js';
 import './rites.js';
 import './spells.js';
 import './spellbook.js';
-import { initReaper } from './reaper.js';
+import { initReaper } from './reaper.js?v=59';
 
 initReaper();
