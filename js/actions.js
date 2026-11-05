@@ -63,13 +63,34 @@ export function spendSoul(cost, speech) {
     return false;
   }
   const now = Date.now();
-  chain = now - lastCast < 2200 ? chain + 1 : 1;
+  chain = now - lastCast < CHAIN_MS ? chain + 1 : 1;
   lastCast = now;
   manaLevel -= cost;
   if (chain >= 2) manaLevel = Math.min(100, manaLevel + 5);
   syncMana();
   if (cost) floatSoul(chain >= 2 ? '-' + cost + ' x' + chain : '-' + cost);
+  paintChain();
   return true;
+}
+
+// Three pips show how far into a rite's chain you are. They empty when the
+// 2.2s window runs out, so visitors can see the breath they have.
+const CHAIN_MS = 2200;
+
+function paintChain() {
+  const pips = document.getElementById('chainPips');
+  if (!pips) return;
+  const filled = ((chain - 1) % 3) + 1;
+  pips.querySelectorAll('i').forEach((pip, i) => pip.classList.toggle('is-on', i < filled));
+  pips.classList.add('is-live');
+  pips.classList.remove('is-fading');
+  void pips.offsetWidth;
+  pips.classList.add('is-fading');
+  clearTimeout(paintChain.timer);
+  paintChain.timer = setTimeout(() => {
+    pips.classList.remove('is-live', 'is-fading');
+    pips.querySelectorAll('i').forEach((pip) => pip.classList.remove('is-on'));
+  }, CHAIN_MS);
 }
 
 // Bind: chain every loose ghost in place.

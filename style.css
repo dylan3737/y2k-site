@@ -1024,7 +1024,7 @@ body.light-mode .sigil svg { stroke: #8a5a00; filter: none; }
   height: 80vmin;
   margin: -40vmin 0 0 -40vmin;
   pointer-events: none;
-  background: url("scythe.png?v=1") center / contain no-repeat;
+  background: url("scythe.png?v=2") center / contain no-repeat;
   transform-origin: 30% 86%;
   filter: drop-shadow(0 0 24px rgba(150, 70, 230, 0.95));
   animation: harvestSweep 0.85s ease-in-out forwards;
@@ -1047,7 +1047,7 @@ body.is-eclipse .fallback-bg { filter: hue-rotate(-60deg) saturate(1.6); }
   height: 210px;
   margin-left: -78px;
   margin-top: -168px;
-  background: url("scythe.png?v=1") center / contain no-repeat;
+  background: url("scythe.png?v=2") center / contain no-repeat;
   transform-origin: 30% 86%;
   filter: drop-shadow(0 0 14px rgba(150, 70, 230, 0.95));
   animation: scytheSweep 0.46s ease-in forwards;
@@ -1220,6 +1220,58 @@ body.light-mode .rest-circle.is-resting {
   width: 100%;
   background: linear-gradient(90deg, #c4f5a4, #9ee7f2 50%, #c8b3ff);
   transition: width 0.25s ease;
+}
+
+.chain-pips {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  height: 7px;
+  margin-top: 4px;
+  opacity: 0.35;
+  transition: opacity 0.2s ease;
+}
+
+.chain-pips i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid #c9b6ff;
+  background: transparent;
+}
+
+.chain-pips i.is-on {
+  background: #ffe29a;
+  border-color: #ffe29a;
+  box-shadow: 0 0 6px rgba(255, 226, 154, 0.9);
+}
+
+.chain-pips.is-live { opacity: 1; }
+.chain-pips.is-fading { animation: pipFade 2.2s linear forwards; }
+
+@keyframes pipFade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
+.spellbook-help {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #d9ccf2;
+}
+
+.spellbook-help summary {
+  cursor: pointer;
+  font-family: 'Silkscreen', monospace;
+  font-size: 10px;
+  color: #ffe29a;
+}
+
+.spellbook-help ul {
+  margin: 6px 0 4px 16px;
+  display: grid;
+  gap: 4px;
 }
 
 .ghost-actions {

@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sassy+Frass&family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=49"/>
+  <link rel="stylesheet" href="style.css?v=50"/>
   
 </head>
 <body>
@@ -238,12 +238,13 @@
 
   <div id="ghost-character" class="ghost-body">
     <div id="huntRing" class="hunt-ring" hidden></div>
-    <img class="ghost-svg" src="ghost.png?v=11" alt="" width="92" draggable="false">
+    <img class="ghost-svg" src="ghost.webp?v=12" alt="" width="92" height="114" draggable="false">
   </div>
 
   <div class="ghost-mana" id="ghostMana" role="meter" aria-label="Soul" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
     <span id="ghostManaFill"></span>
   </div>
+  <div class="chain-pips" id="chainPips" aria-hidden="true"><i></i><i></i><i></i></div>
 
   <div class="ghost-actions" aria-label="Pinned spells"></div>
 </div>
@@ -254,10 +255,19 @@
       <button type="button" class="spellbook-close" aria-label="Close spellbook">×</button>
     </div>
     <p class="spellbook-tip">Cast any spell here. ★ pins up to four under the reaper.</p>
+    <details class="spellbook-help">
+      <summary>How rites work</summary>
+      <ul>
+        <li>Cast three spells in one breath: each within two seconds of the last. The pips under the reaper count them.</li>
+        <li>If the three make a rite, its spell fires at once and joins this book for good.</li>
+        <li>Three rites in a row can make a high rite.</li>
+        <li>Lantern shows hints written in the dark. The Grimoire lists every rite you have found.</li>
+      </ul>
+    </details>
     <div id="spellbookList"></div>
     <button type="button" class="pill-btn" data-open-modal="grimoire">Open the Grimoire</button>
   </aside>
 
-  <script type="module" src="js/main.js?v=57"></script>
+  <script type="module" src="js/main.js?v=58"></script>
 </body>
 </html>

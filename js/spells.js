@@ -9,6 +9,7 @@ import {
 } from './actions.js';
 import { games } from './games.js';
 import { noteCast, isUnlocked } from './rites.js';
+import { load, save } from './store.js';
 
 // Each school of magic has a colour: buttons, Grimoire entries and the
 // fluid bursts of its spells all use it.
@@ -276,4 +277,24 @@ export function castSpell(id, { free = false } = {}) {
   if (!free && !spendSoul(spell.cost, speech)) return;
   spell.cast(say);
   noteCast(id, chainLength(), say);
+  if (!free) teachOnce(speech);
+}
+
+const LESSON = [
+  'Three spells in one breath make a rite.',
+  'Watch the pips under me. Try Reap, Reap, Reap.',
+  'Rites become spells. The Spellbook keeps them.'
+];
+
+function teachOnce(speech) {
+  if (!speech || load('y2k-taught') === '1') return;
+  save('y2k-taught', '1');
+  let expected = speech.textContent;
+  LESSON.forEach((line, i) => {
+    setTimeout(() => {
+      if (speech.textContent !== expected) return;
+      speech.textContent = line;
+      expected = line;
+    }, 2600 + i * 3800);
+  });
 }

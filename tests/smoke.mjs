@@ -16,15 +16,16 @@ function check(name, ok, detail = '') {
 // One page at a time: pages left open keep animating and slow the others down.
 let lastContext = null;
 
-async function open({ width = 1366, height = 850, storage = {}, hint = true } = {}) {
+async function open({ width = 1366, height = 850, storage = {}, hint = true, taught = true } = {}) {
   if (lastContext) await lastContext.close();
   const context = lastContext = await browser.newContext({ viewport: { width, height }, permissions: ['clipboard-read', 'clipboard-write'] });
-  await context.addInitScript(([items, skipHint]) => {
+  await context.addInitScript(([items, skipHint, skipLesson]) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     if (skipHint) localStorage.setItem('y2k-hint-seen', '1');
+    if (skipLesson) localStorage.setItem('y2k-taught', '1');
     for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
-  }, [storage, hint]);
+  }, [storage, hint, taught]);
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -67,7 +68,8 @@ try {
   page = await open();
   await page.click('#musicTab');
   await page.click('.song-mark[data-song="0"]');
-  await page.waitForTimeout(300);
+  // Audio starts asynchronously; wait until the song is really playing.
+  await page.waitForSelector('.song-mark[data-song="0"].is-on', { timeout: 5000 }).catch(() => {});
   check('a song plays and labels the bubble', (await speech(page)) === 'Lamp' && await hasClass(page, '.song-mark[data-song="0"]', 'is-on'));
   await page.click('.song-mark[data-song="0"]');
   check('clicking the playing song stops it', (await speech(page)) === '✦ listen');
@@ -127,6 +129,25 @@ try {
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => +document.getElementById('ghostMana').getAttribute('aria-valuenow') >= 100, null, { timeout: 30000 }).catch(() => {});
   check('Enter on the rest circle walks him over and refills soul', (await soul(page)) >= 100, 'soul ' + (await soul(page)));
+
+  // Teaching: the first cast explains rites; pips count the chain
+  page = await open({ taught: false });
+  await act(page, 'reap');
+  await page.waitForTimeout(2700);
+  check('the first cast starts a short lesson on rites', /one breath/.test(await speech(page)), await speech(page));
+  await page.reload(); await page.waitForTimeout(400);
+  await act(page, 'reap');
+  await page.waitForTimeout(2700);
+  check('the lesson only plays once', !/one breath/.test(await speech(page)));
+  await page.waitForTimeout(2500);
+  await act(page, 'reap');
+  await act(page, 'hex');
+  check('chain pips count casts in one breath', (await page.$$('#chainPips i.is-on')).length === 2);
+  await page.waitForTimeout(2600);
+  check('chain pips empty when the breath runs out', (await page.$$('#chainPips i.is-on')).length === 0);
+  await page.click('.spellbook-toggle', { force: true });
+  await page.click('.spellbook-help summary');
+  check('the Spellbook explains how rites work', await page.isVisible('.spellbook-help li'));
 
   // New base spells
   page = await open();
