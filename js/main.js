@@ -6,9 +6,9 @@ import './audio.js';
 import './games.js';
 import './ui.js';
 import './actions.js';
-import './rites.js';
+import './rites.js?v=62';
 import './spells.js';
 import './spellbook.js';
-import { initReaper } from './reaper.js?v=61';
+import { initReaper } from './reaper.js?v=62';
 
 initReaper();

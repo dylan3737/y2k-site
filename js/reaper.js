@@ -4,8 +4,8 @@ import * as fluid from './fluid.js';
 import { showGameCard } from './games.js';
 import { isModalOpen } from './ui.js';
 import { soul, gainSoul, syncMana } from './actions.js';
-import { unlockedSpells } from './rites.js';
-import { load, reducedMotion } from './store.js';
+import { onUnlock, unlockedSpells } from './rites.js';
+import { load, save, reducedMotion } from './store.js';
 
 // Ferry: actions ask the reaper to walk somewhere and act when he arrives.
 let walkToImpl = null;
@@ -327,16 +327,28 @@ export function initReaper() {
   syncMana();
   startRoaming();
 
-  // Until the first rite, the only lesson is this line. After that, a first
-  // visit still gets a nudge toward the songs.
+  // Until the first rite, the only lesson is this line. The first rite points
+  // at the Spellbook once. After that, a first visit still gets the songs.
   const knowsRite = unlockedSpells().length > 0;
   const hintSeen = load('y2k-hint-seen') === '1';
+  const BOOK = 'Open the Spellbook.';
+  function sayBook() {
+    if (!speech || load('y2k-book-seen') === '1') return;
+    if (audio.playing() || isDragging || isModalOpen()) return;
+    save('y2k-book-seen', '1');
+    speech.textContent = BOOK;
+    setTimeout(() => {
+      if (speech.textContent === BOOK && !audio.playing()) speech.textContent = '✦ listen';
+    }, 6000);
+  }
   if (!knowsRite) {
     const CAST = 'Cast three, quickly.';
     setTimeout(() => {
       if (audio.playing() || isDragging || isModalOpen()) return;
       if (speech) speech.textContent = CAST;
     }, 1200);
+  } else if (load('y2k-book-seen') !== '1') {
+    setTimeout(sayBook, 1200);
   } else if (!hintSeen) {
     const HINT = 'Drag me to a song.';
     setTimeout(() => {
@@ -349,6 +361,11 @@ export function initReaper() {
       }, 8000);
     }, 4000);
   }
+
+  onUnlock(() => {
+    if (unlockedSpells().length !== 1) return;
+    setTimeout(sayBook, 4200);
+  });
 
   // Hurry over so his body sits on `el`, then run `arrive` (if any).
   walkToImpl = (el, arrive) => {

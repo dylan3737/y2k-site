@@ -168,7 +168,7 @@ function setUpForget() {
     ask.focus();
   });
   document.getElementById('forgetYes').addEventListener('click', () => {
-    forget(['y2k-grimoire', 'y2k-rites', 'y2k-pins', 'y2k-best', 'y2k-best-seen', 'y2k-score', 'y2k-score-seen']);
+    forget(['y2k-grimoire', 'y2k-rites', 'y2k-pins', 'y2k-best', 'y2k-best-seen', 'y2k-score', 'y2k-score-seen', 'y2k-book-seen']);
     location.reload();
   });
 }

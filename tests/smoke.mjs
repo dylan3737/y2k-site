@@ -65,8 +65,14 @@ try {
   check('first visit says to cast three', (await speech(page)) === 'Cast three, quickly.');
   check('music box stays closed until a rite is known', !(await hasClass(page, '.song-ring', 'is-open')));
 
-  // Once a rite is known, a first visit still opens the Music Box.
+  // Once a rite is known, he points at the Spellbook a single time.
   page = await open({ hint: false, storage: { 'y2k-grimoire': '["harvest"]' } });
+  await page.waitForTimeout(1800);
+  check('knowing a rite says to open the Spellbook', (await speech(page)) === 'Open the Spellbook.');
+  check('that line does not open the Music Box', !(await hasClass(page, '.song-ring', 'is-open')));
+
+  // After the Spellbook line has been heard, a first visit still opens the Music Box.
+  page = await open({ hint: false, storage: { 'y2k-grimoire': '["harvest"]', 'y2k-book-seen': '1' } });
   await page.waitForTimeout(4400);
   check('after a rite, the first visit opens the Music Box', (await speech(page)) === 'Drag me to a song.' && await hasClass(page, '.song-ring', 'is-open'));
 
