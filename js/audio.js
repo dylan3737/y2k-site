@@ -63,6 +63,7 @@ const playlistData = [
 
 let currentTrackIndex = 0;
 let isPlaying = false;
+let hasPlayed = false;
 
 // Web Audio API Synthesizer Engine
 let audioCtx = null;
@@ -410,6 +411,7 @@ function labelMusic() {
 
 function playTrack() {
   initAudioContext();
+  hasPlayed = true;
   const go = () => {
     const track = playlistData[currentTrackIndex];
     startSynthLoop(track.preset);
@@ -428,6 +430,11 @@ function pauseTrack() {
 
 export function playing() {
   return isPlaying;
+}
+
+// True once a song has started this visit, even if it has since been stopped.
+export function played() {
+  return hasPlayed;
 }
 
 export function playAt(index) {

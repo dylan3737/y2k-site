@@ -344,8 +344,12 @@ export function initReaper() {
   if (!knowsRite) {
     const CAST = 'Cast three, quickly.';
     setTimeout(() => {
-      if (audio.playing() || isDragging || isModalOpen()) return;
-      if (speech) speech.textContent = CAST;
+      // The line is for an idle visit. A cast or the rite lesson already has
+      // the bubble, and a song that has started — even one just stopped —
+      // should be left on "✦ listen".
+      if (audio.playing() || audio.played() || isDragging || isModalOpen()) return;
+      if (!speech || speech.textContent !== '✦ listen') return;
+      speech.textContent = CAST;
     }, 1200);
   } else if (load('y2k-book-seen') !== '1') {
     setTimeout(sayBook, 1200);
