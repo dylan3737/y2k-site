@@ -4,6 +4,8 @@ Y2K-style portfolio: WebGL fluid background, a Web Audio synth, and a draggable 
 
 Live: https://dylan3737.github.io/y2k-site/
 
+The reaper also comes as a desktop companion, an Electron app in [`desktop/`](desktop/README.md). He floats over your desktop with his own abilities, and he can talk to you through Claude.
+
 ## Layout
 
 Plain HTML, CSS and JavaScript modules. There is no build step: GitHub Pages serves the files as they are.
@@ -35,6 +37,7 @@ npm install
 npm run serve   # http://127.0.0.1:8080/y2k-site/
 npm run lint
 npm test        # browser smoke tests in headless Chromium
+npm run test:desktop   # the desktop companion's page in headless Chromium
 ```
 
 `npm test` needs Chromium for Playwright (`npx playwright install chromium` the first time).

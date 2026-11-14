@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'">
+  <title>Reaper</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="eclipse" class="eclipse" hidden></div>
+  <div id="field" class="field"></div>
+
+  <div id="reaper" class="reaper">
+    <div id="bubble" class="bubble" role="status" hidden></div>
+    <div id="card" class="card hit" hidden></div>
+    <div id="body" class="body hit" title="Click for abilities. Drag to move. Drop files to reap them.">
+      <svg id="sand" class="sand" viewBox="0 0 140 140" aria-hidden="true" hidden>
+        <circle class="sand-track" cx="70" cy="70" r="64"></circle>
+        <circle class="sand-left" cx="70" cy="70" r="64" pathLength="100"></circle>
+      </svg>
+      <div id="huntRing" class="hunt-ring" hidden></div>
+      <img id="sprite" class="sprite" src="../assets/reaper.webp" alt="" width="92" height="114" draggable="false">
+      <span class="zzz" aria-hidden="true">z<i>z</i><b>z</b></span>
+    </div>
+    <div class="soul" role="meter" aria-label="Soul" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+      <span id="soulFill"></span>
+    </div>
+  </div>
+
+  <div id="ring" class="ring" role="menu" aria-label="Abilities" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+{
+  "name": "reaper-companion",
+  "productName": "Reaper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The reaper from Dylan Dyal's webspace, loose on your desktop.",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/oracle.mjs && node tests/launch.mjs",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0"
+  },
+  "author": "Dylan Dyal",
+  "build": {
+    "appId": "io.github.dylan3737.reaper",
+    "productName": "Reaper",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "oracle.js",
+      "preload.cjs",
+      "renderer/**",
+      "assets/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "icon": "assets/icon.png",
+      "target": [
+        "dmg"
+      ],
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    }
+  }
+}
