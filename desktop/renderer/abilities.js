@@ -54,8 +54,8 @@ export function createAbilities(ctx) {
     if (glass) sand.style.setProperty('--left', Math.max(0, ((glass.ends - Date.now()) / glass.total) * 100).toFixed(2));
   }
 
-  function startGlass(minutes) {
-    glass = { ends: Date.now() + minutes * 60000, total: minutes * 60000 };
+  function startGlass(minutes, rest = false) {
+    glass = { ends: Date.now() + minutes * 60000, total: minutes * 60000, rest };
     companion.save({ hourglass: glass });
     paintGlass();
   }
@@ -68,11 +68,27 @@ export function createAbilities(ctx) {
 
   function finishGlass() {
     const minutes = Math.round(glass.total / 60000);
+    const wasBreak = !!glass.rest;
     stopGlass();
     sound.bell();
+    if (wasBreak) {
+      companion.notify('The break is over.', 'Back to it. The dead wait for no one.');
+      say('Break’s over.', 6000);
+      return;
+    }
     companion.notify('The sand has run out.', minutesText(minutes) + ' done. Stand up. Stretch. You are not dead yet.');
     companion.stat('focus', 1);
-    say('Sand’s out.\nStand. Stretch.', 9000);
+    // After a focus run: a short break, the same again, or nothing.
+    const box = el('div');
+    box.append(cardHead('SAND’S OUT', () => card.close(glassOwner)), el('p', null, minutesText(minutes) + ' done. Stand. Stretch.'));
+    const row = el('div', 'row');
+    row.append(
+      chip('Break 5', () => { card.close(glassOwner); startGlass(5, true); say('Five minutes. Breathe.'); }, 'solid'),
+      chip('Again', () => { card.close(glassOwner); startGlass(minutes); say(minutes + ' more. Go.'); }),
+      chip('Done', () => card.close(glassOwner))
+    );
+    box.appendChild(row);
+    card.open(box, 'time', glassOwner);
   }
 
   function glassCard() {
@@ -312,15 +328,20 @@ export function createAbilities(ctx) {
   // --- Scythe Slash: the screen is cut in two for a moment ----------------------------------------
   const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
-  async function slash() {
-    let shot = null;
-    if (!ctx.reducedMotion) {
-      document.body.classList.add('is-capturing');
+  // A picture of the screen without the reaper and his effects in it.
+  async function photograph(opts) {
+    document.body.classList.add('is-capturing');
+    try {
       await nextFrame();
       await nextFrame();
-      shot = await companion.capture();
+      return await companion.capture(opts);
+    } finally {
       document.body.classList.remove('is-capturing');
     }
+  }
+
+  async function slash() {
+    const shot = ctx.reducedMotion ? null : await photograph();
     sound.slash();
     ctx.swing();
     const parts = [];
@@ -426,12 +447,19 @@ export function createAbilities(ctx) {
     {
       id: 'hum', name: 'Hum', cost: 5, school: 'music', blurb: 'An old tune from a music box.',
       active: () => sound.humming(),
+      ready: () => (sound.isMuted() ? 'My voice is muted.\n(Tray → Sounds.)' : null),
       stop: () => { sound.stopHum(); say('Quiet.'); },
       cast: () => { sound.startHum(); say('Something old.', 2500); }
     },
     {
       id: 'reap', name: 'Reap', cost: 0, school: 'death', blurb: 'Drop files on him. They go to the Trash.',
       cast: () => say('Drop files on me.\nThey go to the Trash.', 6000)
+    },
+    {
+      id: 'haunt', name: 'Haunt', cost: 5, school: 'spirit', blurb: 'He follows your cursor for two minutes. Click him to stop.',
+      active: () => ctx.getMode() === 'haunt',
+      stop: () => { ctx.unhaunt(); say('Fine. I’ll keep my distance.'); },
+      cast: () => { ctx.haunt(120000); say('Lead on.', 2000); }
     },
     {
       id: 'vanish', name: 'Vanish', cost: 0, school: 'soul', blurb: 'He fades into the corner for half an hour. Click him to call him back.',
@@ -466,7 +494,7 @@ export function createAbilities(ctx) {
   }
 
   // Speak's tools. Inputs are checked here: they arrive as streamed JSON.
-  const CASTABLE = ['slash', 'summon', 'eclipse', 'hum', 'vanish'];
+  const CASTABLE = ['slash', 'summon', 'eclipse', 'hum', 'vanish', 'haunt'];
 
   async function runTool(name, input) {
     switch (name) {
@@ -501,6 +529,22 @@ export function createAbilities(ctx) {
       }
       case 'get_harvest':
         return { ok: true, result: await harvest() };
+      case 'look_at_screen': {
+        if (!(await ctx.speak.ask('Let him look at your screen?'))) return { ok: false, error: 'The user said no.' };
+        const shot = await photograph({ forModel: true });
+        if (!shot) return { ok: false, error: 'Could not take a picture of the screen. On macOS the app needs Screen Recording permission.' };
+        return { ok: true, result: { seen: 'the screen, attached' }, image: shot };
+      }
+      case 'read_clipboard': {
+        if (!(await ctx.speak.ask('Let him read what you copied?'))) return { ok: false, error: 'The user said no.' };
+        const text = await companion.clipboardRead();
+        return { ok: true, result: text ? { text } : { text: '', note: 'The clipboard is empty or holds no text.' } };
+      }
+      case 'copy_to_clipboard': {
+        if (typeof input.text !== 'string' || !input.text) return { ok: false, error: 'text must be a non-empty string' };
+        companion.clipboardWrite(input.text);
+        return { ok: true, result: { copied: input.text.length + ' characters' } };
+      }
       default:
         return { ok: false, error: 'Unknown tool ' + name };
     }
@@ -529,6 +573,11 @@ export function createAbilities(ctx) {
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },
+    dueToday() {
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return ravens.filter((r) => r.at <= end.getTime()).length;
+    },
     onCursor: paintEclipse,
     onHover() {
       if (glass) say(mmss(glass.ends - Date.now()) + ' left', 2000);

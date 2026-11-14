@@ -3,7 +3,7 @@
 // effects are; the page decides that from the cursor position sent from here.
 import {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, powerMonitor, Notification,
-  globalShortcut, nativeImage, desktopCapturer, shell, safeStorage
+  globalShortcut, nativeImage, desktopCapturer, shell, safeStorage, clipboard
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -22,8 +22,29 @@ if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transpare
 
 // --- Saved state ---------------------------------------------------------
 const state = {
-  soul: 100, best: 0, wander: true, chatty: true,
-  ravens: [], hourglass: null, stats: {}, apiKey: null
+  soul: 100, best: 0, wander: true, chatty: true, muted: false,
+  ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null
+};
+
+// What Speak remembers about the user, kept with the rest of the state.
+const MAX_MEMORIES = 50;
+const memory = {
+  list: () => state.memories,
+  add(text) {
+    if (state.memories.length >= MAX_MEMORIES) return null;
+    const note = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), text };
+    state.memories.push(note);
+    writeState();
+    rebuildMenu();
+    return note;
+  },
+  remove(id) {
+    const before = state.memories.length;
+    state.memories = state.memories.filter((n) => n.id !== id);
+    writeState();
+    rebuildMenu();
+    return state.memories.length !== before;
+  }
 };
 
 const statePath = () => path.join(app.getPath('userData'), 'companion.json');
@@ -224,6 +245,10 @@ function rebuildMenu() {
       label: 'Talk on his own', type: 'checkbox', checked: state.chatty,
       click: (item) => { state.chatty = item.checked; writeState(); send('settings', { chatty: state.chatty }); }
     },
+    {
+      label: 'Sounds', type: 'checkbox', checked: !state.muted,
+      click: (item) => { state.muted = !item.checked; writeState(); send('settings', { muted: state.muted }); }
+    },
     { label: 'Hide', type: 'checkbox', checked: hidden, click: () => toggleHidden() }
   ];
   // Linux has no login-item API in Electron.
@@ -234,6 +259,11 @@ function rebuildMenu() {
     });
   }
   items.push(
+    {
+      label: state.memories.length ? `Forget what he remembers (${state.memories.length})` : 'He remembers nothing',
+      enabled: state.memories.length > 0,
+      click: () => { state.memories = []; writeState(); rebuildMenu(); }
+    },
     { label: 'Forget API key', enabled: !!state.apiKey, click: () => { setKey(''); rebuildMenu(); send('settings', { hasKey: false }); } },
     { type: 'separator' },
     { label: 'Quit', role: 'quit' }
@@ -250,18 +280,21 @@ const STAT_KEYS = ['focus', 'caught', 'reaped'];
 const pendingTools = new Map();
 let toolSeq = 0;
 
+// Tools that wait for the user to allow them get longer to answer.
+const ASKS_FIRST = ['look_at_screen', 'read_clipboard'];
+
 function runTool(name, input) {
   return new Promise((resolve) => {
     const id = String(++toolSeq);
     pendingTools.set(id, resolve);
     send('tool-call', { id, name, input });
     setTimeout(() => {
-      if (pendingTools.delete(id)) resolve({ ok: false, error: 'The reaper did not answer.' });
-    }, 10000);
+      if (pendingTools.delete(id)) resolve({ ok: false, error: 'No answer from the user or the reaper in time.' });
+    }, ASKS_FIRST.includes(name) ? 90000 : 10000);
   });
 }
 
-const oracle = createOracle({ getKey, runTool });
+const oracle = createOracle({ getKey, runTool, memory });
 
 function wireIpc() {
   ipcMain.on('interactive', (_e, on) => setInteractive(!!on));
@@ -276,6 +309,8 @@ function wireIpc() {
     best: state.best,
     wander: state.wander,
     chatty: state.chatty,
+    muted: state.muted,
+    greeted: state.greeted,
     ravens: state.ravens,
     hourglass: state.hourglass,
     today: today(),
@@ -290,6 +325,7 @@ function wireIpc() {
     if (Number.isFinite(patch.best)) state.best = Math.max(state.best, patch.best);
     if (Array.isArray(patch.ravens)) state.ravens = patch.ravens.slice(0, 50);
     if ('hourglass' in patch) state.hourglass = patch.hourglass || null;
+    if (typeof patch.greeted === 'string') state.greeted = patch.greeted.slice(0, 20);
     writeState();
   });
 
@@ -312,10 +348,18 @@ function wireIpc() {
 
   ipcMain.on('menu', () => rebuildMenu().popup({ window: win }));
 
+  // Speak's clipboard tools. Reading happens only after the user allows it in the card.
+  // Newer Electron returns promises here; awaiting covers both.
+  ipcMain.handle('clipboard-read', async () => String((await clipboard.readText()) || '').slice(0, 20000));
+  ipcMain.on('clipboard-write', async (_e, text) => {
+    if (typeof text !== 'string') return;
+    try { await clipboard.writeText(text.slice(0, 100000)); } catch {}
+  });
+
   // A picture of this display's work area, for Scythe Slash. On macOS this
   // needs Screen Recording permission; without it the picture is blank or
   // wallpaper only, and the page falls back to a plain slash.
-  ipcMain.handle('capture', async () => {
+  ipcMain.handle('capture', async (_e, opts = {}) => {
     try {
       const display = currentDisplay();
       const scale = display.scaleFactor || 1;
@@ -336,7 +380,14 @@ function wireIpc() {
         width: Math.round(area.width * sx),
         height: Math.round(area.height * sy)
       });
-      return 'data:image/jpeg;base64,' + cropped.toJPEG(82).toString('base64');
+      // For Look, small enough for the model: at most 1568px on the long edge.
+      let picture = cropped;
+      if (opts && opts.forModel) {
+        const { width, height } = cropped.getSize();
+        const scale = Math.min(1, 1568 / Math.max(width, height));
+        if (scale < 1) picture = cropped.resize({ width: Math.round(width * scale), height: Math.round(height * scale), quality: 'good' });
+      }
+      return 'data:image/jpeg;base64,' + picture.toJPEG(82).toString('base64');
     } catch {
       return null;
     }

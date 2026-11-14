@@ -89,6 +89,10 @@ try {
   const shot = await page.evaluate(() => window.companion.capture());
   check('the screen can be captured for Slash', typeof shot === 'string' && shot.startsWith('data:image/jpeg'), shot ? shot.slice(0, 30) : String(shot));
 
+  // Speak's clipboard tools go through the main process.
+  await page.evaluate(() => window.companion.clipboardWrite('from the reaper'));
+  check('the clipboard can be written and read', (await page.evaluate(() => window.companion.clipboardRead())) === 'from the reaper');
+
   await page.screenshot({ path: path.join(env.XDG_CONFIG_HOME, 'window.png') });
   check('no page errors', errors.length === 0, errors.join('; '));
 } catch (err) {

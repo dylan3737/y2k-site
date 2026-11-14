@@ -7,7 +7,12 @@ const TOOL_LINES = {
   list_ravens: () => '✦ counts the ravens',
   cancel_raven: () => '✦ calls a raven back',
   cast: (i) => '✦ casts ' + (i.ability || 'something'),
-  get_harvest: () => '✦ weighs the day'
+  get_harvest: () => '✦ weighs the day',
+  look_at_screen: () => '✦ asks to look at your screen',
+  read_clipboard: () => '✦ asks to read what you copied',
+  copy_to_clipboard: () => '✦ copies it for you',
+  remember: (i) => '✦ remembers' + (typeof i.note === 'string' ? ': ' + i.note : ''),
+  forget_memory: () => '✦ forgets something'
 };
 
 function el(tag, className, text) {
@@ -133,11 +138,26 @@ export function createSpeak(ctx) {
     input.focus();
   });
 
-  function finish() {
-    if (current) {
-      current.classList.remove('is-thinking');
-      if (!current.textContent) current.remove();
+  // A finished reply of his gets a copy button.
+  function seal(node) {
+    node.classList.remove('is-thinking');
+    const text = node.textContent;
+    if (!text) {
+      node.remove();
+      return;
     }
+    const copy = el('button', 'copy', 'copy');
+    copy.type = 'button';
+    copy.addEventListener('click', () => {
+      companion.clipboardWrite(text);
+      copy.textContent = 'copied';
+      setTimeout(() => { copy.textContent = 'copy'; }, 1500);
+    });
+    node.appendChild(copy);
+  }
+
+  function finish() {
+    if (current) seal(current);
     current = null;
     setBusy(false);
     // Closed while he answered: the start of the answer goes in his bubble.
@@ -162,10 +182,7 @@ export function createSpeak(ctx) {
       case 'tool': {
         const describe = TOOL_LINES[event.name];
         // The spell goes below what he has said so far; his next words below it.
-        if (current) {
-          current.classList.remove('is-thinking');
-          if (!current.textContent) current.remove();
-        }
+        if (current) seal(current);
         line('cast', describe ? describe(event.input || {}) : '✦ ' + event.name);
         current = line('him is-thinking', '');
         break;
@@ -191,12 +208,45 @@ export function createSpeak(ctx) {
     }
   });
 
-  return {
-    open() {
-      card.open(box, 'voice', owner, { focus: true });
-      if (!hasKey && !keyForm.childNodes.length && !log.childNodes.length) showKeyForm();
+  // Ask the user before he looks or reads. Resolves true only on Allow.
+  function ask(question) {
+    if (!card.isOpen(owner)) open();
+    return new Promise((resolve) => {
+      const node = el('div', 'ask');
+      const row = el('div', 'row');
+      let settled = false;
+      const answer = (yes) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        node.classList.add('is-answered');
+        node.firstChild.textContent = question + (yes ? ' Allowed.' : ' Declined.');
+        resolve(yes);
+      };
+      const allow = el('button', 'chip solid', 'Allow');
+      allow.type = 'button';
+      allow.addEventListener('click', () => answer(true));
+      const deny = el('button', 'chip', 'Not now');
+      deny.type = 'button';
+      deny.addEventListener('click', () => answer(false));
+      row.append(allow, deny);
+      node.append(el('span', null, question), row);
+      // Above his line in progress, so the question reads in order.
+      log.insertBefore(node, current && current.parentNode === log ? current : null);
       scroll();
-    },
+      const timer = setTimeout(() => answer(false), 80000);
+    });
+  }
+
+  function open() {
+    card.open(box, 'voice', owner, { focus: true });
+    if (!hasKey && !keyForm.childNodes.length && !log.childNodes.length) showKeyForm();
+    scroll();
+  }
+
+  return {
+    ask,
+    open,
     close() { card.close(owner); },
     isOpen: () => card.isOpen(owner),
     setHasKey(v) {

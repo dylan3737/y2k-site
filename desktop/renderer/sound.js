@@ -1,5 +1,16 @@
 // Small Web Audio sounds: the bell, the slash, a catch, and Hum's music box.
 let ctx = null;
+let muted = false;
+
+// Muted from the tray: nothing new starts, and Hum stops.
+export function isMuted() {
+  return muted;
+}
+
+export function setMuted(on) {
+  muted = !!on;
+  if (muted) stopHum();
+}
 
 function audio() {
   if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -23,6 +34,7 @@ function tone(freq, start, dur, { type = 'sine', gain = 0.12, out } = {}) {
 
 // A far, slightly out-of-tune bell, struck three times.
 export function bell() {
+  if (muted) return;
   const a = audio();
   for (let i = 0; i < 3; i++) {
     const t = a.currentTime + i * 1.1;
@@ -32,6 +44,7 @@ export function bell() {
 
 // A swish of filtered noise, high to low.
 export function slash() {
+  if (muted) return;
   const a = audio();
   const len = Math.floor(a.sampleRate * 0.45);
   const buffer = a.createBuffer(1, len, a.sampleRate);
@@ -52,12 +65,14 @@ export function slash() {
 }
 
 export function caught() {
+  if (muted) return;
   const t = audio().currentTime;
   tone(880, t, 0.12, { type: 'triangle', gain: 0.08 });
   tone(1320, t + 0.06, 0.16, { type: 'triangle', gain: 0.06 });
 }
 
 export function gulp() {
+  if (muted) return;
   const t = audio().currentTime;
   tone(180, t, 0.25, { type: 'square', gain: 0.05 });
   tone(90, t + 0.12, 0.35, { type: 'square', gain: 0.05 });
@@ -72,7 +87,7 @@ export function humming() {
 }
 
 export function startHum() {
-  if (hum) return;
+  if (hum || muted) return;
   const a = audio();
   const out = a.createGain();
   out.gain.value = 0.9;

@@ -1,7 +1,7 @@
 {
   "name": "reaper-companion",
   "productName": "Reaper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "The reaper from Dylan Dyal's webspace, loose on your desktop.",
   "type": "module",
@@ -40,7 +40,13 @@
       "category": "public.app-category.entertainment",
       "icon": "assets/icon.png",
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "extendInfo": {
         "LSUIElement": true
@@ -58,6 +64,11 @@
         "AppImage"
       ],
       "category": "Utility"
-    }
+    },
+    "artifactName": "Reaper-${version}-${os}-${arch}.${ext}"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dylan3737/y2k-site.git"
   }
 }

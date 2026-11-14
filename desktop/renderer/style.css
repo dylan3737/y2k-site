@@ -607,3 +607,47 @@ body.is-capturing * { visibility: hidden !important; }
   .body, .reaper.is-sleeping .body, .reaper.is-hungry .body, .zzz, .ring::before, .raven { animation: none !important; }
   .slash-half { animation: none !important; opacity: 0; }
 }
+
+/* Low soul: he fades and the meter pulses. */
+.reaper.is-faint .sprite { filter: saturate(0.35) brightness(0.8); }
+.reaper.is-faint .soul span { animation: lowSoul 1.2s ease-in-out infinite; }
+
+@keyframes lowSoul {
+  50% { opacity: 0.35; }
+}
+
+/* Speak: his permission questions, and a copy button on each of his replies. */
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 2px dashed var(--gold);
+  border-radius: 8px;
+  font: 9px/1.5 var(--pixel);
+  color: var(--gold);
+}
+
+.ask .chip { --school: var(--gold); }
+.ask.is-answered { opacity: 0.6; }
+.ask.is-answered .row { display: none; }
+
+.line.him { position: relative; }
+
+.copy {
+  position: absolute;
+  right: 0;
+  top: -2px;
+  padding: 1px 6px;
+  border: 1px solid var(--lilac);
+  border-radius: 999px;
+  background: var(--ink);
+  font: 7px var(--pixel);
+  color: var(--lilac);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.line.him:hover .copy,
+.copy:focus-visible { opacity: 1; }

@@ -19,7 +19,7 @@ function browserStandIn() {
   // In a tab the page gets real mouse events, so the cursor comes from them.
   window.addEventListener('mousemove', (e) => emit('cursor', { x: e.clientX, y: e.clientY }));
   // Tests drive the rest through this.
-  window.__companion = { emit, stats, read, on: (channel, fn) => listen(channel)(fn) };
+  window.__companion = { emit, stats, read, on: (channel, fn) => listen(channel)(fn), clipboard: '', shot: null };
 
   return {
     desktop: false,
@@ -27,7 +27,7 @@ function browserStandIn() {
       const s = read();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
-        ravens: s.ravens || [], hourglass: s.hourglass || null, today: stats, hasKey: false,
+        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false,
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };
     },
@@ -36,7 +36,9 @@ function browserStandIn() {
     interactive() {},
     focus() {},
     notify() {},
-    capture: async () => null,
+    capture: async () => window.__companion.shot || null,
+    clipboardRead: async () => window.__companion.clipboard,
+    clipboardWrite(text) { window.__companion.clipboard = text; },
     trash: async (paths) => ({ ok: 0, failed: paths.length }),
     pathForFile: () => '',
     setAbilities() {},

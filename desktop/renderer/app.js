@@ -21,11 +21,12 @@ const vel = { x: 0, y: 0 };
 const cursor = { x: -9999, y: -9999 };
 const settings = { wander: true, chatty: true, hasKey: false };
 
-// wander | drag | fly | rest | sleep | vanish
+// wander | drag | fly | rest | sleep | vanish | haunt
 let mode = 'wander';
 let target = null;
 let waitUntil = 0;
 let facingLeft = true;
+let hauntUntil = 0;
 
 const clamp = (v, lo, hi) => (hi < lo ? lo : Math.min(Math.max(v, lo), hi));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -65,7 +66,7 @@ function setMode(next) {
   reaper.classList.toggle('is-resting', mode === 'rest');
   reaper.classList.toggle('is-sleeping', mode === 'sleep');
   reaper.classList.toggle('is-vanished', mode === 'vanish');
-  if (mode !== 'wander' && mode !== 'fly') reaper.classList.remove('is-moving');
+  if (mode !== 'wander' && mode !== 'fly' && mode !== 'haunt') reaper.classList.remove('is-moving');
 }
 
 // --- Speech ------------------------------------------------------------------------
@@ -119,6 +120,7 @@ function pop(text, kind) {
 
 function paintSoul() {
   $('soulFill').style.width = soulLevel + '%';
+  reaper.classList.toggle('is-faint', soulLevel < 20);
   reaper.querySelector('.soul').setAttribute('aria-valuenow', String(Math.round(soulLevel)));
   ring.querySelectorAll('.ring-btn').forEach((btn) => {
     btn.classList.toggle('is-locked', soulLevel < Number(btn.dataset.cost));
@@ -251,6 +253,18 @@ const ctx = {
     waitUntil = performance.now() + 4000;
     const c = center();
     puff(c.x, c.y);
+  },
+  // Haunt: he trails the cursor for a while.
+  haunt(ms) {
+    hauntUntil = performance.now() + ms;
+    target = null;
+    setMode('haunt');
+  },
+  unhaunt() {
+    if (mode !== 'haunt') return;
+    setMode('wander');
+    target = null;
+    waitUntil = performance.now() + 5000;
   }
 };
 
@@ -421,8 +435,8 @@ body.addEventListener('pointerup', endDrag);
 body.addEventListener('pointercancel', endDrag);
 
 function clicked(was) {
-  if (was === 'vanish') {
-    abilities.cast('vanish');
+  if (was === 'vanish' || was === 'haunt') {
+    abilities.cast(was);
     return;
   }
   if (was === 'sleep') {
@@ -528,6 +542,27 @@ function step(dt, now) {
     return;
   }
 
+  if (mode === 'haunt') {
+    if (now > hauntUntil) {
+      ctx.unhaunt();
+      say('I tire of following.');
+      return;
+    }
+    // Off to the side of the cursor, not on it: the side with more room.
+    const side = cursor.x > innerWidth - 220 ? -1 : 1;
+    target = { x: cursor.x + side * 70 - W / 2, y: cursor.y + 30 - H / 2 };
+    const b = bounds();
+    target.x = clamp(target.x, b.minX, b.maxX);
+    target.y = clamp(target.y, b.minY, b.maxY);
+    const d = Math.hypot(target.x - pos.x, target.y - pos.y);
+    reaper.classList.toggle('is-moving', d > 4);
+    if (d > 1) moveToward(dt, Math.min(0.7, 0.05 + d * 0.004));
+    if (Math.abs(cursor.x - center().x) > 8) facingLeft = cursor.x < center().x;
+    if (d > 30) wisp(now);
+    place();
+    return;
+  }
+
   if (mode !== 'wander') return;
   const near = dist(cursor, center()) < 150;
   const hold = !settings.wander || reducedMotion || !ring.hidden || !card.hidden || near || !!dragging;
@@ -594,7 +629,9 @@ companion.onAway(({ away, minutes }) => {
   setMode('wander');
   waitUntil = performance.now() + 4000;
   soul.gain(Math.min(100, (minutes || 0) * 4));
-  if (minutes >= 1) say('Back. Gone ' + minutesText(minutes) + '.', 6000);
+  const gone = minutes >= 1 ? 'Gone ' + minutesText(minutes) + '.' : '';
+  if (greet(gone)) return;
+  if (gone) say('Back. ' + gone, 6000);
 });
 
 companion.onCommand((command) => {
@@ -613,7 +650,23 @@ companion.onCommand((command) => {
 companion.onSettings((s) => {
   Object.assign(settings, s);
   if ('hasKey' in s) speak.setHasKey(s.hasKey);
+  if ('muted' in s) sound.setMuted(s.muted);
 });
+
+// The first time he sees you each day (from 5am): a greeting, and what the
+// ravens carry today.
+function greet(lead) {
+  const now = new Date();
+  const day = now.toDateString();
+  if (settings.greeted === day || now.getHours() < 5) return false;
+  settings.greeted = day;
+  companion.save({ greeted: day });
+  const due = abilities.dueToday();
+  const hello = now.getHours() < 12 ? 'Morning.' : now.getHours() < 18 ? 'Afternoon.' : 'Evening.';
+  const omen = due ? (due === 1 ? 'One raven flies today.' : due + ' ravens fly today.') : 'No ravens today. A quiet one.';
+  say([hello, lead, omen].filter(Boolean).join('\n'), 7000);
+  return true;
+}
 
 companion.onToolCall(async ({ id, name, input }) => {
   let outcome;
@@ -632,13 +685,15 @@ async function start() {
   settings.wander = s.wander !== false;
   settings.chatty = s.chatty !== false;
   settings.hasKey = !!s.hasKey;
+  settings.greeted = s.greeted || null;
   speak.setHasKey(settings.hasKey);
+  sound.setMuted(!!s.muted);
   abilities.restore(s);
   keepOnScreen();
   place();
   paintSoul();
   requestAnimationFrame(frame);
-  setTimeout(() => say(timeLine(), 4000), 1500);
+  setTimeout(() => { if (!greet()) say(timeLine(), 4000); }, 1500);
   setInterval(() => { if (Math.random() < 0.35) sayIdle(timeLine()); }, 240000);
 }
 

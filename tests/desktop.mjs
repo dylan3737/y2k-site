@@ -61,7 +61,7 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of ten abilities', buttons.length === 10, buttons.join(','));
+  check('click opens the ring of eleven abilities', buttons.length === 11, buttons.join(','));
   const onScreen = await page.$$eval('.ring-btn', (b) => b.every((x) => {
     const r = x.getBoundingClientRect();
     return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
@@ -179,7 +179,7 @@ try {
     e({ type: 'delta', text: 'Done.' });
     e({ type: 'done' });
   });
-  const lines = await page.$$eval('.log .line:not(.oops)', (l) => l.map((x) => x.className.replace('line ', '') + ':' + x.textContent));
+  const lines = await page.$$eval('.log .line:not(.oops)', (l) => l.map((x) => x.className.replace('line ', '') + ':' + x.firstChild.textContent));
   const tail = lines.slice(-4).join(' | ');
   check('his answer streams in, with the spell between his words',
     tail === 'you:remind me | him:As you wish. | cast:✦ sends a raven | him:Done.', tail);
@@ -230,7 +230,87 @@ try {
   await page.waitForTimeout(200);
   check('Harvest reads the day', (await page.textContent('#bubble')).includes('harvest'));
 
+  // Haunt: he follows the cursor, off to one side, until clicked.
+  await castFromRing(page, 'haunt');
+  await page.mouse.move(300, 300);
+  await page.waitForTimeout(2500);
+  c = await bodyCenter(page);
+  check('Haunt makes him follow the cursor', (await mode(page)) === 'haunt' && Math.hypot(c.x - 370, c.y - 330) < 50, JSON.stringify(c));
+  check('he keeps off the cursor itself', Math.abs(c.x - 300) > 30);
+  await page.click('#body', { force: true });
+  check('clicking him ends Haunt', (await mode(page)) === 'wander');
+
   check('no errors along the way', page.errors.length === 0, page.errors.join('; '));
+
+  // Speak's new tools: Look and the clipboard ask first.
+  page = await open({ wander: false });
+  const toolCall = (name, input) => page.evaluate(([n, i]) => {
+    window.__toolOut = undefined;
+    const id = String(Math.random());
+    const off = window.__companion.on('tool-result', (r) => { if (r.id === id) { off(); window.__toolOut = r.outcome; } });
+    window.__companion.emit('tool-call', { id, name: n, input: i });
+  }, [name, input]);
+  const toolOut = async () => {
+    for (let i = 0; i < 40; i++) {
+      const out = await page.evaluate(() => window.__toolOut);
+      if (out) return out;
+      await page.waitForTimeout(50);
+    }
+    return null;
+  };
+  await page.evaluate(() => { window.__companion.shot = 'data:image/jpeg;base64,AAAA'; window.__companion.clipboard = 'secret plans'; });
+  await toolCall('look_at_screen', {});
+  await page.waitForTimeout(150);
+  check('Look asks before it looks', await visible(page, '.ask') && (await page.textContent('.ask')).includes('screen'));
+  await page.click('.ask .chip:has-text("Not now")');
+  let outcome = await toolOut();
+  check('declining Look sends nothing', outcome && outcome.ok === false && !outcome.image);
+  await toolCall('look_at_screen', {});
+  await page.waitForTimeout(150);
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('allowing Look sends the picture', outcome && outcome.ok && outcome.image === 'data:image/jpeg;base64,AAAA');
+  await toolCall('read_clipboard', {});
+  await page.waitForTimeout(150);
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('allowing the clipboard reads it', outcome && outcome.ok && outcome.result.text === 'secret plans');
+  await toolCall('copy_to_clipboard', { text: 'a draft' });
+  outcome = await toolOut();
+  check('copy_to_clipboard copies', outcome && outcome.ok && (await page.evaluate(() => window.__companion.clipboard)) === 'a draft');
+  await toolCall('cast', { ability: 'haunt' });
+  outcome = await toolOut();
+  check('Speak can cast Haunt', outcome && outcome.ok && (await mode(page)) === 'haunt');
+
+  // A finished reply can be copied.
+  await page.evaluate(() => {
+    const e = (d) => window.__companion.emit('speech', d);
+    const box = document.querySelector('#card textarea');
+    box.value = 'draft a note';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    e({ type: 'delta', text: 'Dear living,' });
+    e({ type: 'done' });
+  });
+  await page.click('.line.him .copy', { force: true });
+  check('a reply has a copy button that copies it', (await page.evaluate(() => window.__companion.clipboard)) === 'Dear living,');
+
+  // The Hourglass ends with a choice.
+  await page.evaluate(() => window.__reaper.abilities.restore({ hourglass: { ends: Date.now() + 500, total: 25 * 60000 } }));
+  await page.waitForTimeout(1600);
+  check('a finished Hourglass offers a break', (await page.textContent('#card')).includes('Break 5'));
+  await page.click('#card .chip:has-text("Break 5")');
+  const glassNow = await page.evaluate(() => window.__companion.read().hourglass);
+  check('Break 5 starts a five-minute break', glassNow && glassNow.total === 5 * 60000 && glassNow.rest === true);
+
+  // Low soul, mute, and the day's greeting.
+  page = await open({ wander: false, soul: 10, muted: true, ravens: [{ id: 'x', at: Date.now() + 60000, text: 'Soon' }] });
+  check('low soul makes him faint', await page.evaluate(() => document.getElementById('reaper').classList.contains('is-faint')));
+  await page.waitForTimeout(1500);
+  check('the first visit of the day gets a greeting with the ravens', /raven flies today|ravens fly today/.test(await page.textContent('#bubble')) || new Date().getHours() < 5);
+  check('the greeting is remembered for the day', (await page.evaluate(() => window.__companion.read().greeted)) === await page.evaluate(() => new Date().toDateString()) || new Date().getHours() < 5);
+  await page.evaluate(() => window.__reaper.abilities.cast('hum'));
+  check('Hum refuses while muted', (await page.textContent('#bubble')).includes('muted'));
+  check('no errors in the new features', page.errors.length === 0, page.errors.join('; '));
 } catch (err) {
   console.error(err);
   failures++;
