@@ -27,6 +27,9 @@ let target = null;
 let waitUntil = 0;
 let facingLeft = true;
 let hauntUntil = 0;
+// Asleep because the computer went idle; cleared when the main process says
+// the user is back, even if a click woke him first.
+let napping = false;
 
 const clamp = (v, lo, hi) => (hi < lo ? lo : Math.min(Math.max(v, lo), hi));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -202,8 +205,9 @@ const cardApi = {
   open(el, school, owner, { focus = false } = {}) {
     closeRing();
     bubble.hidden = true;
-    if (cardOwner && cardOwner !== owner && cardOwner.closed) cardOwner.closed();
     cardOwner = owner || null;
+    // He holds still for a card: Haunt would carry it away from the cursor.
+    if (mode === 'haunt') ctx.unhaunt();
     card.replaceChildren(el);
     card.style.setProperty('--school', `var(--${school})`);
     card.hidden = false;
@@ -220,12 +224,10 @@ const cardApi = {
   close(owner) {
     if (owner && cardOwner !== owner) return;
     if (card.hidden) return;
-    const was = cardOwner;
     card.hidden = true;
     card.replaceChildren();
     cardOwner = null;
     companion.focus(false);
-    if (was && was.closed) was.closed();
     place();
   },
   isOpen: (owner) => !card.hidden && (!owner || cardOwner === owner),
@@ -238,6 +240,10 @@ const ctx = {
   reducedMotion, minutesText,
   getMode: () => mode,
   vanish() {
+    // Thrown or held in the meantime: he stays.
+    if (mode === 'drag' || mode === 'fly') return;
+    cardApi.close();
+    closeRing();
     const c = center();
     puff(c.x, c.y);
     const b = bounds();
@@ -256,6 +262,8 @@ const ctx = {
   },
   // Haunt: he trails the cursor for a while.
   haunt(ms) {
+    // Following with a card open would drag the card away from the cursor.
+    cardApi.close();
     hauntUntil = performance.now() + ms;
     target = null;
     setMode('haunt');
@@ -623,10 +631,12 @@ companion.onAway(({ away, minutes }) => {
     closeRing();
     bubble.hidden = true;
     setMode('sleep');
+    napping = true;
     return;
   }
-  if (mode !== 'sleep') return;
-  setMode('wander');
+  if (!napping) return;
+  napping = false;
+  if (mode === 'sleep') setMode('wander');
   waitUntil = performance.now() + 4000;
   soul.gain(Math.min(100, (minutes || 0) * 4));
   const gone = minutes >= 1 ? 'Gone ' + minutesText(minutes) + '.' : '';
@@ -667,6 +677,8 @@ function greet(lead) {
   say([hello, lead, omen].filter(Boolean).join('\n'), 7000);
   return true;
 }
+
+companion.onToolCancel(() => speak.cancelAsks());
 
 companion.onToolCall(async ({ id, name, input }) => {
   let outcome;

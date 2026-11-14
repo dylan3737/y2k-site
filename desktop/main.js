@@ -184,8 +184,10 @@ let awaySince = 0;
 function pollIdle() {
   const idle = powerMonitor.getSystemIdleTime();
   if (idle < 60) {
-    today().activeSec += 5;
-    writeState();
+    const tally = today();
+    tally.activeSec += 5;
+    // Saved once a minute, not on every tick; quitting saves the rest.
+    if (tally.activeSec % 60 === 0) writeState();
   }
   if (!away && idle >= AWAY_AFTER) goAway(Date.now() - idle * 1000);
   else if (away && idle < 5) {
@@ -264,7 +266,11 @@ function rebuildMenu() {
       enabled: state.memories.length > 0,
       click: () => { state.memories = []; writeState(); rebuildMenu(); }
     },
-    { label: 'Forget API key', enabled: !!state.apiKey, click: () => { setKey(''); rebuildMenu(); send('settings', { hasKey: false }); } },
+    {
+      label: 'Forget API key', enabled: !!state.apiKey,
+      // A key in the environment still works after the saved one is gone.
+      click: () => { setKey(''); rebuildMenu(); send('settings', { hasKey: !!process.env.ANTHROPIC_API_KEY }); }
+    },
     { type: 'separator' },
     { label: 'Quit', role: 'quit' }
   );
@@ -283,14 +289,23 @@ let toolSeq = 0;
 // Tools that wait for the user to allow them get longer to answer.
 const ASKS_FIRST = ['look_at_screen', 'read_clipboard'];
 
-function runTool(name, input) {
+function runTool(name, input, signal) {
   return new Promise((resolve) => {
     const id = String(++toolSeq);
     pendingTools.set(id, resolve);
     send('tool-call', { id, name, input });
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (pendingTools.delete(id)) resolve({ ok: false, error: 'No answer from the user or the reaper in time.' });
     }, ASKS_FIRST.includes(name) ? 90000 : 10000);
+    // Hush or ↺: stop waiting, and withdraw any question the page is asking.
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        if (!pendingTools.delete(id)) return;
+        send('tool-cancel', { id });
+        resolve({ ok: false, error: 'Stopped by the user.' });
+      }, { once: true });
+    }
   });
 }
 

@@ -33,6 +33,14 @@ async function open(storage = {}) {
   return page;
 }
 
+// Sends a Speak tool call into the page; the outcome lands in window.__toolOut.
+const toolCallOn = (page, name, input) => page.evaluate(([n, i]) => {
+  window.__toolOut = undefined;
+  const id = String(Math.random());
+  const off = window.__companion.on('tool-result', (r) => { if (r.id === id) { off(); window.__toolOut = r.outcome; } });
+  window.__companion.emit('tool-call', { id, name: n, input: i });
+}, [name, input]);
+
 const mode = (page) => page.evaluate(() => window.__reaper.mode);
 const soul = (page) => page.evaluate(() => window.__reaper.soul);
 const visible = (page, sel) => page.evaluate((s) => {
@@ -284,6 +292,8 @@ try {
 
   // A finished reply can be copied.
   await page.evaluate(() => {
+    // Haunt (cast above) closed the card; open it again.
+    window.__reaper.speak.open();
     const e = (d) => window.__companion.emit('speech', d);
     const box = document.querySelector('#card textarea');
     box.value = 'draft a note';
@@ -294,7 +304,8 @@ try {
   await page.click('.line.him .copy', { force: true });
   check('a reply has a copy button that copies it', (await page.evaluate(() => window.__companion.clipboard)) === 'Dear living,');
 
-  // The Hourglass ends with a choice.
+  // The Hourglass ends with a choice (when no other card is open).
+  await page.evaluate(() => window.__reaper.speak.close());
   await page.evaluate(() => window.__reaper.abilities.restore({ hourglass: { ends: Date.now() + 500, total: 25 * 60000 } }));
   await page.waitForTimeout(1600);
   check('a finished Hourglass offers a break', (await page.textContent('#card')).includes('Break 5'));
@@ -311,6 +322,39 @@ try {
   await page.evaluate(() => window.__reaper.abilities.cast('hum'));
   check('Hum refuses while muted', (await page.textContent('#bubble')).includes('muted'));
   check('no errors in the new features', page.errors.length === 0, page.errors.join('; '));
+
+  // Fixes from review.
+  page = await open({ wander: false, soul: 50, greeted: new Date().toDateString() });
+  await toolCallOn(page, 'read_clipboard', {});
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.__companion.emit('tool-cancel', { id: 'any' }));
+  await page.waitForTimeout(100);
+  check('Hush withdraws a waiting permission question', await page.evaluate(() => {
+    const q = document.querySelector('.ask');
+    return !!q && q.classList.contains('is-answered') && window.__toolOut && window.__toolOut.ok === false;
+  }));
+  await page.evaluate(() => window.__reaper.speak.close());
+  await page.evaluate(() => window.__reaper.abilities.cast('haunt'));
+  await page.evaluate(() => window.__reaper.speak.open());
+  check('opening a card ends Haunt', (await mode(page)) === 'wander');
+  await page.evaluate(() => window.__reaper.abilities.cast('haunt'));
+  check('Haunt closes an open card', !(await visible(page, '#card')) && (await mode(page)) === 'haunt');
+  await page.click('#body', { force: true });
+  await page.evaluate(() => window.__reaper.speak.open());
+  await page.evaluate(() => window.__reaper.abilities.cast('vanish'));
+  await page.waitForTimeout(1100);
+  check('Vanish closes an open card', (await mode(page)) === 'vanish' && !(await visible(page, '#card')));
+  await page.click('#body', { force: true });
+  await page.evaluate(() => window.__companion.emit('away', { away: true }));
+  await page.click('#body', { force: true });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.__companion.emit('away', { away: false, minutes: 30 }));
+  check('waking him with a click still counts the time away', (await page.textContent('#bubble')).includes('Gone 30 min') && (await soul(page)) === 100);
+  await page.evaluate(() => window.__reaper.speak.open());
+  await page.evaluate(() => window.__reaper.abilities.restore({ hourglass: { ends: Date.now() + 300, total: 25 * 60000 } }));
+  await page.waitForTimeout(1400);
+  check('a finished Hourglass leaves an open Speak card alone', await visible(page, '#card textarea'));
+  check('no errors in the fixes', page.errors.length === 0, page.errors.join('; '));
 } catch (err) {
   console.error(err);
   failures++;

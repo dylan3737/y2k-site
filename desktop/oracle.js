@@ -191,7 +191,7 @@ export function createOracle({ getKey, runTool, memory }) {
     return '[' + stamp() + ']' + recall + ' ' + text;
   }
 
-  async function streamTurn(api, emit) {
+  async function streamTurn(api, messages, signal, emit) {
     // Eager tool input can arrive as JSON the SDK cannot parse; that is not an
     // API error, so retry those (twice) and let real API errors through.
     for (let attempt = 0; ; attempt++) {
@@ -203,8 +203,8 @@ export function createOracle({ getKey, runTool, memory }) {
           cache_control: { type: 'ephemeral' },
           system: SYSTEM,
           tools: TOOLS,
-          messages: history
-        }, { signal: controller.signal });
+          messages
+        }, { signal });
         for await (const event of stream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             emit({ type: 'delta', text: event.delta.text });
@@ -222,65 +222,80 @@ export function createOracle({ getKey, runTool, memory }) {
     }
   }
 
-  async function ask(text, emit) {
-    if (controller) return emit({ type: 'error', code: 'busy', message: 'One question at a time.' });
+  async function ask(text, send) {
+    if (controller) return send({ type: 'error', code: 'busy', message: 'One question at a time.' });
     let api;
     try {
       api = client();
     } catch {
-      return emit({ type: 'error', code: 'key', message: 'I need an Anthropic API key to speak.' });
+      return send({ type: 'error', code: 'key', message: 'I need an Anthropic API key to speak.' });
     }
     if (history.length > MAX_HISTORY) {
       history = [];
-      emit({ type: 'note', text: 'The old conversation is buried. Starting fresh.' });
+      send({ type: 'note', text: 'The old conversation is buried. Starting fresh.' });
     }
-    const before = history.length;
-    controller = new AbortController();
-    history.push({ role: 'user', content: before ? '[' + stamp() + '] ' + text : opening(text) });
+    // This question works on its own copy of the conversation and commits it
+    // only when it finishes, so ↺ or Hush mid-answer can't leave a half-written
+    // exchange (or holes) behind.
+    const convo = history.slice();
+    const own = new AbortController();
+    const { signal } = own;
+    // After ↺, this question's last words (even "Hushed.") are not shown.
+    const emit = (event) => { if (!own.forgotten) send(event); };
+    controller = own;
+    convo.push({ role: 'user', content: convo.length ? '[' + stamp() + '] ' + text : opening(text) });
     try {
       for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-        const message = await streamTurn(api, emit);
+        const message = await streamTurn(api, convo, signal, emit);
         if (message.stop_reason === 'refusal') {
           // No fallback model on Haiku: drop this exchange and say so.
-          history.length = before;
           return emit({ type: 'error', code: 'refusal', message: 'Some things even I won’t touch. Ask another way.' });
         }
-        history.push({ role: 'assistant', content: message.content });
+        convo.push({ role: 'assistant', content: message.content });
         const uses = message.content.filter((b) => b.type === 'tool_use');
         if (!uses.length) break;
         if (message.stop_reason === 'max_tokens') {
           // A cut-off tool input can still parse; never run it.
-          history.length = before;
           return emit({ type: 'error', code: 'api', message: 'I lost my words mid-spell. Ask again.' });
         }
         const results = [];
         for (const use of uses) {
+          if (signal.aborted) break;
           emit({ type: 'tool', name: use.name, input: use.input });
           let outcome = localTool(use.name, use.input || {});
           if (!outcome) {
             try {
-              outcome = await runTool(use.name, use.input || {});
+              outcome = await runTool(use.name, use.input || {}, signal);
             } catch (err) {
               outcome = { ok: false, error: String((err && err.message) || err) };
             }
           }
           results.push({ type: 'tool_result', tool_use_id: use.id, content: resultContent(outcome), is_error: !outcome.ok });
         }
-        history.push({ role: 'user', content: results });
+        if (signal.aborted) return emit({ type: 'error', ...describe(new Anthropic.APIUserAbortError()) });
+        convo.push({ role: 'user', content: results });
         if (turn === MAX_TOOL_TURNS - 1) emit({ type: 'note', text: 'Enough spells for one breath.' });
       }
+      // Kept only if nobody started a new conversation meanwhile.
+      if (!signal.aborted) history = convo;
       emit({ type: 'done' });
     } catch (err) {
-      history.length = before;
       emit({ type: 'error', ...describe(err) });
     } finally {
-      controller = null;
+      if (controller === own) controller = null;
     }
   }
 
   return {
     ask,
     stop() { if (controller) controller.abort(); },
-    forget() { if (controller) controller.abort(); history = []; }
+    forget() {
+      if (controller) {
+        controller.forgotten = true;
+        controller.abort();
+      }
+      controller = null;
+      history = [];
+    }
   };
 }

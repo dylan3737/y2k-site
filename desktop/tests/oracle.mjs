@@ -42,6 +42,13 @@ const server = createServer((req, res) => {
   req.on('end', () => {
     requests.push({ url: req.url, headers: req.headers, body: JSON.parse(body) });
     const next = script.shift();
+    if (next === 'hang') {
+      // Starts the stream, then says nothing until the client gives up.
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.write(sse([start('msg_h'), ['content_block_start', { index: 0, content_block: { type: 'text', text: '' } }]]));
+      res.on('close', () => res.end());
+      return;
+    }
     if (next === 401) {
       res.writeHead(401, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
@@ -64,8 +71,12 @@ let toolAnswer = { ok: true, result: { id: 'r1', due: '3:20 PM' } };
 const oracle = createOracle({
   getKey: () => 'sk-ant-test',
   memory,
-  runTool: async (name, input) => {
+  runTool: async (name, input, signal) => {
     toolCalls.push({ name, input });
+    // 'wait' stands for a permission question nobody answers.
+    if (toolAnswer === 'wait') {
+      return new Promise((resolve) => signal.addEventListener('abort', () => resolve({ ok: false, error: 'Stopped by the user.' })));
+    }
     return toolAnswer;
   }
 });
@@ -157,6 +168,41 @@ try {
   await ask('again');
   const plain = requests[requests.length - 1].body.messages.at(-1).content[0];
   check('anything but an image data URL is not sent as one', typeof plain.content === 'string');
+
+  // ↺ in the middle of an answer leaves a clean conversation behind.
+  script = [TEXT_TURN];
+  await ask('one');
+  script = ['hang'];
+  const forgotten = [];
+  const pending = new Promise((resolve) => {
+    oracle.ask('two', (e) => { forgotten.push(e); });
+    setTimeout(resolve, 300);
+  });
+  await pending;
+  oracle.forget();
+  script = [TEXT_TURN];
+  await ask('three');
+  const fresh = requests[requests.length - 1].body.messages;
+  check('after ↺ mid-answer the next question starts clean', fresh.length === 1 && !fresh.some((m) => m == null), JSON.stringify(fresh.map((m) => m && m.role)));
+  await new Promise((r) => setTimeout(r, 200));
+  check('the forgotten answer says nothing more', !forgotten.some((e) => e.type === 'error' || e.type === 'done'), JSON.stringify(forgotten));
+
+  // Hush while a permission question waits: he stops at once, and can be asked again.
+  toolAnswer = 'wait';
+  script = [toolTurn('look_at_screen', '{}')];
+  const hushed = new Promise((resolve) => {
+    oracle.ask('look', (e) => { if (e.type === 'error' || e.type === 'done') resolve(e); });
+  });
+  await new Promise((r) => setTimeout(r, 300));
+  oracle.stop();
+  const ended = await Promise.race([hushed, new Promise((r) => setTimeout(() => r('timeout'), 2000))]);
+  check('Hush ends a turn waiting on permission', ended !== 'timeout' && ended.code === 'stopped', JSON.stringify(ended));
+  toolAnswer = { ok: true, result: {} };
+  script = [TEXT_TURN];
+  events = await ask('next');
+  check('he can be asked again right after', events.some((e) => e.type === 'done'));
+  const after = requests[requests.length - 1].body.messages;
+  check('the hushed exchange is not kept', after.length === 3 && after[2].content.endsWith(' next'), String(after.length));
 } catch (err) {
   console.error(err);
   failures++;

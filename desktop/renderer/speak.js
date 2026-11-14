@@ -1,5 +1,7 @@
 // Speak: a chat card above the reaper. The conversation runs in the main
 // process (oracle.js); this only draws it.
+import { el, chip } from './dom.js';
+
 const TOOL_LINES = {
   set_hourglass: (i) => '✦ turns the hourglass' + (Number.isInteger(i.minutes) ? ': ' + i.minutes + ' min' : ''),
   stop_hourglass: () => '✦ stops the sand',
@@ -14,13 +16,6 @@ const TOOL_LINES = {
   remember: (i) => '✦ remembers' + (typeof i.note === 'string' ? ': ' + i.note : ''),
   forget_memory: () => '✦ forgets something'
 };
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
 
 export function createSpeak(ctx) {
   const { companion, card, say } = ctx;
@@ -55,8 +50,7 @@ export function createSpeak(ctx) {
   const foot = el('div', 'row');
   const hint = el('span', 'muted', 'Enter to send');
   hint.style.flex = '1';
-  const send = el('button', 'chip solid', 'Send');
-  send.type = 'button';
+  const send = chip('Send', null, 'solid');
   foot.append(hint, send);
   box.append(head, log, keyForm, input, foot);
 
@@ -78,8 +72,7 @@ export function createSpeak(ctx) {
     field.type = 'password';
     field.placeholder = 'sk-ant-…';
     field.autocomplete = 'off';
-    const save = el('button', 'chip solid', 'Save key');
-    save.type = 'button';
+    const save = chip('Save key', null, 'solid');
     const row = el('div', 'row end');
     row.appendChild(save);
     const submit = async () => {
@@ -209,6 +202,8 @@ export function createSpeak(ctx) {
   });
 
   // Ask the user before he looks or reads. Resolves true only on Allow.
+  const asking = new Set();
+
   function ask(question) {
     if (!card.isOpen(owner)) open();
     return new Promise((resolve) => {
@@ -218,24 +213,25 @@ export function createSpeak(ctx) {
       const answer = (yes) => {
         if (settled) return;
         settled = true;
+        asking.delete(answer);
         clearTimeout(timer);
         node.classList.add('is-answered');
         node.firstChild.textContent = question + (yes ? ' Allowed.' : ' Declined.');
         resolve(yes);
       };
-      const allow = el('button', 'chip solid', 'Allow');
-      allow.type = 'button';
-      allow.addEventListener('click', () => answer(true));
-      const deny = el('button', 'chip', 'Not now');
-      deny.type = 'button';
-      deny.addEventListener('click', () => answer(false));
-      row.append(allow, deny);
+      row.append(chip('Allow', () => answer(true), 'solid'), chip('Not now', () => answer(false)));
       node.append(el('span', null, question), row);
       // Above his line in progress, so the question reads in order.
       log.insertBefore(node, current && current.parentNode === log ? current : null);
       scroll();
       const timer = setTimeout(() => answer(false), 80000);
+      asking.add(answer);
     });
+  }
+
+  // Hush or ↺ while he waits: every open question counts as declined.
+  function cancelAsks() {
+    [...asking].forEach((answer) => answer(false));
   }
 
   function open() {
@@ -246,6 +242,7 @@ export function createSpeak(ctx) {
 
   return {
     ask,
+    cancelAsks,
     open,
     close() { card.close(owner); },
     isOpen: () => card.isOpen(owner),

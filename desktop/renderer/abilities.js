@@ -1,5 +1,7 @@
 // Every ability in the ring: what it costs, what it does, and how Speak's tools
 // reach the same things.
+import { el, chip } from './dom.js';
+
 const GHOST_SVG = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="M4 46 V20 A16 16 0 0 1 36 20 V46 L30 40 L24 46 L20 40 L16 46 L10 40 Z"/>' +
   '<circle cx="14" cy="20" r="3"/><circle cx="26" cy="20" r="3"/></svg>';
 const RAVEN_SVG = '<svg class="raven" viewBox="0 0 64 40" aria-hidden="true"><path d="M2 21 C12 13 21 13 28 17 L33 6 L38 17 ' +
@@ -8,20 +10,6 @@ const RAVEN_SVG = '<svg class="raven" viewBox="0 0 64 40" aria-hidden="true"><pa
 const HUNT_MS = 10000;
 const ECLIPSE_MS = 60000;
 const VANISH_MS = 30 * 60000;
-
-function el(tag, className, text) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text != null) node.textContent = text;
-  return node;
-}
-
-function chip(label, onClick, extra) {
-  const btn = el('button', 'chip' + (extra ? ' ' + extra : ''), label);
-  btn.type = 'button';
-  btn.addEventListener('click', onClick);
-  return btn;
-}
 
 function cardHead(title, onClose) {
   const h = el('h2', null, title);
@@ -78,6 +66,11 @@ export function createAbilities(ctx) {
     }
     companion.notify('The sand has run out.', minutesText(minutes) + ' done. Stand up. Stretch. You are not dead yet.');
     companion.stat('focus', 1);
+    // A card the user is using is left alone; the bubble and bell are enough.
+    if (card.isOpen()) {
+      say('Sand’s out.\nStand. Stretch.', 9000);
+      return;
+    }
     // After a focus run: a short break, the same again, or nothing.
     const box = el('div');
     box.append(cardHead('SAND’S OUT', () => card.close(glassOwner)), el('p', null, minutesText(minutes) + ' done. Stand. Stretch.'));
@@ -368,6 +361,7 @@ export function createAbilities(ctx) {
 
   function vanish() {
     ctx.vanish();
+    if (ctx.getMode() !== 'vanish') return;
     clearTimeout(vanishTimer);
     vanishTimer = setTimeout(unvanish, VANISH_MS);
   }
@@ -465,7 +459,11 @@ export function createAbilities(ctx) {
       id: 'vanish', name: 'Vanish', cost: 0, school: 'soul', blurb: 'He fades into the corner for half an hour. Click him to call him back.',
       active: () => ctx.getMode() === 'vanish',
       stop: unvanish,
-      cast: () => { say('Call if you need me.', 1500); setTimeout(vanish, 900); }
+      cast: () => {
+        say('Call if you need me.', 1500);
+        clearTimeout(vanishTimer);
+        vanishTimer = setTimeout(vanish, 900);
+      }
     }
   ];
 

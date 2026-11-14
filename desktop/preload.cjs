@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('companion', {
   onCommand: listen('command'),
   onSettings: listen('settings'),
   onSpeech: listen('speech'),
-  onToolCall: listen('tool-call')
+  onToolCall: listen('tool-call'),
+  onToolCancel: listen('tool-cancel')
 });
