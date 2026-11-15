@@ -138,8 +138,21 @@ function describe(err) {
   if (err instanceof Anthropic.RateLimitError) return { code: 'busy', message: 'Too many words at once. Try again in a minute.' };
   if (err instanceof Anthropic.APIUserAbortError) return { code: 'stopped', message: 'Hushed.' };
   if (err instanceof Anthropic.APIConnectionError) return { code: 'offline', message: 'I cannot reach the other side. Check the connection.' };
-  if (err instanceof Anthropic.APIError) return { code: 'api', message: 'The other side said no (' + (err.status || 'error') + ').' };
+  if (err instanceof Anthropic.APIError) {
+    const reason = apiReason(err);
+    if (/credit balance/i.test(reason)) {
+      return { code: 'credit', message: 'Your Anthropic account is out of credit. Add some at console.anthropic.com (Plans & Billing), then ask again.' };
+    }
+    return { code: 'api', message: 'The other side said no (' + (err.status || 'error') + ')' + (reason ? ': ' + reason : '.') };
+  }
   return { code: 'error', message: String((err && err.message) || err) };
+}
+
+// The API's own words for a refused request, e.g. "Your credit balance is too low…".
+function apiReason(err) {
+  const body = err.error;
+  const message = body && body.error && typeof body.error.message === 'string' ? body.error.message : '';
+  return message.slice(0, 300);
 }
 
 const IMAGE_URL = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/;

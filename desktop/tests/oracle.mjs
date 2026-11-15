@@ -49,6 +49,13 @@ const server = createServer((req, res) => {
       res.on('close', () => res.end());
       return;
     }
+    if (next === 'broke' || next === 'bad') {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      const message = next === 'broke'
+        ? 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'
+        : 'messages.0.content: something is wrong';
+      return res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message } }));
+    }
     if (next === 401) {
       res.writeHead(401, { 'content-type': 'application/json' });
       return res.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }));
@@ -145,6 +152,16 @@ try {
   script = [TEXT_TURN];
   await ask('now?');
   check('a failed question is not kept', requests[requests.length - 1].body.messages.length === 9);
+
+  // A 400 says why, in the API's words, and an empty account says so plainly.
+  script = ['broke'];
+  events = await ask('anyone home');
+  const broke = events.find((e) => e.type === 'error');
+  check('an account with no credit is named as such', broke && broke.code === 'credit' && /out of credit/.test(broke.message), JSON.stringify(broke));
+  script = ['bad'];
+  events = await ask('again');
+  const bad = events.find((e) => e.type === 'error');
+  check('any other 400 shows the API\'s reason', bad && bad.code === 'api' && bad.message.includes('something is wrong'), JSON.stringify(bad));
 
   // Memory runs here, not in the page.
   oracle.forget();

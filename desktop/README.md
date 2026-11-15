@@ -88,6 +88,8 @@ Speak runs on **Claude Haiku 5.5** (`claude-haiku-5-5`), Anthropic's fast, low-c
 
 To use Speak you need an Anthropic API key from [console.anthropic.com](https://console.anthropic.com/). The first time you open Speak, paste the key into the card.
 
+The API is billed separately from a Claude Pro or Max subscription: it runs on prepaid credits, bought in the Console under **Plans & Billing**. A new key won't work until the account has credit, and the card says so if it hasn't.
+
 - The key is encrypted with your system keychain (Keychain on macOS, DPAPI on Windows, the Secret Service on Linux) and kept in the app's settings file. It never reaches the page.
 - If there's no keychain, which is common on Linux, the key isn't saved. Set `ANTHROPIC_API_KEY` in the environment before starting the app instead. A profile saved with `ant auth login` also works.
 - **Forget API key** in the tray menu removes the saved key.
