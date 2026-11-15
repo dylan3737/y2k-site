@@ -69,7 +69,12 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of eleven abilities', buttons.length === 11, buttons.join(','));
+  check('click opens the ring of thirteen abilities', buttons.length === 13, buttons.join(','));
+  const overlap = await page.$$eval('.ring-btn', (b) => {
+    const boxes = b.map((x) => x.getBoundingClientRect());
+    return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
+  });
+  check('ring buttons do not overlap', !overlap);
   const onScreen = await page.$$eval('.ring-btn', (b) => b.every((x) => {
     const r = x.getBoundingClientRect();
     return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
@@ -355,6 +360,38 @@ try {
   await page.waitForTimeout(1400);
   check('a finished Hourglass leaves an open Speak card alone', await visible(page, '#card textarea'));
   check('no errors in the fixes', page.errors.length === 0, page.errors.join('; '));
+
+  // Shatter and Glitch, over a small stand-in picture of the "screen".
+  page = await open({ wander: false, greeted: new Date().toDateString() });
+  await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 40;
+    const g = c.getContext('2d');
+    g.fillStyle = '#3a6';
+    g.fillRect(0, 0, 64, 40);
+    window.__companion.shot = c.toDataURL('image/png');
+  });
+  await page.mouse.move(400, 300);
+  await page.evaluate(() => window.__reaper.abilities.cast('shatter'));
+  await page.waitForTimeout(500);
+  check('Shatter draws over the screen', (await page.$$('.fx-canvas')).length === 1);
+  check('Shatter costs 25 soul', (await soul(page)) === 75);
+  await page.evaluate(() => window.__reaper.abilities.cast('glitch'));
+  check('one screen effect at a time', (await page.textContent('#bubble')).includes('One ruin at a time'));
+  await page.waitForTimeout(2400);
+  check('Shatter cleans up after itself', (await page.$$('.fx-canvas')).length === 0);
+  check('Shatter says it mended the screen', (await page.textContent('#bubble')).includes('Mended'));
+  await page.evaluate(() => window.__reaper.abilities.cast('glitch'));
+  await page.waitForTimeout(500);
+  check('Glitch draws over the screen', (await page.$$('.fx-canvas')).length === 1);
+  await page.waitForTimeout(1500);
+  check('Glitch cleans up after itself', (await page.$$('.fx-canvas')).length === 0);
+  await toolCallOn(page, 'cast', { ability: 'shatter' });
+  await page.waitForTimeout(200);
+  check('Speak can cast Shatter', await page.evaluate(() => !!window.__toolOut && window.__toolOut.ok));
+  await page.waitForTimeout(2600);
+  check('no errors in Shatter and Glitch', page.errors.length === 0, page.errors.join('; '));
 } catch (err) {
   console.error(err);
   failures++;

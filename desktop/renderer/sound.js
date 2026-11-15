@@ -78,6 +78,48 @@ export function gulp() {
   tone(90, t + 0.12, 0.35, { type: 'square', gain: 0.05 });
 }
 
+// A burst of filtered noise, for impacts and static.
+function noise(start, dur, { freq = 3000, q = 0.8, gain = 0.3, type = 'bandpass' } = {}) {
+  const a = audio();
+  const len = Math.max(1, Math.floor(a.sampleRate * dur));
+  const buffer = a.createBuffer(1, len, a.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+  const src = a.createBufferSource();
+  src.buffer = buffer;
+  const filter = a.createBiquadFilter();
+  filter.type = type;
+  filter.frequency.value = freq;
+  filter.Q.value = q;
+  const amp = a.createGain();
+  amp.gain.value = gain;
+  src.connect(filter).connect(amp).connect(a.destination);
+  src.start(start);
+}
+
+// Shatter: a heavy thud, breaking glass, tinkling shards, and a rush back.
+export function shatter() {
+  if (muted) return;
+  const t = audio().currentTime;
+  tone(55, t, 0.6, { type: 'triangle', gain: 0.3 });
+  noise(t, 0.5, { freq: 4500, q: 0.5, gain: 0.45 });
+  for (let i = 0; i < 14; i++) {
+    tone(2200 + Math.random() * 4200, t + 0.05 + Math.random() * 0.9, 0.12 + Math.random() * 0.2, { gain: 0.03 });
+  }
+  noise(t + 1.45, 0.6, { freq: 1200, q: 0.4, gain: 0.18, type: 'lowpass' });
+}
+
+// Glitch: square-wave blips and bursts of static, out of time.
+export function glitch() {
+  if (muted) return;
+  const t = audio().currentTime;
+  for (let i = 0; i < 16; i++) {
+    const at = t + Math.random() * 1.35;
+    if (Math.random() < 0.5) tone(80 + Math.random() * 1800, at, 0.03 + Math.random() * 0.08, { type: 'square', gain: 0.05 });
+    else noise(at, 0.04 + Math.random() * 0.1, { freq: 800 + Math.random() * 6000, q: 2, gain: 0.2 });
+  }
+}
+
 // Hum: a slow minor music box over a low drone. Plays until stopped.
 const MELODY = [0, 3, 7, 10, 12, 10, 7, 3, 0, 5, 8, 12, 15, 12, 8, 5, -2, 3, 7, 10, 14, 10, 7, 3, -5, 0, 3, 7, 12, 7, 3, 0];
 let hum = null;

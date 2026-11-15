@@ -1,6 +1,7 @@
 // Every ability in the ring: what it costs, what it does, and how Speak's tools
 // reach the same things.
 import { el, chip } from './dom.js';
+import * as effects from './effects.js';
 
 const GHOST_SVG = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="M4 46 V20 A16 16 0 0 1 36 20 V46 L30 40 L24 46 L20 40 L16 46 L10 40 Z"/>' +
   '<circle cx="14" cy="20" r="3"/><circle cx="26" cy="20" r="3"/></svg>';
@@ -356,6 +357,36 @@ export function createAbilities(ctx) {
     return { cut: !!shot, reaped };
   }
 
+  // --- Shatter and Glitch: one screen effect at a time ---------------------------------------------
+  let wrecking = false;
+
+  async function wreck(kind) {
+    wrecking = true;
+    try {
+      const shot = await photograph();
+      if (kind === 'shatter') {
+        // From the cursor: where he was asked to strike.
+        const at = cursor.x > -999 ? { x: cursor.x, y: cursor.y } : ctx.center();
+        sound.shatter();
+        ctx.swing();
+        const done = effects.shatter(field, shot, at);
+        reapAll();
+        await done;
+      } else {
+        sound.glitch();
+        await effects.glitch(field, shot);
+      }
+      return !!shot;
+    } finally {
+      wrecking = false;
+    }
+  }
+
+  function wreckReady() {
+    if (ctx.reducedMotion) return 'Too much motion.\n(Reduce motion is on.)';
+    return wrecking ? 'One ruin at a time.' : null;
+  }
+
   // --- Vanish ---------------------------------------------------------------------------------
   let vanishTimer = null;
 
@@ -402,6 +433,22 @@ export function createAbilities(ctx) {
       cast: async () => {
         const { cut } = await slash();
         say(cut ? 'Cut.' : 'Cut.\n(Give me screen access to cut deeper.)', cut ? 2500 : 5000);
+      }
+    },
+    {
+      id: 'shatter', name: 'Shatter', cost: 25, school: 'death', blurb: 'The screen breaks like glass where your cursor is, falls away, and comes back together.',
+      ready: wreckReady,
+      cast: async () => {
+        const seen = await wreck('shatter');
+        say(seen ? 'Broken. Mended.' : 'Broken.\n(Give me screen access to break the real thing.)', seen ? 2500 : 5000);
+      }
+    },
+    {
+      id: 'glitch', name: 'Glitch', cost: 15, school: 'glitch', blurb: 'Y2K corruption: the screen tears, splits and stutters for a moment.',
+      ready: wreckReady,
+      cast: async () => {
+        const seen = await wreck('glitch');
+        say(seen ? 'Signal restored.' : 'Static.\n(Give me screen access for the full effect.)', seen ? 2500 : 5000);
       }
     },
     {
@@ -492,7 +539,7 @@ export function createAbilities(ctx) {
   }
 
   // Speak's tools. Inputs are checked here: they arrive as streamed JSON.
-  const CASTABLE = ['slash', 'summon', 'eclipse', 'hum', 'vanish', 'haunt'];
+  const CASTABLE = ['slash', 'shatter', 'glitch', 'summon', 'eclipse', 'hum', 'vanish', 'haunt'];
 
   async function runTool(name, input) {
     switch (name) {

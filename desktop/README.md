@@ -70,6 +70,8 @@ When it's low, he fades.
 |---|---|---|
 | **Speak** | free | A chat card. Ask him anything. See [Speak](#speak). |
 | **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During Summon, it reaps every ghost. |
+| **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During Summon, it reaps every ghost. |
+| **Glitch** | 15 | A second and a half of Y2K corruption: the colours split, the screen tears into slices, blocks smear and scanlines roll, then the signal comes back. |
 | **Summon** | 25 | Ten seconds of ghosts flying across your whole desktop. Click them to catch them. Golden ones are worth three. Your best catch is saved. |
 | **Eclipse** | 10 | Darkens the screen except a circle of light around your cursor, for a minute. Cast again to end it. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
@@ -105,7 +107,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Harvest**: reads today's tally |
-| "Do the ghost game" / "Follow me" | **Abilities**: casts Slash, Summon, Eclipse, Hum, Haunt or Vanish |
+| "Break my screen" / "Do the ghost game" / "Follow me" | **Abilities**: casts Slash, Shatter, Glitch, Summon, Eclipse, Hum, Haunt or Vanish |
 
 ### Privacy
 
@@ -121,7 +123,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 
 ## Permissions
 
-- **macOS:** Slash and Look need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the scythe still swings but the screen isn't split, and Look reports that it can't see.
+- **macOS:** Slash, Shatter, Glitch and Look need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
 - **Linux:** transparency needs a compositing window manager, which most desktops have.
 
 ## Where things are kept
@@ -179,7 +181,8 @@ npm run dist:linux
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
 | `renderer/speak.js` | The Speak card, its permission questions and copy buttons |
-| `renderer/sound.js` | The bell, the slash, and Hum |
+| `renderer/effects.js` | Shatter and Glitch, drawn on a canvas over a picture of the screen |
+| `renderer/sound.js` | The bell, the slash, the shatter, the glitch, and Hum |
 | `renderer/bridge.js` | The page's link to the app, with a stand-in so it also runs in a browser tab |
 
 ## Checks

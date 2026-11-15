@@ -96,6 +96,16 @@ try {
   const shot = await page.evaluate(() => window.companion.capture());
   check('the screen can be captured for Slash', typeof shot === 'string' && shot.startsWith('data:image/jpeg'), shot ? shot.slice(0, 30) : String(shot));
 
+  // Shatter and Glitch on a real capture of the screen.
+  await page.evaluate(() => window.__reaper.abilities.cast('shatter'));
+  await page.waitForTimeout(700);
+  check('Shatter draws over a real screen capture', (await page.$$('.fx-canvas')).length === 1);
+  await page.waitForTimeout(2300);
+  await page.evaluate(() => window.__reaper.abilities.cast('glitch'));
+  await page.waitForTimeout(2000);
+  check('Shatter and Glitch clean up after themselves', (await page.$$('.fx-canvas')).length === 0);
+  check('Glitch saw the real screen', (await page.textContent('#bubble')).includes('Signal restored'));
+
   // Speak's clipboard tools go through the main process.
   await page.evaluate(() => window.companion.clipboardWrite('from the reaper'));
   check('the clipboard can be written and read', (await page.evaluate(() => window.companion.clipboardRead())) === 'from the reaper');

@@ -287,7 +287,9 @@ let ringAt = null;
 function openRing() {
   ring.replaceChildren();
   const list = abilities.list;
-  const radius = 116;
+  // Wide enough that the buttons don't overlap, however many there are.
+  const radius = Math.max(116, Math.round((list.length * 78) / (Math.PI * 2)));
+  ring.style.setProperty('--r', radius + 'px');
   const c = center();
   ringAt = { x: clamp(c.x, radius + 50, innerWidth - radius - 50), y: clamp(c.y, radius + 24, innerHeight - radius - 24) };
   ring.style.left = ringAt.x + 'px';

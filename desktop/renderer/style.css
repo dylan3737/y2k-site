@@ -20,6 +20,7 @@
   --music: #ffb3d9;
   --soul: #c4f5a4;
   --voice: #f7c6ff;
+  --glitch: #b6ff6b;
   --pixel: 'Silkscreen', ui-monospace, monospace;
 }
 
@@ -313,10 +314,10 @@ body.is-capturing * { visibility: hidden !important; }
 .ring::before {
   content: "";
   position: absolute;
-  left: -112px;
-  top: -112px;
-  width: 224px;
-  height: 224px;
+  left: calc(-1 * var(--r, 116px) + 4px);
+  top: calc(-1 * var(--r, 116px) + 4px);
+  width: calc(2 * var(--r, 116px) - 8px);
+  height: calc(2 * var(--r, 116px) - 8px);
   border-radius: 50%;
   border: 1px dashed rgba(201, 182, 255, 0.45);
   box-shadow: 0 0 40px rgba(120, 36, 186, 0.35) inset;
@@ -651,3 +652,14 @@ body.is-capturing * { visibility: hidden !important; }
 
 .line.him:hover .copy,
 .copy:focus-visible { opacity: 1; }
+
+/* Shatter and Glitch draw on a canvas behind the reaper. */
+.fx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.2s ease;
+}
+
+.fx-canvas.is-closing { opacity: 0; }
