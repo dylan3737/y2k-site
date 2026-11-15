@@ -4,6 +4,12 @@ Y2K-style portfolio: WebGL fluid background, a Web Audio synth, and a draggable 
 
 Live: https://dylan3737.github.io/y2k-site/
 
+## Reaper for your desktop
+
+The reaper also comes as a desktop app. He floats over your desktop, keeps your timers and reminders, catches ghosts, and talks to you through Claude.
+
+**[Download the latest release](https://github.com/dylan3737/y2k-site/releases/latest)** for macOS, Windows or Linux, or read [how he works](desktop/README.md).
+
 ## Layout
 
 Plain HTML, CSS and JavaScript modules. There is no build step: GitHub Pages serves the files as they are.
@@ -35,6 +41,7 @@ npm install
 npm run serve   # http://127.0.0.1:8080/y2k-site/
 npm run lint
 npm test        # browser smoke tests in headless Chromium
+npm run test:desktop   # the desktop companion's page in headless Chromium
 ```
 
 `npm test` needs Chromium for Playwright (`npx playwright install chromium` the first time).

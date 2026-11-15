@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint .",
     "test": "node tests/smoke.mjs",
-    "serve": "node tests/serve.mjs"
+    "serve": "node tests/serve.mjs",
+    "test:desktop": "node tests/desktop.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

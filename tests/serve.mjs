@@ -8,7 +8,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BASE = '/y2k-site/';
 const TYPES = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
-  '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json'
+  '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json', '.webp': 'image/webp',
+  '.woff2': 'font/woff2'
 };
 
 export function serve(port = 0) {

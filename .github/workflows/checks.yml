@@ -18,3 +18,25 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run lint
       - run: npm test
+      - run: npm run test:desktop
+
+  # The desktop companion: its conversation loop against a fake API, then the
+  # real Electron app under a virtual display.
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: node tests/oracle.mjs
+        working-directory: desktop
+      - run: xvfb-run -a node tests/launch.mjs
+        working-directory: desktop
