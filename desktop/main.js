@@ -156,7 +156,16 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   setInteractive(false);
   win.loadFile(path.join(here, 'renderer', 'index.html'));
-  win.once('ready-to-show', () => win.showInactive());
+  // Shown on first paint, or once the page has loaded if no paint is reported:
+  // some Linux setups never send ready-to-show for a transparent window, and
+  // he would stay hidden.
+  const reveal = (why) => {
+    if (!win || win.isDestroyed() || win.isVisible() || hidden) return;
+    globalThis.reaperShownBy = why; // read by the launch test
+    win.showInactive();
+  };
+  win.once('ready-to-show', () => reveal('ready-to-show'));
+  win.webContents.once('did-finish-load', () => setTimeout(() => reveal('did-finish-load'), 300));
   // Links in his cards open in the browser, never in this window.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) shell.openExternal(url);

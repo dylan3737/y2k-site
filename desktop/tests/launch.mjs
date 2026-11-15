@@ -45,7 +45,14 @@ try {
   const near = ['x', 'y', 'width', 'height'].every((k) => Math.abs(win.bounds[k] - win.area[k]) <= 2);
   check('one window covers the work area', near, JSON.stringify(win));
   check('the window stays on top', win.top);
-  check('the window is shown', win.visible);
+  // He may be shown a moment after the page loads.
+  let shown = win.visible;
+  for (let i = 0; !shown && i < 20; i++) {
+    await page.waitForTimeout(100);
+    shown = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible());
+  }
+  const shownBy = await app.evaluate(() => globalThis.reaperShownBy || 'nothing');
+  check('the window is shown', shown, 'shown by ' + shownBy);
 
   check('the bridge is exposed', await page.evaluate(() => window.companion && window.companion.desktop === true));
   check('the page cannot reach Node', await page.evaluate(() => typeof require === 'undefined' && typeof process === 'undefined'));
