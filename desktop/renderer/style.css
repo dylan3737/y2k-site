@@ -156,6 +156,28 @@ body.is-capturing * { visibility: hidden !important; }
 }
 
 .soul-pop.is-cost { color: var(--death); }
+.soul-pop.is-souls { color: var(--gold); }
+
+/* The Crypt */
+.crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0; }
+.digger {
+  position: fixed;
+  bottom: 0;
+  width: 48px;
+  height: 45px;
+  background: var(--a) center / contain no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px rgba(190, 150, 255, 0.55));
+  animation: dig 1.2s steps(1) infinite;
+}
+.digger.is-flipped { transform: scaleX(-1); }
+@keyframes dig {
+  0%, 100% { background-image: var(--a); }
+  50% { background-image: var(--b); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .digger { animation: none; }
+}
 
 @keyframes popUp {
   to { transform: translateY(-28px); opacity: 0; }

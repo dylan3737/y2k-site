@@ -64,7 +64,7 @@ export function createAbilities(ctx) {
       return;
     }
     companion.notify('The sand has run out.', minutesText(minutes) + ' done. Stand up. Stretch. You are not dead yet.');
-    companion.stat('focus', 1);
+    companion.stat('focus', 1, minutes);
     // A card the user is using is left alone; the bubble and bell are enough.
     if (card.isOpen()) {
       say('Sand’s out.\nStand. Stretch.', 9000);
@@ -485,6 +485,13 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
+      id: 'crypt', name: 'Crypt', cost: 0, school: 'soul', blurb: 'Your banked souls, and the skeletons they raise.',
+      free: true,
+      active: () => ctx.crypt.isOpen(),
+      stop: () => ctx.crypt.close(),
+      cast: () => ctx.crypt.open()
+    },
+    {
       id: 'hum', name: 'Hum', cost: 5, school: 'music', blurb: 'An old tune from a music box.',
       active: () => sound.humming(),
       ready: () => (sound.isMuted() ? 'My voice is muted.\n(Tray → Sounds.)' : null),
@@ -563,6 +570,17 @@ export function createAbilities(ctx) {
       }
       case 'get_harvest':
         return { ok: true, result: await harvest() };
+      case 'get_crypt': {
+        const out = await companion.crypt();
+        ctx.crypt.update(out.crypt);
+        return { ok: true, result: out.crypt };
+      }
+      case 'raise_skeleton': {
+        const count = input.count === undefined ? 1 : input.count;
+        if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
+        const out = await ctx.crypt.raise(count);
+        return out.ok ? { ok: true, result: { raised: out.raised, ...out.crypt } } : { ok: false, error: out.error };
+      }
       case 'look_at_screen': {
         if (!(await ctx.speak.ask('Let him look at your screen?'))) return { ok: false, error: 'The user said no.' };
         const shot = await photograph({ forModel: true });

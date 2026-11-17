@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('companion', {
   desktop: true,
   state: () => ipcRenderer.invoke('state'),
   save: (patch) => ipcRenderer.send('save', patch),
-  stat: (key, n = 1) => ipcRenderer.send('stat', { key, n }),
+  stat: (key, n = 1, worth) => ipcRenderer.send('stat', { key, n, worth }),
+  crypt: (action) => ipcRenderer.invoke('crypt', action),
   interactive: (on) => ipcRenderer.send('interactive', !!on),
   focus: (on) => ipcRenderer.send('focus', !!on),
   notify: (title, body) => ipcRenderer.send('notify', { title, body }),
@@ -34,6 +35,7 @@ contextBridge.exposeInMainWorld('companion', {
   onAway: listen('away'),
   onCommand: listen('command'),
   onSettings: listen('settings'),
+  onCrypt: listen('crypt'),
   onSpeech: listen('speech'),
   onToolCall: listen('tool-call'),
   onToolCancel: listen('tool-cancel')

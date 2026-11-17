@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createOracle } from './oracle.js';
 import { listModels } from './ollama.js';
+import * as crypt from './crypt.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const asset = (name) => path.join(here, 'assets', name);
@@ -31,7 +32,9 @@ const state = {
   ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null,
   // Whose mind Speak borrows: 'claude' (an API key), 'ollama' (a free model on
   // this computer) or 'offline' (none; plain commands only).
-  brain: 'claude', localModel: null
+  brain: 'claude', localModel: null,
+  // The idle game: banked souls and the skeletons that dig for more.
+  crypt: crypt.fresh(), minions: true
 };
 
 // What Speak remembers about the user, kept with the rest of the state.
@@ -59,6 +62,27 @@ const statePath = () => path.join(app.getPath('userData'), 'companion.json');
 
 function readState() {
   try { Object.assign(state, JSON.parse(fs.readFileSync(statePath(), 'utf8'))); } catch {}
+}
+
+// What the skeletons dug while the app was shut, told to the page once.
+let dugWhileShut = 0;
+
+function openCrypt() {
+  state.crypt = crypt.clean(state.crypt);
+  dugWhileShut = Math.floor(crypt.settle(state.crypt));
+}
+
+function takeDug() {
+  const dug = dugWhileShut;
+  dugWhileShut = 0;
+  return dug;
+}
+
+// Count what the skeletons dug since the last look, and tell the page.
+function tendCrypt(event = {}) {
+  crypt.settle(state.crypt);
+  writeState();
+  send('crypt', { crypt: crypt.view(state.crypt), ...event });
 }
 
 function writeNow() {
@@ -227,6 +251,7 @@ function pollCursor() {
 // Asleep while the computer is idle or locked; awake when input returns.
 let away = false;
 let awaySince = 0;
+let awayTotal = 0;
 function pollIdle() {
   const idle = powerMonitor.getSystemIdleTime();
   if (idle < 60) {
@@ -238,7 +263,11 @@ function pollIdle() {
   if (!away && idle >= AWAY_AFTER) goAway(Date.now() - idle * 1000);
   else if (away && idle < 5) {
     away = false;
-    send('away', { away: false, minutes: Math.round((Date.now() - awaySince) / 60000) });
+    tendCrypt();
+    send('away', {
+      away: false, minutes: Math.round((Date.now() - awaySince) / 60000),
+      dug: Math.floor(state.crypt.total - awayTotal)
+    });
   }
 }
 
@@ -246,6 +275,9 @@ function goAway(since) {
   if (away) return;
   away = true;
   awaySince = since;
+  // What the crypt has ever held, so the return can say what was dug meanwhile.
+  crypt.settle(state.crypt);
+  awayTotal = state.crypt.total;
   send('away', { away: true });
 }
 
@@ -311,6 +343,10 @@ function rebuildMenu() {
     {
       label: 'Sounds', type: 'checkbox', checked: !state.muted,
       click: (item) => { state.muted = !item.checked; writeState(); send('settings', { muted: state.muted }); }
+    },
+    {
+      label: 'Skeletons on screen', type: 'checkbox', checked: state.minions,
+      click: (item) => { state.minions = item.checked; writeState(); send('settings', { minions: state.minions }); }
     },
     { label: 'Hide', type: 'checkbox', checked: hidden, click: () => toggleHidden() }
   ];
@@ -392,6 +428,9 @@ function wireIpc() {
     today: today(),
     hasKey: hasKey(),
     brain: getBrain().kind,
+    minions: state.minions,
+    // `dug` is what the skeletons brought up while the app was shut; told once.
+    crypt: { ...crypt.view(state.crypt), dug: takeDug() },
     keys: { come: COME_KEY, speak: SPEAK_KEY },
     platform: process.platform
   }));
@@ -406,10 +445,23 @@ function wireIpc() {
     writeState();
   });
 
-  ipcMain.on('stat', (_e, { key, n } = {}) => {
+  // A deed for the tally, which also pays souls into the crypt. A finished
+  // hourglass is worth its minutes, sent as `worth`.
+  ipcMain.on('stat', (_e, { key, n, worth } = {}) => {
     if (!STAT_KEYS.includes(key) || !Number.isFinite(n)) return;
     today()[key] += n;
+    const gained = crypt.earn(state.crypt, key, Number.isFinite(worth) ? worth : n);
+    if (gained) tendCrypt({ gained });
     writeState();
+  });
+
+  ipcMain.handle('crypt', (_e, action = {}) => {
+    crypt.settle(state.crypt);
+    const out = action && action.raise ? crypt.raise(state.crypt, action.raise) : { ok: true };
+    writeState();
+    // The page hears too, so the skeletons on screen always match the crypt.
+    send('crypt', { crypt: crypt.view(state.crypt) });
+    return { ...out, crypt: crypt.view(state.crypt) };
   });
 
   ipcMain.on('notify', (_e, { title, body } = {}) => {
@@ -527,6 +579,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     readState();
+    openCrypt();
     wireIpc();
     createWindow();
 
@@ -542,6 +595,7 @@ if (!app.requestSingleInstanceLock()) {
 
     setInterval(pollCursor, 33);
     setInterval(pollIdle, 5000);
+    setInterval(() => tendCrypt({ dug: true }), 60000);
     powerMonitor.on('lock-screen', () => goAway(Date.now()));
 
     const refit = () => fitTo(currentDisplay());

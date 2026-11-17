@@ -14,6 +14,7 @@ export const HELP = [
   '• reminders / cancel reminder oven',
   '• 25 minute timer / stop timer',
   '• how did today go',
+  '• crypt / raise a skeleton / raise 3 skeletons',
   '• remember I like tea / what do you remember / forget tea',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -166,6 +167,31 @@ function tally(text) {
   };
 }
 
+const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+
+function cryptwork(text) {
+  const rise = new RegExp('^(raise|summon|buy|wake)\\s+(?:' + NUMBER + '\\s+)?(more\\s+)?skeletons?$').exec(text);
+  if (rise) {
+    const count = rise[2] ? Math.round(number(rise[2])) : 1;
+    return async ({ tool }) => {
+      const out = await tool('raise_skeleton', { count: Math.max(1, Math.min(50, count)) });
+      if (!out.ok) return out.error || 'They would not rise.';
+      return plural(out.result.raised, 'skeleton') + ' risen. ' + plural(out.result.souls, 'soul') + ' left.';
+    };
+  }
+  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|minions)\??$|^how many (souls|skeletons)\b/.test(text)) return null;
+  return async ({ tool }) => {
+    const out = await tool('get_crypt', {});
+    if (!out.ok) return failed(out);
+    const c = out.result;
+    return [
+      'The crypt holds ' + plural(c.souls, 'soul') + '.',
+      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + c.perHour + ' souls an hour.' : 'No skeletons yet.',
+      'The next one costs ' + c.nextCost + '.'
+    ].join('\n');
+  };
+}
+
 function remembering(text, original) {
   if (/^what do you (remember|know)\b|^(memories|memory)\??$/.test(text)) {
     return async ({ memory }) => {
@@ -236,6 +262,6 @@ export function parseCommand(input, now = new Date()) {
   const text = original.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[!.]+$/, '');
   if (!text) return null;
   if (/^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
-  return reminder(original, now) || reminders(text) || timer(text) || tally(text) ||
+  return reminder(original, now) || reminders(text) || timer(text) || tally(text) || cryptwork(text) ||
     remembering(text, original) || clockwork(text, now) || casting(text);
 }

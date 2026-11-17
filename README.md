@@ -6,7 +6,7 @@ Live: https://dylan3737.github.io/y2k-site/
 
 ## Reaper for your desktop
 
-The reaper also comes as a desktop app. He floats over your desktop, keeps your timers and reminders, catches ghosts, and talks to you: through Claude with your API key, or for free through a model on your own computer.
+The reaper also comes as a desktop app. He floats over your desktop, keeps your timers and reminders, catches ghosts, raises skeletons that dig up souls while you're away, and talks to you: through Claude with your API key, or for free through a model on your own computer.
 
 **[Download the latest release](https://github.com/dylan3737/y2k-site/releases/latest)** for macOS, Windows or Linux, or read [how he works](desktop/README.md).
 

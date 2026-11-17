@@ -1,6 +1,6 @@
 # Reaper: a desktop companion
 
-The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
+The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. There is an idle game in him too: the souls you earn raise skeletons, and they dig up more while you're away. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
 
 He lives in a transparent window that stays on top of everything. Clicks pass through to your apps everywhere except on the reaper himself and on his effects.
 
@@ -39,7 +39,7 @@ npm start
 | Fling him | flies off, bouncing off the screen edges |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
-| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone when you're back |
+| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
 | Start the day | greets you with how many reminders are due today |
 | Press **Ctrl+Alt+R** (**⌘⌥R** on a Mac) | vanishes and reappears at your cursor, even on another monitor |
 | Press **Ctrl+Alt+Space** (**⌘⌥Space**) | appears at your cursor with Speak open |
@@ -50,6 +50,7 @@ The tray icon has the same commands, plus:
 - **Wander:** on or off.
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
+- **Skeletons on screen:** show or hide the skeletons. Hidden ones still dig.
 - **Hide**
 - **Open at login:** macOS and Windows only.
 - **Forget what he remembers**
@@ -80,8 +81,29 @@ When it's low, he fades.
 | **Summon** | 25 | Ten seconds of ghosts flying across your whole desktop. Click them to catch them. Golden ones are worth three. Your best catch is saved. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
+| **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
 | **Hum** | 5 | A slow minor music-box tune over a drone. Cast again to stop it. |
 | **Vanish** | free | He fades into the corner and stays quiet for 30 minutes. Click him to bring him back. |
+
+## The Crypt
+
+The Crypt is an idle game. It banks **souls**, which are yours to keep. (The meter under him is his own soul: his energy, which drains and refills. The two are separate.)
+
+You earn souls by using him:
+
+| Deed | Souls |
+|---|---|
+| A ghost caught in Summon | 1 (3 for a golden one) |
+| A file he eats | 5 |
+| A finished Hourglass | 1 for each minute |
+
+Souls raise **skeletons**. The first costs 25, and each one after costs 15% more than the last. Every skeleton digs up 6 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+
+- When you come back to the computer, he tells you what they dug up while you were gone.
+- When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
+- Up to eight skeletons dig along the bottom of your screen. Clicks pass through them.
+
+Open the Crypt from his ring to see your souls and raise a skeleton. Speak can do it too ("raise two skeletons", "how's the crypt?"), and so can the plain commands.
 
 ## Speak
 
@@ -136,6 +158,8 @@ These need no model at all. Type them the way they are written here, or close to
 | `25 minute timer`, `pomodoro` | turns the hourglass |
 | `stop timer` | stops it |
 | `how did today go` | gives today's tally |
+| `crypt` | counts your souls and skeletons |
+| `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
@@ -154,6 +178,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
+| "How's the crypt?" / "Raise two skeletons" | **Crypt**: counts your souls and skeletons, or raises more |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
@@ -180,6 +205,7 @@ These need no model at all. Type them the way they are written here, or close to
 `companion.json` in the app's user-data folder keeps:
 
 - Settings, soul and the mind you chose.
+- The Crypt: banked souls and skeletons.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -228,9 +254,11 @@ npm run dist:linux
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
+| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
+| `renderer/crypt.js` | The Crypt's card and the skeletons on screen |
 | `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
@@ -244,10 +272,11 @@ From this folder:
 npm test
 ```
 
-This runs three files:
+This runs four files:
 
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
 - `tests/minds.mjs` tests the local model against a fake Ollama, and the plain commands.
+- `tests/crypt.mjs` tests the Crypt's rules.
 - `tests/launch.mjs` starts the real app and checks the window, the bridge and the main process.
 
 On Linux without a display, run it under `xvfb-run -a npm test`.

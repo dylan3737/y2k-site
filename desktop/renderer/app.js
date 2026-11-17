@@ -4,6 +4,7 @@ import { companion } from './bridge.js';
 import * as sound from './sound.js';
 import { createAbilities } from './abilities.js';
 import { createSpeak } from './speak.js';
+import { createCrypt } from './crypt.js';
 
 const $ = (id) => document.getElementById(id);
 const reaper = $('reaper');
@@ -233,7 +234,7 @@ const cardApi = {
 
 // --- Abilities and the ring -------------------------------------------------------------
 const ctx = {
-  say, soul, center, cursor, field, card: cardApi, sound, companion, puff, swing,
+  say, soul, pop, center, cursor, field, card: cardApi, sound, companion, puff, swing,
   reducedMotion, minutesText,
   getMode: () => mode,
   vanish() {
@@ -259,6 +260,8 @@ const ctx = {
   }
 };
 
+const crypt = createCrypt(ctx);
+ctx.crypt = crypt;
 const speak = createSpeak(ctx);
 ctx.speak = speak;
 const abilities = createAbilities(ctx);
@@ -588,7 +591,7 @@ setInterval(() => {
   }
 }, 450);
 
-companion.onAway(({ away, minutes }) => {
+companion.onAway(({ away, minutes, dug }) => {
   if (away) {
     if (dragging || mode === 'vanish') return;
     closeRing();
@@ -602,7 +605,7 @@ companion.onAway(({ away, minutes }) => {
   if (mode === 'sleep') setMode('wander');
   waitUntil = performance.now() + 4000;
   soul.gain(Math.min(100, (minutes || 0) * 4));
-  const gone = minutes >= 1 ? 'Gone ' + minutesText(minutes) + '.' : '';
+  const gone = [minutes >= 1 ? 'Gone ' + minutesText(minutes) + '.' : '', crypt.report(dug)].filter(Boolean).join('\n');
   if (greet(gone)) return;
   if (gone) say('Back. ' + gone, 6000);
 });
@@ -625,6 +628,7 @@ companion.onSettings((s) => {
   if ('brain' in s) speak.setMind(s.brain);
   if ('hasKey' in s) speak.setHasKey(s.hasKey);
   if ('muted' in s) sound.setMuted(s.muted);
+  if ('minions' in s) crypt.setShown(s.minions);
 });
 
 // The first time he sees you each day (from 5am): a greeting, and what the
@@ -666,15 +670,19 @@ async function start() {
   speak.setHasKey(settings.hasKey);
   sound.setMuted(!!s.muted);
   abilities.restore(s);
+  crypt.setShown(s.minions !== false);
+  if (s.crypt) crypt.update(s.crypt);
+  // What the skeletons dug while the app was shut leads his first words.
+  const dug = crypt.report(s.crypt && s.crypt.dug);
   keepOnScreen();
   place();
   paintSoul();
   requestAnimationFrame(frame);
-  setTimeout(() => { if (!greet()) say(timeLine(), 4000); }, 1500);
+  setTimeout(() => { if (!greet(dug)) say(dug || timeLine(), dug ? 6000 : 4000); }, 1500);
   setInterval(() => { if (Math.random() < 0.35) sayIdle(timeLine()); }, 240000);
 }
 
 start();
 
 // Tests read state through this.
-window.__reaper = { pos, cursor, get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, say };
+window.__reaper = { pos, cursor, get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, say };

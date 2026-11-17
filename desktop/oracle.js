@@ -35,6 +35,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
+- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. How many souls or skeletons they have -> get_crypt. Raising skeletons -> raise_skeleton
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, a ghost game, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
@@ -95,6 +96,16 @@ const TOOL_DEFS = [
     name: 'get_harvest',
     description: "Today's tally (minutes active at the computer, hourglasses finished, ghosts caught, files reaped) and the current state: soul, running timer, pending reminders.",
     input_schema: object()
+  },
+  {
+    name: 'get_crypt',
+    description: 'The Crypt: souls banked, skeletons raised, souls they dig up per hour, and what the next skeleton costs.',
+    input_schema: object()
+  },
+  {
+    name: 'raise_skeleton',
+    description: 'Spend banked souls to raise skeletons, which dig up more souls on their own. Raises as many of `count` as the souls allow.',
+    input_schema: object({ count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' } })
   },
   {
     name: 'look_at_screen',

@@ -70,7 +70,7 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of thirteen abilities', buttons.length === 13, buttons.join(','));
+  check('click opens the ring of fourteen abilities', buttons.length === 14, buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -211,6 +211,52 @@ try {
   const tail = lines.slice(-4).join(' | ');
   check('his answer streams in, with the spell between his words',
     tail === 'you:remind me | him:As you wish. | cast:✦ sends a raven | him:Done.', tail);
+
+  // The Crypt: deeds bank souls, souls raise skeletons, skeletons dig
+  page = await open({ wander: false });
+  await page.evaluate(() => window.__reaper.abilities.cast('crypt'));
+  check('the Crypt opens empty', (await page.textContent('#card .crypt-souls')) === '0 souls' &&
+    await page.isDisabled('#card .chip.solid'));
+  await page.evaluate(async () => {
+    const { companion } = await import('./bridge.js');
+    companion.stat('caught', 12);
+    companion.stat('reaped', 2);
+    companion.stat('focus', 1, 25);
+  });
+  await page.waitForTimeout(100);
+  check('ghosts, files and a finished hourglass bank souls', (await page.textContent('#card .crypt-souls')) === '47 souls',
+    await page.textContent('#card .crypt-souls'));
+  await page.click('#card .chip.solid');
+  await page.waitForTimeout(200);
+  check('souls raise a skeleton', (await page.textContent('#card .crypt-souls')) === '22 souls' &&
+    (await page.textContent('#card')).includes('1 skeleton digs up 6 souls an hour'), await page.textContent('#card'));
+  check('the skeleton digs on screen', (await page.$$('.field .digger')).length === 1);
+  check('the next one costs more than he has', (await page.textContent('#card .chip.solid')).includes('29') && await page.isDisabled('#card .chip.solid'));
+  out = await tool('raise_skeleton', {});
+  check('Speak cannot raise one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  out = await tool('get_crypt', {});
+  check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 29, JSON.stringify(out));
+  await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
+  check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
+  // Shut for two hours with one skeleton: twelve souls, told on the way in.
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    saved.crypt.at -= 2 * 3600000;
+    localStorage.setItem('reaper-companion', JSON.stringify({ ...saved, greeted: new Date().toDateString() }));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(1900);
+  check('he says what was dug while the app was shut', (await page.textContent('#bubble')).includes('The skeletons dug up 12 souls'), await page.textContent('#bubble'));
+  check('and it is in the crypt', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 34);
+  // Back from being away
+  await page.evaluate(() => {
+    window.__companion.emit('away', { away: true });
+    window.__companion.emit('away', { away: false, minutes: 90, dug: 9 });
+  });
+  await page.waitForTimeout(100);
+  const back = await page.textContent('#bubble');
+  check('coming back reports the dig', back.includes('Gone') && back.includes('The skeletons dug up 9 souls'), back);
 
   // Away and back
   page = await open({ wander: false, soul: 50 });

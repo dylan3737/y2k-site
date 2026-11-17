@@ -115,6 +115,17 @@ try {
   check('the mind can be set to none', none.kind === 'offline' && (await page.evaluate(() => window.companion.state())).brain === 'offline');
   await page.evaluate(() => window.companion.brain({ kind: 'claude' }));
 
+  // The Crypt is kept by the main process.
+  await page.evaluate(() => window.companion.stat('focus', 1, 30));
+  await page.waitForTimeout(200);
+  const raised = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
+  check('a finished hourglass banks souls that raise a skeleton', raised.ok && raised.crypt.skeletons === 1 && raised.crypt.souls === 5, JSON.stringify(raised));
+  check('the skeleton digs on screen', (await page.$$('.digger')).length === 1);
+  const poor = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
+  check('the crypt refuses what the souls cannot pay for', !poor.ok && poor.crypt.skeletons === 1, JSON.stringify(poor));
+  const kept = await page.evaluate(() => window.companion.state());
+  check('the crypt is part of the saved state', kept.crypt.skeletons === 1 && kept.crypt.perHour === 6 && kept.minions === true, JSON.stringify(kept.crypt));
+
   // Trash refuses anything that is not a real absolute path.
   const trash = await page.evaluate(() => window.companion.trash(['relative/file.txt', '/no/such/file']));
   check('Reap refuses paths that are not real files', trash.ok === 0 && trash.failed === 2);

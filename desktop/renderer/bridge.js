@@ -1,5 +1,7 @@
 // The desktop app's API (from preload.cjs), or a stand-in so the page also runs
 // in a plain browser tab for development and tests.
+import * as rules from '../crypt.js';
+
 function browserStandIn() {
   const KEY = 'reaper-companion';
   const read = () => {
@@ -15,6 +17,9 @@ function browserStandIn() {
   };
   const emit = (channel, data) => (listeners[channel] || []).forEach((fn) => fn(data));
   const stats = { activeSec: 0, focus: 0, caught: 0, reaped: 0 };
+  // The crypt, kept in localStorage here; the app keeps it in the main process.
+  const crypt = rules.clean(read().crypt);
+  const saveCrypt = () => write({ crypt });
 
   // In a tab the page gets real mouse events, so the cursor comes from them.
   window.addEventListener('mousemove', (e) => emit('cursor', { x: e.clientX, y: e.clientY }));
@@ -25,14 +30,30 @@ function browserStandIn() {
     desktop: false,
     async state() {
       const s = read();
+      // Counted before it is shown, as the app does when it starts.
+      const dug = Math.floor(rules.settle(crypt));
+      saveCrypt();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
         ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false, brain: s.brain || 'claude',
+        minions: s.minions !== false, crypt: { ...rules.view(crypt), dug },
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };
     },
     save: write,
-    stat(key, n = 1) { if (key in stats) stats[key] += n; },
+    stat(key, n = 1, worth) {
+      if (!(key in stats)) return;
+      stats[key] += n;
+      const gained = rules.earn(crypt, key, Number.isFinite(worth) ? worth : n);
+      saveCrypt();
+      if (gained) emit('crypt', { crypt: rules.view(crypt), gained });
+    },
+    async crypt(action = {}) {
+      rules.settle(crypt);
+      const out = action.raise ? rules.raise(crypt, action.raise) : { ok: true };
+      saveCrypt();
+      return { ...out, crypt: rules.view(crypt) };
+    },
     interactive() {},
     focus() {},
     notify() {},
@@ -62,6 +83,7 @@ function browserStandIn() {
     onAway: listen('away'),
     onCommand: listen('command'),
     onSettings: listen('settings'),
+    onCrypt: listen('crypt'),
     onSpeech: listen('speech'),
     onToolCall: listen('tool-call'),
     onToolCancel: listen('tool-cancel')
