@@ -622,6 +622,7 @@ companion.onCommand((command) => {
 
 companion.onSettings((s) => {
   Object.assign(settings, s);
+  if ('brain' in s) speak.setMind(s.brain);
   if ('hasKey' in s) speak.setHasKey(s.hasKey);
   if ('muted' in s) sound.setMuted(s.muted);
 });
@@ -661,6 +662,7 @@ async function start() {
   settings.chatty = s.chatty !== false;
   settings.hasKey = !!s.hasKey;
   settings.greeted = s.greeted || null;
+  speak.setMind(s.brain || 'claude');
   speak.setHasKey(settings.hasKey);
   sound.setMuted(!!s.muted);
   abilities.restore(s);

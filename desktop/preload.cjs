@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('companion', {
   speakStop: () => ipcRenderer.send('speak-stop'),
   speakForget: () => ipcRenderer.send('speak-forget'),
   setKey: (key) => ipcRenderer.invoke('set-key', key),
+  brain: (patch) => ipcRenderer.invoke('brain', patch),
   toolResult: (id, outcome) => ipcRenderer.send('tool-result', { id, outcome }),
   onCursor: listen('cursor'),
   onAway: listen('away'),

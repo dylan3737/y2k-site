@@ -27,7 +27,7 @@ function browserStandIn() {
       const s = read();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
-        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false,
+        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false, brain: s.brain || 'claude',
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };
     },
@@ -49,6 +49,14 @@ function browserStandIn() {
     speakStop() {},
     speakForget() {},
     setKey: async () => false,
+    // Tests set window.__companion.local to stand for Ollama.
+    async brain(patch = {}) {
+      if (patch.kind) write({ brain: patch.kind });
+      const kind = read().brain || 'claude';
+      const local = kind === 'ollama' ? window.__companion.local || { running: false, models: [], using: null } : null;
+      emit('settings', { brain: kind, hasKey: false });
+      return { kind, model: null, hasKey: false, local };
+    },
     toolResult(id, outcome) { emit('tool-result', { id, outcome }); },
     onCursor: listen('cursor'),
     onAway: listen('away'),

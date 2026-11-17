@@ -1,6 +1,6 @@
 # Reaper: a desktop companion
 
-The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. He can also talk: ask him things and he answers in character, using Claude. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
+The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
 
 He lives in a transparent window that stays on top of everything. Clicks pass through to your apps everywhere except on the reaper himself and on his effects.
 
@@ -46,6 +46,7 @@ npm start
 
 The tray icon has the same commands, plus:
 
+- **Mind:** whose mind Speak borrows: Claude, a local model, or none. See [Speak](#speak).
 - **Wander:** on or off.
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
@@ -84,17 +85,63 @@ When it's low, he fades.
 
 ## Speak
 
-Speak runs on **Claude Haiku 5.5** (`claude-haiku-5-5`), Anthropic's fast, low-cost model, at low effort. Short chat replies cost a fraction of a cent. The calls are made from the app's main process.
+Speak can borrow one of three minds. Choose one in the card the first time you open Speak, or any time from **Mind** in the tray menu.
 
-### Your API key
+| Mind | Cost | What you need | What he can do |
+|---|---|---|---|
+| **Claude** | A fraction of a cent per reply | An Anthropic API key | Everything below |
+| **Local model** | Free | [Ollama](https://ollama.com/) and a model, on your computer | Everything the model can manage; nothing leaves your computer |
+| **None** | Free | Nothing | The [plain commands](#plain-commands) only |
 
-To use Speak you need an Anthropic API key from [console.anthropic.com](https://console.anthropic.com/). The first time you open Speak, paste the key into the card.
+The plain commands also step in when the chosen mind can't be reached: no key yet, no network, or Ollama not running.
+
+### Claude
+
+With Claude, Speak runs on **Claude Haiku 5.5** (`claude-haiku-5-5`), Anthropic's fast, low-cost model, at low effort. The calls are made from the app's main process.
+
+For this mind you need an Anthropic API key from [console.anthropic.com](https://console.anthropic.com/). The first time you open Speak, paste the key into the card.
 
 The API is billed separately from a Claude Pro or Max subscription: it runs on prepaid credits, bought in the Console under **Plans & Billing**. A new key won't work until the account has credit, and the card says so if it hasn't.
 
 - The key is encrypted with your system keychain (Keychain on macOS, DPAPI on Windows, the Secret Service on Linux) and kept in the app's settings file. It never reaches the page.
 - If there's no keychain, which is common on Linux, the key isn't saved. Set `ANTHROPIC_API_KEY` in the environment before starting the app instead. A profile saved with `ant auth login` also works.
 - **Forget API key** in the tray menu removes the saved key.
+
+### A free local model
+
+1. Install [Ollama](https://ollama.com/) and start it.
+2. Download a model. This one is about 2 GB and can use his abilities:
+
+   ```bash
+   ollama pull llama3.2
+   ```
+
+3. Open Speak and choose **Free local model** (or **Mind → Local model** in the tray menu).
+
+He picks a model from the ones you have, preferring those that handle tools well. To choose yourself, pick one under **Mind** in the tray menu.
+
+- A local model is slower and less capable than Claude, and small ones sometimes misuse an ability or miss a request.
+- **Abilities** need a model that supports tools, and **Look** needs one that can also see pictures. If the model can't, he tells you and just talks.
+- If Ollama runs somewhere other than `127.0.0.1:11434`, set `OLLAMA_HOST` before starting the app.
+
+### Plain commands
+
+These need no model at all. Type them the way they are written here, or close to it:
+
+| Type | And he… |
+|---|---|
+| `remind me in 20 minutes to check the oven` | sends a raven. Also `at 3pm`, `at 15:30`, `tomorrow at 9am`, `in 2 hours`… |
+| `reminders` | lists the ravens that are waiting |
+| `cancel reminder oven` | calls back the raven whose note mentions "oven" (`cancel all reminders` for every one) |
+| `25 minute timer`, `pomodoro` | turns the hourglass |
+| `stop timer` | stops it |
+| `how did today go` | gives today's tally |
+| `remember I like tea` | keeps a note |
+| `what do you remember` | lists his notes |
+| `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
+| `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
+| `what time is it`, `what's the date` | tells you |
+| `help` | lists these |
 
 ### What he can do for you
 
@@ -113,6 +160,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 
 - **Look** and **reading the clipboard** ask your permission in the card every time, and send nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
+- With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
 - He can't read or move files, browse the web, or click or type in other apps, and he says so if asked.
 
 ### Other details
@@ -120,6 +168,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 - Replies stream into the card, and each finished reply has a **copy** button.
 - **↺** starts a new conversation. Memory is kept until you forget it, either by asking him or with the tray menu.
 - Haiku has no fallback model. If it declines a question, he says so, and that question is dropped from the conversation.
+- Changing minds, or local models, starts a new conversation. What he remembers is kept.
 
 ## Permissions
 
@@ -130,7 +179,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 
 `companion.json` in the app's user-data folder keeps:
 
-- Settings and soul.
+- Settings, soul and the mind you chose.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -176,11 +225,13 @@ npm run dist:linux
 | File | What it does |
 |---|---|
 | `main.js` | The window, tray, shortcuts, idle detection, screen capture, clipboard, the Trash, memory and saved state |
-| `oracle.js` | Speak: the Claude conversation, its system prompt and tools |
+| `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
+| `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
+| `offline.js` | The plain commands he follows with no model |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
-| `renderer/speak.js` | The Speak card, its permission questions and copy buttons |
+| `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
 | `renderer/bridge.js` | The page's link to the app, with a stand-in so it also runs in a browser tab |
@@ -193,6 +244,12 @@ From this folder:
 npm test
 ```
 
-This runs `tests/oracle.mjs`, which tests Speak's conversation loop against a fake API with no real calls. It then runs `tests/launch.mjs`, which starts the real app and checks the window, the bridge and the main process. On Linux without a display, run it under `xvfb-run -a npm test`.
+This runs three files:
+
+- `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
+- `tests/minds.mjs` tests the local model against a fake Ollama, and the plain commands.
+- `tests/launch.mjs` starts the real app and checks the window, the bridge and the main process.
+
+On Linux without a display, run it under `xvfb-run -a npm test`.
 
 From the repo root, `npm run test:desktop` checks the page itself in a headless browser.

@@ -606,6 +606,7 @@ body.is-capturing * { visibility: hidden !important; }
 }
 
 /* Speak: his permission questions, and a copy button on each of his replies. */
+#card code { font-family: ui-monospace, Menlo, Consolas, monospace; text-transform: none; letter-spacing: 0; color: var(--gold); user-select: text; }
 .ask {
   display: flex;
   flex-direction: column;

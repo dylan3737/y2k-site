@@ -38,5 +38,7 @@ jobs:
         working-directory: desktop
       - run: node tests/oracle.mjs
         working-directory: desktop
+      - run: node tests/minds.mjs
+        working-directory: desktop
       - run: xvfb-run -a node tests/launch.mjs
         working-directory: desktop

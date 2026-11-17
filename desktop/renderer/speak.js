@@ -21,6 +21,9 @@ export function createSpeak(ctx) {
   const { companion, card, say } = ctx;
   const owner = {};
   let hasKey = false;
+  // Whose mind he borrows: 'claude' (needs a key), 'ollama' or 'offline'.
+  let mind = 'claude';
+  const ready = () => mind !== 'claude' || hasKey;
   let busy = false;
   let current = null; // his line being written
   let reply = '';
@@ -65,22 +68,24 @@ export function createSpeak(ctx) {
     return node;
   }
 
+  // Choosing a mind: paste a key for Claude, or take one of the free ways.
   function showKeyForm(message) {
     keyForm.replaceChildren();
-    const p = el('p', 'muted', message || 'Speak runs on Claude. Paste an Anthropic API key; it is stored encrypted on this computer.');
+    const p = el('p', 'muted', message || 'I need a mind to borrow. Paste an Anthropic API key (it is stored encrypted on this computer), or take a free one.');
     const field = el('input');
     field.type = 'password';
     field.placeholder = 'sk-ant-…';
     field.autocomplete = 'off';
     const save = chip('Save key', null, 'solid');
     const row = el('div', 'row end');
-    row.appendChild(save);
+    row.append(chip('Free local model', useLocal), chip('Commands only', useNone), save);
     const submit = async () => {
       const key = field.value.trim();
       if (!key) return;
       const ok = await companion.setKey(key);
       if (ok) {
         hasKey = true;
+        mind = 'claude';
         keyForm.replaceChildren();
         line('cast', '✦ the key is kept');
         input.focus();
@@ -93,6 +98,59 @@ export function createSpeak(ctx) {
     keyForm.append(p, field, row);
     card.refit();
     setTimeout(() => field.focus(), 30);
+  }
+
+  // A model on this computer, through Ollama. `quiet` leaves out the how-to
+  // when he has just said what is wrong.
+  function showLocal(local, quiet) {
+    keyForm.replaceChildren();
+    if (local && local.using) {
+      line('cast', '✦ borrowing ' + local.using + ', on this computer');
+      card.refit();
+      input.focus();
+      return;
+    }
+    if (!quiet) {
+      const p = el('p', 'muted', local && local.running
+        ? 'Ollama is running but has no model yet. In a terminal, run: '
+        : 'A local model is free and never leaves this computer. Install Ollama from ollama.com, start it, then run in a terminal: ');
+      // The command as typed: the card's lettering would show it in capitals.
+      p.appendChild(el('code', null, 'ollama pull llama3.2'));
+      keyForm.appendChild(p);
+    }
+    const row = el('div', 'row end');
+    row.append(chip('Use a key', useKey), chip('Commands only', useNone), chip('Try again', useLocal, 'solid'));
+    keyForm.appendChild(row);
+    card.refit();
+  }
+
+  async function useLocal() {
+    keyForm.replaceChildren(el('p', 'muted', 'Looking for Ollama…'));
+    const status = await companion.brain({ kind: 'ollama' });
+    mind = status.kind;
+    showLocal(status.local);
+  }
+
+  async function useNone() {
+    const status = await companion.brain({ kind: 'offline' });
+    mind = status.kind;
+    keyForm.replaceChildren();
+    line('cast', '✦ no mind borrowed; say "help" for what he knows alone');
+    card.refit();
+    input.focus();
+  }
+
+  async function useKey() {
+    const status = await companion.brain({ kind: 'claude' });
+    mind = status.kind;
+    hasKey = !!status.hasKey;
+    if (hasKey) {
+      keyForm.replaceChildren();
+      line('cast', '✦ borrowing Claude');
+      card.refit();
+    } else {
+      showKeyForm();
+    }
   }
 
   function setBusy(on) {
@@ -192,6 +250,9 @@ export function createSpeak(ctx) {
         if (event.code === 'key') {
           hasKey = false;
           showKeyForm(event.message);
+        } else if (event.code === 'local') {
+          line('oops', event.message);
+          showLocal(null, true);
         } else {
           line('oops', event.message);
         }
@@ -236,7 +297,7 @@ export function createSpeak(ctx) {
 
   function open() {
     card.open(box, 'voice', owner, { focus: true });
-    if (!hasKey && !keyForm.childNodes.length && !log.childNodes.length) showKeyForm();
+    if (!ready() && !keyForm.childNodes.length && !log.childNodes.length) showKeyForm();
     scroll();
   }
 
@@ -248,7 +309,11 @@ export function createSpeak(ctx) {
     isOpen: () => card.isOpen(owner),
     setHasKey(v) {
       hasKey = !!v;
-      if (hasKey) keyForm.replaceChildren();
+      if (ready()) keyForm.replaceChildren();
+    },
+    setMind(kind) {
+      mind = kind;
+      if (ready()) keyForm.replaceChildren();
     }
   };
 }

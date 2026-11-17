@@ -22,6 +22,8 @@ function check(name, ok, detail = '') {
 const env = { ...process.env, XDG_CONFIG_HOME: mkdtempSync(path.join(tmpdir(), 'reaper-')) };
 delete env.ANTHROPIC_API_KEY;
 delete env.ANTHROPIC_AUTH_TOKEN;
+// And no Ollama, wherever this runs.
+env.OLLAMA_HOST = '127.0.0.1:1';
 
 const app = await electron.launch({ executablePath, args: [appDir], env });
 try {
@@ -87,6 +89,31 @@ try {
     setTimeout(() => resolve({ type: 'timeout' }), 20000);
   }));
   check('Speak without a key asks for one', reply.type === 'error' && reply.code === 'key', JSON.stringify(reply));
+
+  // A plain command needs no key: the main process reads it and the page runs it.
+  const heard = () => page.evaluate((text) => new Promise((resolve) => {
+    let words = '';
+    const off = window.companion.onSpeech((e) => {
+      if (e.type === 'delta') words += e.text;
+      if (e.type === 'error' || e.type === 'done') { off(); resolve({ ...e, words }); }
+    });
+    window.companion.speak(text);
+    setTimeout(() => resolve({ type: 'timeout' }), 20000);
+  }), 'remind me in 45 minutes to stretch');
+  const command = await heard();
+  await page.waitForTimeout(900);
+  const after = await page.evaluate(() => window.companion.state());
+  check('a plain command works without a key', command.type === 'done' && /Stretch/.test(command.words) &&
+    after.ravens.some((r) => r.text === 'Stretch'), JSON.stringify(command));
+
+  // Choosing a local mind with no Ollama running reports that, and is saved.
+  const mind = await page.evaluate(() => window.companion.brain({ kind: 'ollama' }));
+  check('a local mind without Ollama says it is not running', mind.kind === 'ollama' && mind.local && mind.local.running === false, JSON.stringify(mind));
+  const down = await heard();
+  check('with Ollama down a plain command still works', down.type === 'done', JSON.stringify(down));
+  const none = await page.evaluate(() => window.companion.brain({ kind: 'offline' }));
+  check('the mind can be set to none', none.kind === 'offline' && (await page.evaluate(() => window.companion.state())).brain === 'offline');
+  await page.evaluate(() => window.companion.brain({ kind: 'claude' }));
 
   // Trash refuses anything that is not a real absolute path.
   const trash = await page.evaluate(() => window.companion.trash(['relative/file.txt', '/no/such/file']));

@@ -179,6 +179,22 @@ try {
   await page.waitForTimeout(150);
   check('the question shows in the card', (await page.textContent('.line.you')) === 'hello');
   check('an error is shown in the card', (await page.$$('.line.oops, #card input[type=password]')).length > 0);
+  // The free minds, offered beside the key form
+  await page.click('#card .chip:has-text("Free local model")');
+  await page.waitForTimeout(150);
+  check('a local mind with no Ollama says how to get it', (await page.textContent('#card')).includes('ollama pull llama3.2') &&
+    !(await visible(page, '#card input[type=password]')));
+  await page.evaluate(() => { window.__companion.local = { running: true, models: ['llama3.2:latest'], using: 'llama3.2:latest' }; });
+  await page.click('#card .chip:has-text("Try again")');
+  await page.waitForTimeout(150);
+  check('once Ollama answers, he borrows its model', (await page.textContent('.log')).includes('borrowing llama3.2:latest') &&
+    (await page.$$('#card .chip:has-text("Try again")')).length === 0);
+  await page.evaluate(() => window.__companion.emit('speech', { type: 'error', code: 'local', message: 'Ollama is not running.' }));
+  check('trouble with the local mind offers the other ways', await page.isVisible('#card .chip:has-text("Commands only")'));
+  await page.click('#card .chip:has-text("Commands only")');
+  await page.waitForTimeout(150);
+  check('he can go without a mind', (await page.textContent('.log')).includes('no mind borrowed') &&
+    (await page.evaluate(() => window.__companion.read().brain)) === 'offline');
   // A streamed answer with a tool call in the middle
   await page.evaluate(() => {
     const e = (d) => window.__companion.emit('speech', d);

@@ -9,6 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createOracle } from './oracle.js';
+import { listModels } from './ollama.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const asset = (name) => path.join(here, 'assets', name);
@@ -27,7 +28,10 @@ app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 // --- Saved state ---------------------------------------------------------
 const state = {
   soul: 100, best: 0, wander: true, chatty: true, muted: false,
-  ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null
+  ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null,
+  // Whose mind Speak borrows: 'claude' (an API key), 'ollama' (a free model on
+  // this computer) or 'offline' (none; plain commands only).
+  brain: 'claude', localModel: null
 };
 
 // What Speak remembers about the user, kept with the rest of the state.
@@ -102,6 +106,35 @@ function setKey(key) {
   }
   writeState();
   return true;
+}
+
+const BRAINS = ['claude', 'ollama', 'offline'];
+const getBrain = () => ({ kind: BRAINS.includes(state.brain) ? state.brain : 'claude', model: state.localModel || null });
+const hasKey = () => !!state.apiKey || !!process.env.ANTHROPIC_API_KEY;
+
+// The models Ollama has, as last seen; the tray menu lists them.
+let localModels = [];
+
+// Change whose mind Speak borrows (and which local model), then report where
+// things stand. Ollama is only asked when it is the one in use.
+async function setBrain(patch = {}) {
+  if (BRAINS.includes(patch.kind)) state.brain = patch.kind;
+  if ('model' in patch) state.localModel = typeof patch.model === 'string' && patch.model ? patch.model.slice(0, 200) : null;
+  writeState();
+  const { kind, model } = getBrain();
+  let local = null;
+  if (kind === 'ollama') {
+    try {
+      localModels = await listModels();
+      local = { running: true, models: localModels, using: model && localModels.includes(model) ? model : localModels[0] || null };
+    } catch {
+      local = { running: false, models: [], using: null };
+    }
+  }
+  rebuildMenu();
+  const status = { kind, model, hasKey: hasKey(), local };
+  send('settings', { brain: kind, hasKey: status.hasKey });
+  return status;
 }
 
 // --- Window ----------------------------------------------------------------
@@ -251,6 +284,21 @@ function rebuildMenu() {
       label: 'Abilities',
       submenu: abilities.map((a) => ({ label: a.name, click: () => send('command', 'cast:' + a.id) }))
     },
+    {
+      label: 'Mind',
+      submenu: [
+        { label: 'Claude (your API key)', type: 'radio', checked: getBrain().kind === 'claude', click: () => setBrain({ kind: 'claude' }) },
+        { label: 'Local model (Ollama, free)', type: 'radio', checked: getBrain().kind === 'ollama', click: () => setBrain({ kind: 'ollama' }) },
+        { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
+        ...(getBrain().kind === 'ollama' && localModels.length ? [
+          { type: 'separator' },
+          { label: 'Pick the model for me', type: 'radio', checked: !localModels.includes(state.localModel), click: () => setBrain({ model: null }) },
+          ...localModels.map((name) => ({
+            label: name, type: 'radio', checked: state.localModel === name, click: () => setBrain({ model: name })
+          }))
+        ] : [])
+      ]
+    },
     { type: 'separator' },
     {
       label: 'Wander', type: 'checkbox', checked: state.wander,
@@ -282,7 +330,7 @@ function rebuildMenu() {
     {
       label: 'Forget API key', enabled: !!state.apiKey,
       // A key in the environment still works after the saved one is gone.
-      click: () => { setKey(''); rebuildMenu(); send('settings', { hasKey: !!process.env.ANTHROPIC_API_KEY }); }
+      click: () => { setKey(''); rebuildMenu(); send('settings', { hasKey: hasKey() }); }
     },
     { type: 'separator' },
     { label: 'Quit', role: 'quit' }
@@ -322,7 +370,7 @@ function runTool(name, input, signal) {
   });
 }
 
-const oracle = createOracle({ getKey, runTool, memory });
+const oracle = createOracle({ getKey, runTool, memory, getBrain });
 
 function wireIpc() {
   ipcMain.on('interactive', (_e, on) => setInteractive(!!on));
@@ -342,7 +390,8 @@ function wireIpc() {
     ravens: state.ravens,
     hourglass: state.hourglass,
     today: today(),
-    hasKey: !!state.apiKey || !!process.env.ANTHROPIC_API_KEY,
+    hasKey: hasKey(),
+    brain: getBrain().kind,
     keys: { come: COME_KEY, speak: SPEAK_KEY },
     platform: process.platform
   }));
@@ -458,9 +507,15 @@ function wireIpc() {
   ipcMain.on('speak-forget', () => oracle.forget());
   ipcMain.handle('set-key', (_e, key) => {
     const ok = setKey(key);
+    // A key just pasted is the mind he should use.
+    if (ok && String(key || '').trim()) {
+      state.brain = 'claude';
+      writeState();
+    }
     rebuildMenu();
     return ok;
   });
+  ipcMain.handle('brain', (_e, patch) => setBrain(patch && typeof patch === 'object' ? patch : {}));
 }
 
 // --- Start -----------------------------------------------------------------------
@@ -479,6 +534,8 @@ if (!app.requestSingleInstanceLock()) {
     tray.setToolTip('Reaper');
     tray.on('click', () => comeHere());
     rebuildMenu();
+    // With a local mind, the tray lists the models Ollama has.
+    if (getBrain().kind === 'ollama') setBrain();
 
     globalShortcut.register(COME_KEY, () => comeHere());
     globalShortcut.register(SPEAK_KEY, () => comeHere('speak'));
