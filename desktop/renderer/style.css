@@ -159,7 +159,16 @@ body.is-capturing * { visibility: hidden !important; }
 .soul-pop.is-souls { color: var(--gold); }
 
 /* The Crypt */
-.crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0; }
+.crypt { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0 0; }
+.crypt-tabs { gap: 6px; }
+.crypt-page { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.crypt-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.crypt-item b { display: block; font-weight: normal; font-size: 9px; color: #fff; margin-bottom: 3px; }
+.crypt-item .muted { display: block; }
+.crypt-item .chip { flex: none; min-width: 52px; }
+.crypt-item.is-done { opacity: 0.5; }
+.crypt-reward { flex: none; font-size: 9px; color: var(--gold); }
 .digger {
   position: fixed;
   bottom: 0;

@@ -35,7 +35,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
-- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. How many souls or skeletons they have -> get_crypt. Raising skeletons -> raise_skeleton
+- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Souls also buy upgrades, and milestones pay a bonus once. How many souls or skeletons they have, their upgrades or milestones -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade. Never spend souls unless asked
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, a ghost game, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
@@ -99,13 +99,18 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_crypt',
-    description: 'The Crypt: souls banked, skeletons raised, souls they dig up per hour, and what the next skeleton costs.',
+    description: 'The Crypt: souls banked, skeletons raised, souls they dig up per hour, what the next skeleton costs, each upgrade with its level and price, and milestones.',
     input_schema: object()
   },
   {
     name: 'raise_skeleton',
     description: 'Spend banked souls to raise skeletons, which dig up more souls on their own. Raises as many of `count` as the souls allow.',
     input_schema: object({ count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' } })
+  },
+  {
+    name: 'buy_upgrade',
+    description: 'Spend banked souls on the next level of a Crypt upgrade. shovels: skeletons dig 25% faster per level. graves: they dig for longer while the app is shut. sand: a finished hourglass is worth more. lure: more golden ghosts in Summon.',
+    input_schema: object({ upgrade: { type: 'string', enum: ['shovels', 'graves', 'sand', 'lure'] } }, ['upgrade'])
   },
   {
     name: 'look_at_screen',

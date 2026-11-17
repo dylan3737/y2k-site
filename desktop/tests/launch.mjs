@@ -118,13 +118,18 @@ try {
   // The Crypt is kept by the main process.
   await page.evaluate(() => window.companion.stat('focus', 1, 30));
   await page.waitForTimeout(200);
+  // 30 minutes and the first-hourglass milestone (15), less 25, plus the first-skeleton milestone (10).
   const raised = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
-  check('a finished hourglass banks souls that raise a skeleton', raised.ok && raised.crypt.skeletons === 1 && raised.crypt.souls === 5, JSON.stringify(raised));
+  check('a finished hourglass banks souls that raise a skeleton', raised.ok && raised.crypt.skeletons === 1 && raised.crypt.souls === 30, JSON.stringify([raised.ok, raised.crypt.souls]));
   check('the skeleton digs on screen', (await page.$$('.digger')).length === 1);
   const poor = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
-  check('the crypt refuses what the souls cannot pay for', !poor.ok && poor.crypt.skeletons === 1, JSON.stringify(poor));
+  check('the crypt refuses what the souls cannot pay for', !poor.ok && poor.crypt.skeletons === 1, poor.error);
+  await page.evaluate(() => window.companion.stat('focus', 1, 60));
+  const bought = await page.evaluate(() => window.companion.crypt({ buy: 'shovels' }));
+  check('souls buy an upgrade', bought.ok && bought.level === 1 && bought.crypt.upgrades[0].level === 1 && bought.crypt.perHour === 1.9, JSON.stringify([bought.ok, bought.error, bought.crypt.perHour]));
   const kept = await page.evaluate(() => window.companion.state());
-  check('the crypt is part of the saved state', kept.crypt.skeletons === 1 && kept.crypt.perHour === 6 && kept.minions === true, JSON.stringify(kept.crypt));
+  check('the crypt is part of the saved state', kept.crypt.skeletons === 1 && kept.crypt.upgrades[0].level === 1 &&
+    kept.crypt.milestones.filter((m) => m.done).length === 4 && kept.minions === true, JSON.stringify(kept.crypt.milestones.filter((m) => m.done)));
 
   // Trash refuses anything that is not a real absolute path.
   const trash = await page.evaluate(() => window.companion.trash(['relative/file.txt', '/no/such/file']));

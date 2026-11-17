@@ -44,14 +44,14 @@ function browserStandIn() {
     stat(key, n = 1, worth) {
       if (!(key in stats)) return;
       stats[key] += n;
-      const gained = rules.earn(crypt, key, Number.isFinite(worth) ? worth : n);
+      const { gained, reached } = rules.deed(crypt, key, Number.isFinite(worth) ? worth : n);
       saveCrypt();
-      if (gained) emit('crypt', { crypt: rules.view(crypt), gained });
+      if (gained) emit('crypt', { crypt: rules.view(crypt), gained, reached });
     },
     async crypt(action = {}) {
-      rules.settle(crypt);
-      const out = action.raise ? rules.raise(crypt, action.raise) : { ok: true };
+      const { reached, ...out } = rules.act(crypt, action);
       saveCrypt();
+      emit('crypt', { crypt: rules.view(crypt), reached });
       return { ...out, crypt: rules.view(crypt) };
     },
     interactive() {},

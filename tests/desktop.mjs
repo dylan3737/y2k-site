@@ -214,9 +214,9 @@ try {
 
   // The Crypt: deeds bank souls, souls raise skeletons, skeletons dig
   page = await open({ wander: false });
+  const banked = () => page.textContent('#card .crypt-souls');
   await page.evaluate(() => window.__reaper.abilities.cast('crypt'));
-  check('the Crypt opens empty', (await page.textContent('#card .crypt-souls')) === '0 souls' &&
-    await page.isDisabled('#card .chip.solid'));
+  check('the Crypt opens empty', (await banked()) === '0 souls' && await page.isDisabled('#card .chip.solid'));
   await page.evaluate(async () => {
     const { companion } = await import('./bridge.js');
     companion.stat('caught', 12);
@@ -224,21 +224,47 @@ try {
     companion.stat('focus', 1, 25);
   });
   await page.waitForTimeout(100);
-  check('ghosts, files and a finished hourglass bank souls', (await page.textContent('#card .crypt-souls')) === '47 souls',
-    await page.textContent('#card .crypt-souls'));
+  // 12 ghosts, 2 files (10) and 25 minutes, plus two first-time milestones (10 and 15).
+  check('ghosts, files and a finished hourglass bank souls', (await banked()) === '72 souls', await banked());
+  await page.waitForTimeout(1300);
+  check('a milestone is announced', /Milestone: .*First sand/.test(await page.textContent('#bubble')), await page.textContent('#bubble'));
   await page.click('#card .chip.solid');
   await page.waitForTimeout(200);
-  check('souls raise a skeleton', (await page.textContent('#card .crypt-souls')) === '22 souls' &&
-    (await page.textContent('#card')).includes('1 skeleton digs up 6 souls an hour'), await page.textContent('#card'));
+  check('souls raise a skeleton', (await banked()) === '57 souls' &&
+    (await page.textContent('#card')).includes('1 skeleton digs up 1.5 souls an hour'), await page.textContent('#card'));
   check('the skeleton digs on screen', (await page.$$('.field .digger')).length === 1);
-  check('the next one costs more than he has', (await page.textContent('#card .chip.solid')).includes('29') && await page.isDisabled('#card .chip.solid'));
-  out = await tool('raise_skeleton', {});
-  check('Speak cannot raise one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
+
+  // Upgrades
+  await page.evaluate(async () => (await import('./bridge.js')).companion.stat('focus', 1, 50));
+  await page.click('#card .chip[data-tab="upgrades"]');
+  check('the upgrades are listed with prices', (await page.$$('#card .crypt-item')).length === 4 &&
+    (await page.textContent('#card .crypt-item')).includes('Sharper shovels 0/10') && (await page.textContent('#card .crypt-item .chip')) === '60');
+  await page.click('#card .crypt-item .chip');
+  await page.waitForTimeout(200);
+  // 57 + 50 minutes + 50 (a 50-minute hourglass) - 60 + 20 (the first upgrade).
+  check('souls buy an upgrade', (await banked()) === '117 souls' && (await page.textContent('#card .crypt-item')).includes('Sharper shovels 1/10') &&
+    (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 1.9, await banked());
+  check('what he cannot afford cannot be clicked', await page.isDisabled('#card .crypt-item:nth-child(3) .chip'));
+  await page.click('#card .chip[data-tab="milestones"]');
+  check('milestones show what is reached and what is ahead', (await page.textContent('#card .crypt-page')).includes('5 of 17 reached') &&
+    (await page.$$('#card .crypt-item.is-done')).length === 5 && (await page.$$('#card .crypt-item')).length === 17);
+
+  // Speak's tools for it
   out = await tool('get_crypt', {});
-  check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 29, JSON.stringify(out));
+  check('Speak can count the crypt', out.ok && out.result.souls === 117 && out.result.skeletons === 1 && out.result.nextCost === 32 &&
+    out.result.milestonesReached === '5 of 17' && out.result.nextMilestones.length === 3 && out.result.upgrades[0].level === 1, JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'graves' });
+  check('Speak can buy an upgrade', out.ok && out.result.level === 1 && out.result.souls === 27, JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'lure' });
+  check('Speak cannot buy one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'cheat' });
+  check('or one that does not exist', !out.ok && /No such upgrade/.test(out.error), JSON.stringify(out));
+  out = await tool('raise_skeleton', {});
+  check('Speak cannot raise a skeleton without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
-  // Shut for two hours with one skeleton: twelve souls, told on the way in.
+  // Shut for two hours with one skeleton and sharper shovels: 3.75 souls, told on the way in.
   await page.evaluate(() => {
     const saved = window.__companion.read();
     saved.crypt.at -= 2 * 3600000;
@@ -247,8 +273,9 @@ try {
   await page.reload();
   await page.waitForSelector('#body');
   await page.waitForTimeout(1900);
-  check('he says what was dug while the app was shut', (await page.textContent('#bubble')).includes('The skeletons dug up 12 souls'), await page.textContent('#bubble'));
-  check('and it is in the crypt', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 34);
+  check('he says what was dug while the app was shut', (await page.textContent('#bubble')).includes('The skeletons dug up 3 souls'), await page.textContent('#bubble'));
+  check('and it is in the crypt, with the upgrades kept', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 30 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().awayCapHours)) === 12);
   // Back from being away
   await page.evaluate(() => {
     window.__companion.emit('away', { away: true });

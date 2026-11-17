@@ -81,8 +81,10 @@ function takeDug() {
 // Count what the skeletons dug since the last look, and tell the page.
 function tendCrypt(event = {}) {
   crypt.settle(state.crypt);
+  // Digging alone can reach a milestone; one reached by a deed is passed in.
+  const reached = [...(event.reached || []), ...crypt.reach(state.crypt)];
   writeState();
-  send('crypt', { crypt: crypt.view(state.crypt), ...event });
+  send('crypt', { ...event, crypt: crypt.view(state.crypt), reached });
 }
 
 function writeNow() {
@@ -450,17 +452,16 @@ function wireIpc() {
   ipcMain.on('stat', (_e, { key, n, worth } = {}) => {
     if (!STAT_KEYS.includes(key) || !Number.isFinite(n)) return;
     today()[key] += n;
-    const gained = crypt.earn(state.crypt, key, Number.isFinite(worth) ? worth : n);
-    if (gained) tendCrypt({ gained });
+    const { gained, reached } = crypt.deed(state.crypt, key, Number.isFinite(worth) ? worth : n);
+    if (gained) tendCrypt({ gained, reached });
     writeState();
   });
 
   ipcMain.handle('crypt', (_e, action = {}) => {
-    crypt.settle(state.crypt);
-    const out = action && action.raise ? crypt.raise(state.crypt, action.raise) : { ok: true };
-    writeState();
-    // The page hears too, so the skeletons on screen always match the crypt.
-    send('crypt', { crypt: crypt.view(state.crypt) });
+    const { reached, ...out } = crypt.act(state.crypt, action);
+    // The page hears too, so the skeletons on screen always match the crypt,
+    // and that is where it learns of milestones.
+    tendCrypt({ reached });
     return { ...out, crypt: crypt.view(state.crypt) };
   });
 

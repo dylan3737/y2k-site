@@ -193,7 +193,8 @@ export function createAbilities(ctx) {
   let scoreEl = null;
 
   function spawnGhost() {
-    const golden = Math.random() < 0.1;
+    // One in ten, or more with the Crypt's ghost lure.
+    const golden = Math.random() < (ctx.crypt.get().goldenChance || 0.1);
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
     g.innerHTML = GHOST_SVG;
     const side = Math.random() < 0.5;
@@ -573,13 +574,29 @@ export function createAbilities(ctx) {
       case 'get_crypt': {
         const out = await companion.crypt();
         ctx.crypt.update(out.crypt);
-        return { ok: true, result: out.crypt };
+        // Milestones as a count and what is next, not the whole list.
+        const { milestones, goldenChance, ...rest } = out.crypt;
+        return {
+          ok: true,
+          result: {
+            ...rest, goldenChance,
+            milestonesReached: milestones.filter((m) => m.done).length + ' of ' + milestones.length,
+            nextMilestones: milestones.filter((m) => !m.done).slice(0, 3).map((m) => m.how + ' (+' + m.reward + ' souls)')
+          }
+        };
+      }
+      case 'buy_upgrade': {
+        if (typeof input.upgrade !== 'string') return { ok: false, error: 'upgrade must be a string' };
+        const out = await ctx.crypt.buy(input.upgrade);
+        return out.ok ? { ok: true, result: { bought: out.name, level: out.level, souls: out.crypt.souls } } : { ok: false, error: out.error };
       }
       case 'raise_skeleton': {
         const count = input.count === undefined ? 1 : input.count;
         if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
         const out = await ctx.crypt.raise(count);
-        return out.ok ? { ok: true, result: { raised: out.raised, ...out.crypt } } : { ok: false, error: out.error };
+        return out.ok
+          ? { ok: true, result: { raised: out.raised, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
+          : { ok: false, error: out.error };
       }
       case 'look_at_screen': {
         if (!(await ctx.speak.ask('Let him look at your screen?'))) return { ok: false, error: 'The user said no.' };

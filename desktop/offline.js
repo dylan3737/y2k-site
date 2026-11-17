@@ -15,6 +15,7 @@ export const HELP = [
   '• 25 minute timer / stop timer',
   '• how did today go',
   '• crypt / raise a skeleton / raise 3 skeletons',
+  '• upgrades / buy shovels (or graves, sand, lure) / milestones',
   '• remember I like tea / what do you remember / forget tea',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -177,6 +178,27 @@ function cryptwork(text) {
       const out = await tool('raise_skeleton', { count: Math.max(1, Math.min(50, count)) });
       if (!out.ok) return out.error || 'They would not rise.';
       return plural(out.result.raised, 'skeleton') + ' risen. ' + plural(out.result.souls, 'soul') + ' left.';
+    };
+  }
+  const shop = /^(buy|upgrade|get|sharpen|deepen)\s+(the\s+|my\s+|a\s+)?(sharper\s+|deeper\s+|finer\s+|ghost\s+)?(shovels?|graves?|sand|lures?)$/.exec(text);
+  if (shop) {
+    const upgrade = { sh: 'shovels', gr: 'graves', sa: 'sand', lu: 'lure' }[shop[4].slice(0, 2)];
+    return async ({ tool }) => {
+      const out = await tool('buy_upgrade', { upgrade });
+      if (!out.ok) return out.error || 'It could not be bought.';
+      return out.result.bought + ', level ' + out.result.level + '. ' + plural(out.result.souls, 'soul') + ' left.';
+    };
+  }
+  if (/^((show|list)\s+)?(my\s+|the\s+)?(upgrades|milestones)\??$/.test(text)) {
+    const wanted = /upgrades/.test(text) ? 'upgrades' : 'milestones';
+    return async ({ tool }) => {
+      const out = await tool('get_crypt', {});
+      if (!out.ok) return failed(out);
+      const c = out.result;
+      if (wanted === 'milestones') {
+        return [c.milestonesReached + ' milestones reached.', ...c.nextMilestones.map((m) => '• ' + m)].join('\n');
+      }
+      return c.upgrades.map((u) => '• ' + u.name + ' ' + u.level + '/' + u.max + (u.cost === null ? ' (done)' : ': ' + u.cost + ' souls for ' + u.next)).join('\n');
     };
   }
   if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|minions)\??$|^how many (souls|skeletons)\b/.test(text)) return null;

@@ -97,13 +97,44 @@ You earn souls by using him:
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls raise **skeletons**. The first costs 25, and each one after costs 15% more than the last. Every skeleton digs up 6 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+Souls raise **skeletons**. The first costs 25, and each one after costs 25% more than the last. Every skeleton digs up 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
 
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
 - Up to eight skeletons dig along the bottom of your screen. Clicks pass through them.
 
-Open the Crypt from his ring to see your souls and raise a skeleton. Speak can do it too ("raise two skeletons", "how's the crypt?"), and so can the plain commands.
+### Upgrades
+
+Souls also buy upgrades, which change the rules instead of adding diggers. Each level costs more than the one before.
+
+| Upgrade | Levels | What each level does | First level costs |
+|---|---|---|---|
+| **Sharper shovels** | 10 | Every skeleton digs 25% faster | 60 |
+| **Deeper graves** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
+| **Finer sand** | 3 | A finished Hourglass is worth 1.5, then 2, then 3 souls a minute | 120 |
+| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in Summon are golden (10% without it) | 80 |
+
+### Milestones
+
+There are 17 milestones, such as raising your first skeleton, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
+
+### Using it
+
+Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
+
+### Tuning the numbers
+
+The rates and prices are at the top of `crypt.js`. `tools/pacing.mjs` plays the game as three kinds of user (casual, typical, heavy) and prints when each purchase and milestone lands, so a change can be judged from what it does:
+
+```bash
+npm run pacing
+```
+
+```bash
+npm run pacing -- typical 60
+```
+
+The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) raises a skeleton in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
 
 ## Speak
 
@@ -160,6 +191,9 @@ These need no model at all. Type them the way they are written here, or close to
 | `how did today go` | gives today's tally |
 | `crypt` | counts your souls and skeletons |
 | `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
+| `upgrades` | lists the upgrades with their levels and prices |
+| `buy shovels` (or `graves`, `sand`, `lure`) | buys the next level |
+| `milestones` | says how many you have reached and what is next |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
@@ -178,7 +212,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
-| "How's the crypt?" / "Raise two skeletons" | **Crypt**: counts your souls and skeletons, or raises more |
+| "How's the crypt?" / "Raise two skeletons" / "Buy sharper shovels" | **Crypt**: counts your souls, skeletons, upgrades and milestones, raises skeletons, or buys an upgrade. He spends souls only when you ask. |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
@@ -205,7 +239,7 @@ These need no model at all. Type them the way they are written here, or close to
 `companion.json` in the app's user-data folder keeps:
 
 - Settings, soul and the mind you chose.
-- The Crypt: banked souls and skeletons.
+- The Crypt: banked souls, skeletons, upgrades and milestones reached.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -254,11 +288,12 @@ npm run dist:linux
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
-| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig |
+| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
+| `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
-| `renderer/crypt.js` | The Crypt's card and the skeletons on screen |
+| `renderer/crypt.js` | The Crypt's card, with its three tabs, and the skeletons on screen |
 | `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |

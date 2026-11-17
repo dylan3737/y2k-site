@@ -14,6 +14,6 @@ export default [
   { files: ['js/**/*.js', 'desktop/renderer/**/*.js'], languageOptions: { globals: globals.browser } },
   // Tests run in Node but pass callbacks into the page, so both sets apply.
   { files: ['tests/**/*.mjs', 'desktop/tests/**/*.mjs'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
-  { files: ['eslint.config.js', 'desktop/main.js', 'desktop/oracle.js', 'desktop/offline.js', 'desktop/ollama.js', 'desktop/crypt.js'], languageOptions: { globals: globals.node } },
+  { files: ['eslint.config.js', 'desktop/main.js', 'desktop/oracle.js', 'desktop/offline.js', 'desktop/ollama.js', 'desktop/crypt.js', 'desktop/tools/**/*.mjs'], languageOptions: { globals: globals.node } },
   { files: ['desktop/preload.cjs'], languageOptions: { sourceType: 'commonjs', globals: globals.node } }
 ];
