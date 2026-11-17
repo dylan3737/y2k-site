@@ -72,14 +72,14 @@ When it's low, he fades.
 | **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During Summon, it reaps every ghost. |
 | **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During Summon, it reaps every ghost. |
 | **Glitch** | 15 | A second and a half of Y2K corruption: the colours split, the screen tears into slices, blocks smear and scanlines roll, then the signal comes back. |
+| **Vortex** | 25 | A black hole opens at your cursor and the whole screen spirals into it, then it spits everything back out. Loose ghosts get pulled in. |
+| **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
+| **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
+| **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
 | **Summon** | 25 | Ten seconds of ghosts flying across your whole desktop. Click them to catch them. Golden ones are worth three. Your best catch is saved. |
-| **Eclipse** | 10 | Darkens the screen except a circle of light around your cursor, for a minute. Cast again to end it. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
-| **Harvest** | free | Today's tally: time at the computer, timers finished, ghosts caught, files reaped. |
 | **Hum** | 5 | A slow minor music-box tune over a drone. Cast again to stop it. |
-| **Reap** | free | Reminds you that you can drop files on him. |
-| **Haunt** | 5 | He follows your cursor for two minutes, keeping just off to the side. Click him to stop. |
 | **Vanish** | free | He fades into the corner and stays quiet for 30 minutes. Click him to bring him back. |
 
 ## Speak
@@ -106,8 +106,8 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 | "Summarize what I copied" | **Clipboard**: reads the text you copied |
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
-| "How did today go?" | **Harvest**: reads today's tally |
-| "Break my screen" / "Do the ghost game" / "Follow me" | **Abilities**: casts Slash, Shatter, Glitch, Summon, Eclipse, Hum, Haunt or Vanish |
+| "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
+| "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
 
@@ -123,7 +123,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 
 ## Permissions
 
-- **macOS:** Slash, Shatter, Glitch and Look need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
+- **macOS:** Look and the screen effects (Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip) need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
 - **Linux:** transparency needs a compositing window manager, which most desktops have.
 
 ## Where things are kept
@@ -181,8 +181,8 @@ npm run dist:linux
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
 | `renderer/speak.js` | The Speak card, its permission questions and copy buttons |
-| `renderer/effects.js` | Shatter and Glitch, drawn on a canvas over a picture of the screen |
-| `renderer/sound.js` | The bell, the slash, the shatter, the glitch, and Hum |
+| `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
+| `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
 | `renderer/bridge.js` | The page's link to the app, with a stand-in so it also runs in a browser tab |
 
 ## Checks

@@ -6,7 +6,8 @@ import { serve } from './serve.mjs';
 
 const server = await serve();
 const URL_ = `http://127.0.0.1:${server.address().port}/y2k-site/desktop/renderer/index.html`;
-const browser = await chromium.launch();
+// Software WebGL, so the shader effects (Vortex, Burn, Melt) run without a GPU.
+const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
 let failures = 0;
 
 function check(name, ok, detail = '') {
@@ -83,16 +84,13 @@ try {
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
-  // Eclipse toggles
-  await castFromRing(page, 'eclipse');
-  check('Eclipse darkens the screen', await visible(page, '#eclipse'));
-  check('Eclipse costs 10 soul', (await soul(page)) === 90);
-  await page.mouse.move(300, 300);
-  const cx = await page.evaluate(() => document.getElementById('eclipse').style.getPropertyValue('--cx'));
-  check('Eclipse light follows the cursor', cx === '300px', cx);
-  await castFromRing(page, 'eclipse');
-  await page.waitForTimeout(900);
-  check('casting Eclipse again ends it for free', !(await visible(page, '#eclipse')) && (await soul(page)) >= 90);
+  // Hum toggles
+  const humming = () => page.evaluate(() => window.__reaper.abilities.byId.hum.active());
+  await castFromRing(page, 'hum');
+  check('Hum starts the music box', await humming());
+  check('Hum costs 5 soul', (await soul(page)) === 95);
+  await castFromRing(page, 'hum');
+  check('casting Hum again stops it for free', !(await humming()) && (await soul(page)) >= 95);
 
   // Summon
   await castFromRing(page, 'summon');
@@ -163,8 +161,9 @@ try {
   check('set_hourglass refuses a fraction', out.ok === false);
   out = await tool('set_hourglass', { minutes: 25 });
   check('set_hourglass starts the sand', out.ok && await visible(page, '#sand'));
-  out = await tool('cast', { ability: 'eclipse' });
-  check('cast runs an ability', out.ok && await visible(page, '#eclipse'));
+  out = await tool('cast', { ability: 'hum' });
+  check('cast runs an ability', out.ok && await page.evaluate(() => window.__reaper.abilities.byId.hum.active()));
+  await page.evaluate(() => window.__reaper.abilities.cast('hum'));
   out = await tool('cast', { ability: 'speak' });
   check('cast refuses abilities outside its list', out.ok === false);
   out = await tool('get_harvest', {});
@@ -238,21 +237,6 @@ try {
   c = await bodyCenter(page);
   check('Come here steps him to the cursor', Math.abs(c.x - 400) < 60, JSON.stringify(c));
 
-  // Harvest and Reap say something
-  await castFromRing(page, 'harvest');
-  await page.waitForTimeout(200);
-  check('Harvest reads the day', (await page.textContent('#bubble')).includes('harvest'));
-
-  // Haunt: he follows the cursor, off to one side, until clicked.
-  await castFromRing(page, 'haunt');
-  await page.mouse.move(300, 300);
-  await page.waitForTimeout(2500);
-  c = await bodyCenter(page);
-  check('Haunt makes him follow the cursor', (await mode(page)) === 'haunt' && Math.hypot(c.x - 370, c.y - 330) < 50, JSON.stringify(c));
-  check('he keeps off the cursor itself', Math.abs(c.x - 300) > 30);
-  await page.click('#body', { force: true });
-  check('clicking him ends Haunt', (await mode(page)) === 'wander');
-
   check('no errors along the way', page.errors.length === 0, page.errors.join('; '));
 
   // Speak's new tools: Look and the clipboard ask first.
@@ -291,13 +275,14 @@ try {
   await toolCall('copy_to_clipboard', { text: 'a draft' });
   outcome = await toolOut();
   check('copy_to_clipboard copies', outcome && outcome.ok && (await page.evaluate(() => window.__companion.clipboard)) === 'a draft');
-  await toolCall('cast', { ability: 'haunt' });
+  await toolCall('cast', { ability: 'vanish' });
   outcome = await toolOut();
-  check('Speak can cast Haunt', outcome && outcome.ok && (await mode(page)) === 'haunt');
+  await page.waitForTimeout(1100);
+  check('Speak can cast Vanish', outcome && outcome.ok && (await mode(page)) === 'vanish');
 
   // A finished reply can be copied.
   await page.evaluate(() => {
-    // Haunt (cast above) closed the card; open it again.
+    // Vanish (cast above) closed the card; open it again.
     window.__reaper.speak.open();
     const e = (d) => window.__companion.emit('speech', d);
     const box = document.querySelector('#card textarea');
@@ -339,12 +324,6 @@ try {
     return !!q && q.classList.contains('is-answered') && window.__toolOut && window.__toolOut.ok === false;
   }));
   await page.evaluate(() => window.__reaper.speak.close());
-  await page.evaluate(() => window.__reaper.abilities.cast('haunt'));
-  await page.evaluate(() => window.__reaper.speak.open());
-  check('opening a card ends Haunt', (await mode(page)) === 'wander');
-  await page.evaluate(() => window.__reaper.abilities.cast('haunt'));
-  check('Haunt closes an open card', !(await visible(page, '#card')) && (await mode(page)) === 'haunt');
-  await page.click('#body', { force: true });
   await page.evaluate(() => window.__reaper.speak.open());
   await page.evaluate(() => window.__reaper.abilities.cast('vanish'));
   await page.waitForTimeout(1100);
@@ -392,6 +371,31 @@ try {
   check('Speak can cast Shatter', await page.evaluate(() => !!window.__toolOut && window.__toolOut.ok));
   await page.waitForTimeout(2600);
   check('no errors in Shatter and Glitch', page.errors.length === 0, page.errors.join('; '));
+
+  // Vortex, Burn, Melt and Soul Rip, each start to finish.
+  page = await open({ wander: false, soul: 100, greeted: new Date().toDateString() });
+  await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 40;
+    const g = c.getContext('2d');
+    g.fillStyle = '#36a';
+    g.fillRect(0, 0, 64, 40);
+    window.__companion.shot = c.toDataURL('image/png');
+  });
+  await page.mouse.move(500, 300);
+  for (const [id, ms, done] of [['vortex', 2900, 'gives it back'], ['burn', 3300, 'Ashes'], ['melt', 2600, 'Set again'], ['soulrip', 2800, 'Delicious']]) {
+    await page.evaluate((i) => window.__reaper.abilities.cast(i), id);
+    await page.waitForTimeout(600);
+    check(id + ' draws over the screen', (await page.$$('.fx-canvas')).length === 1);
+    await page.waitForTimeout(ms);
+    check(id + ' cleans up after itself', (await page.$$('.fx-canvas')).length === 0);
+    const said = await page.textContent('#bubble');
+    check(id + ' finishes on the real screen', said.includes(done), said);
+  }
+  // 95 spent, plus a little regained while they ran.
+  check('the four cost 95 soul in all', (await soul(page)) <= 10, String(await soul(page)));
+  check('no errors in the new four', page.errors.length === 0, page.errors.join('; '));
 } catch (err) {
   console.error(err);
   failures++;

@@ -19,6 +19,10 @@ const AWAY_AFTER = 180; // seconds without input before he falls asleep
 
 // Transparent windows on Linux need this before the app is ready.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-transparent-visuals');
+// Vortex, Burn and Melt are WebGL shaders. Where the GPU is missing or
+// blocklisted, let Chromium draw WebGL in software instead of refusing.
+// ("Unsafe" is about untrusted web pages; this window only loads our own.)
+app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 
 // --- Saved state ---------------------------------------------------------
 const state = {

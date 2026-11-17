@@ -74,9 +74,9 @@ try {
   check('a raven is saved by the main process', saved.ravens.some((r) => r.text === 'Test raven'));
 
   // Tray abilities reach the page.
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('command', 'cast:eclipse'));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('command', 'cast:summon'));
   await page.waitForTimeout(200);
-  check('a tray command casts an ability', await page.evaluate(() => !document.getElementById('eclipse').hidden));
+  check('a tray command casts an ability', (await page.$$('.ghost')).length > 0);
 
   // Speak without a key asks for one rather than failing silently.
   const reply = await page.evaluate(() => new Promise((resolve) => {
@@ -105,6 +105,11 @@ try {
   await page.waitForTimeout(2000);
   check('Shatter and Glitch clean up after themselves', (await page.$$('.fx-canvas')).length === 0);
   check('Glitch saw the real screen', (await page.textContent('#bubble')).includes('Signal restored'));
+  // A shader effect, which needs WebGL in the app.
+  await page.evaluate(() => window.__reaper.abilities.cast('melt'));
+  await page.waitForTimeout(2900);
+  const melted = await page.textContent('#bubble');
+  check('Melt runs its shader in the app', melted.includes('Set again'), melted);
 
   // Speak's clipboard tools go through the main process.
   await page.evaluate(() => window.companion.clipboardWrite('from the reaper'));

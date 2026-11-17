@@ -1,6 +1,7 @@
-// Screen effects drawn over a picture of the screen: Shatter and Glitch.
-// Like Slash, they never touch real windows; the picture is wrecked and then
-// put back, and the canvas removed.
+// Screen effects drawn over a picture of the screen: Shatter, Glitch and Soul Rip
+// on a 2D canvas; Vortex, Burn and Melt as WebGL shaders. Like Slash, they
+// never touch real windows: the picture is wrecked, then put back, and the
+// canvas removed.
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -11,15 +12,19 @@ function loadImage(url) {
   });
 }
 
-// A full-window canvas behind the reaper, in device pixels.
-function stage(field) {
+// A full-window canvas behind the reaper, in device pixels. `context` is '2d'
+// or 'webgl': a canvas can only ever have one kind, so it is asked for once.
+function stage(field, context = '2d') {
   const canvas = document.createElement('canvas');
   canvas.className = 'fx-canvas';
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(innerWidth * dpr);
   canvas.height = Math.round(innerHeight * dpr);
   field.prepend(canvas);
-  return { canvas, ctx: canvas.getContext('2d'), w: innerWidth, h: innerHeight, dpr };
+  const ctx = context === 'webgl'
+    ? canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false })
+    : canvas.getContext('2d');
+  return { canvas, ctx, w: innerWidth, h: innerHeight, dpr };
 }
 
 // Without a picture (no screen permission): dark glass, so the effect still reads.
@@ -273,5 +278,301 @@ export async function glitch(field, shot) {
       ctx.globalCompositeOperation = 'source-over';
     }
   }, GLITCH_MS);
+  canvas.remove();
+}
+
+// --- Shaders: Vortex, Burn, Melt ------------------------------------------------------------
+// The picture becomes a texture on one full-window quad, and a fragment
+// shader decides, for every pixel, where in the picture to look.
+const VERTEX = `
+attribute vec2 a;
+varying vec2 uv;
+void main() {
+  uv = vec2(a.x * 0.5 + 0.5, 0.5 - a.y * 0.5);
+  gl_Position = vec4(a, 0.0, 1.0);
+}`;
+
+const COMMON = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying vec2 uv;
+uniform sampler2D tex;
+uniform float aspect;
+uniform float time;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+  float v = 0.0, amp = 0.5;
+  for (int i = 0; i < 5; i++) { v += amp * vnoise(p); p *= 2.0; amp *= 0.5; }
+  return v;
+}
+// The void behind the screen: the same purple dark as Slash and Shatter.
+vec3 voidColor(vec2 p) {
+  float r = length((p - 0.5) * vec2(aspect, 1.0));
+  return mix(vec3(0.16, 0.04, 0.18), vec3(0.02, 0.01, 0.04), clamp(r * 1.4, 0.0, 1.0));
+}
+vec3 pick(vec2 p) {
+  if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) return voidColor(p);
+  return texture2D(tex, p).rgb;
+}`;
+
+// A black hole at `c` swirls the screen in. `e` is how strong, 0 to 1.
+const VORTEX = COMMON + `
+uniform vec2 c;
+uniform float e;
+void main() {
+  vec2 d = (uv - c) * vec2(aspect, 1.0);
+  float r = length(d);
+  float twist = e * 11.0 * exp(-r * 2.4);
+  float pull = e * 1.7 * exp(-r * 2.2);
+  float s = sin(twist), co = cos(twist);
+  vec2 rd = vec2(co * d.x - s * d.y, s * d.x + co * d.y) * (1.0 + pull);
+  vec3 col = pick(c + rd / vec2(aspect, 1.0));
+  float hole = 0.12 * e;
+  col *= smoothstep(hole * 0.6, hole * 1.7, r);
+  col += vec3(0.65, 0.25, 1.0) * exp(-pow((r - hole) / (0.02 + 0.03 * e), 2.0)) * e * 1.3;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// Fire eats in from the edges along a noisy front. Everything below `th`
+// has burned; a band of embers and a band of char sit on the front.
+const BURN = COMMON + `
+uniform float th;
+void main() {
+  float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+  float v = edge * 2.2 + fbm(uv * vec2(aspect, 1.0) * 5.0) * 0.55;
+  float near = smoothstep(th + 0.25, th, v);
+  vec2 shimmer = vec2(0.0, sin(uv.x * 70.0 + time * 12.0) * 0.003 * near);
+  vec3 col = pick(uv + shimmer);
+  float w = 0.05;
+  if (v < th) {
+    vec2 cell = floor(uv * vec2(aspect, 1.0) * 80.0);
+    float spark = step(0.988, hash(cell + floor(time * 9.0))) * smoothstep(th - 0.35, th, v);
+    col = voidColor(uv) + vec3(1.0, 0.45, 0.12) * spark;
+  } else if (v < th + w) {
+    col = mix(vec3(1.0, 0.95, 0.65), vec3(1.0, 0.3, 0.04), (v - th) / w) * 1.5;
+  } else if (v < th + w * 3.0) {
+    float k = (v - th - w) / (w * 2.0);
+    col = mix(vec3(0.12, 0.04, 0.02), col * 0.8, k);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+// The screen sags and drips downward in uneven columns. `m` is how far.
+const MELT = COMMON + `
+uniform float m;
+float n1(float x) {
+  float i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(hash(vec2(i, 0.0)), hash(vec2(i + 1.0, 0.0)), f);
+}
+void main() {
+  float drip = pow(n1(uv.x * 38.0) * 0.55 + n1(uv.x * 9.0 + 3.0) * 0.45, 1.6);
+  float fall = m * (0.12 + drip * 0.95) * (0.35 + uv.y * 0.65);
+  float sway = sin(uv.y * 16.0 + uv.x * 7.0) * 0.004 * m;
+  vec2 p = vec2(uv.x + sway, uv.y - fall);
+  vec3 col = p.y < 0.0 ? voidColor(uv) : texture2D(tex, p).rgb;
+  // A wet shine along the dripping edge.
+  col += vec3(1.0, 0.92, 0.75) * smoothstep(0.012, 0.0, abs(p.y)) * clamp(m, 0.0, 1.0) * 0.45;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+function compile(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) || 'shader did not compile');
+  return shader;
+}
+
+// Returns null where WebGL isn't available; the caller says so.
+function shaderStage(field, src, fragment) {
+  const { canvas, ctx: gl, w, h } = stage(field, 'webgl');
+  if (!gl) {
+    canvas.remove();
+    return null;
+  }
+  const program = gl.createProgram();
+  gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX));
+  gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragment));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) || 'shader did not link');
+  gl.useProgram(program);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const a = gl.getAttribLocation(program, 'a');
+  gl.enableVertexAttribArray(a);
+  gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  const where = {};
+  const set = (name, value) => {
+    if (!(name in where)) where[name] = gl.getUniformLocation(program, name);
+    if (where[name] === null) return;
+    if (Array.isArray(value)) gl.uniform2f(where[name], value[0], value[1]);
+    else gl.uniform1f(where[name], value);
+  };
+  set('aspect', w / h);
+  return {
+    canvas,
+    draw(uniforms) {
+      for (const name in uniforms) set(name, uniforms[name]);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    },
+    dispose() {
+      const lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      canvas.remove();
+    }
+  };
+}
+
+// Runs a shader for `duration` ms with uniforms from `at(t)`, then fades out.
+// Resolves false when there is no WebGL.
+async function runShader(field, shot, fragment, duration, at) {
+  const src = shot ? await loadImage(shot) : darkGlass(innerWidth, innerHeight);
+  const fx = shaderStage(field, src, fragment);
+  if (!fx) return false;
+  try {
+    await frames((t) => fx.draw({ time: t / 1000, ...at(t) }), duration);
+    fx.canvas.classList.add('is-closing');
+    await frames(() => {}, CLOSE);
+  } finally {
+    fx.dispose();
+  }
+  return true;
+}
+
+const easeIn = (p) => p * p * p;
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+const easeOutBack = (p) => 1 + 2.4 * Math.pow(p - 1, 3) + 1.4 * Math.pow(p - 1, 2);
+
+// Vortex: 1s in, held, then spat back out.
+export function vortex(field, shot, at) {
+  const c = [at.x / innerWidth, at.y / innerHeight];
+  return runShader(field, shot, VORTEX, 2600, (t) => {
+    const p = t / 2600;
+    const e = p < 0.42 ? easeIn(p / 0.42) : p < 0.6 ? 1 : 1 - easeOut((p - 0.6) / 0.4);
+    return { c, e };
+  });
+}
+
+// Burn: fire takes the whole screen, holds on the dark, then un-burns.
+export function burn(field, shot) {
+  return runShader(field, shot, BURN, 3000, (t) => {
+    const full = 1.8;
+    const th = t < 1800 ? full * easeIn(t / 1800) * 0.6 + full * (t / 1800) * 0.4
+      : t < 2100 ? full : full * (1 - easeOut((t - 2100) / 900));
+    return { th };
+  });
+}
+
+// Melt: slow sag that speeds up, a pause, then a snap back with a little bounce.
+export function melt(field, shot) {
+  return runShader(field, shot, MELT, 2300, (t) => {
+    const m = t < 1500 ? easeIn(t / 1500) : t < 1750 ? 1 : 1 - easeOutBack((t - 1750) / 550);
+    return { m };
+  });
+}
+
+// --- Soul Rip -------------------------------------------------------------------------------
+// The patch of screen around `at` tears loose as a ghost, drifts to the reaper
+// at `to`, and is swallowed; the hole it left fills back in.
+export async function soulRip(field, shot, at, to) {
+  const src = shot ? await loadImage(shot) : darkGlass(innerWidth, innerHeight);
+  const { canvas, ctx, w, h, dpr } = stage(field);
+  const rw = Math.min(320, w * 0.4);
+  const rh = Math.min(220, h * 0.35);
+  const rx = Math.max(0, Math.min(w - rw, at.x - rw / 2));
+  const ry = Math.max(0, Math.min(h - rh, at.y - rh / 2));
+  const kx = src.width / w;
+  const ky = src.height / h;
+
+  // The ghost: the patch, drained of colour and tinted the spirit blue.
+  const ghost = document.createElement('canvas');
+  ghost.width = Math.ceil(rw * dpr);
+  ghost.height = Math.ceil(rh * dpr);
+  const g = ghost.getContext('2d');
+  g.filter = 'grayscale(1) brightness(1.35) contrast(1.15)';
+  g.drawImage(src, rx * kx, ry * ky, rw * kx, rh * ky, 0, 0, ghost.width, ghost.height);
+  g.filter = 'none';
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = 'rgba(158, 231, 242, 0.45)';
+  g.fillRect(0, 0, ghost.width, ghost.height);
+
+  const LIFT = 450;
+  const FLY = 1100;
+  const GONE = 350;
+  const MEND = 600;
+
+  function base(holeAlpha) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (holeAlpha <= 0) return;
+    // The hole: the void, with a ragged glowing rim.
+    ctx.save();
+    ctx.globalAlpha = holeAlpha;
+    const fill = ctx.createRadialGradient(rx + rw / 2, ry + rh / 2, 0, rx + rw / 2, ry + rh / 2, Math.max(rw, rh));
+    fill.addColorStop(0, '#2a0b2e');
+    fill.addColorStop(1, '#05020a');
+    ctx.fillStyle = fill;
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = 'rgba(158, 231, 242, 0.8)';
+    ctx.shadowColor = 'rgba(158, 231, 242, 0.9)';
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rx, ry, rw, rh);
+    ctx.restore();
+  }
+
+  // The ghost in wavering slices, so it looks like it's breathing.
+  function drawGhost(x, y, scale, alpha, wobble, t) {
+    const slices = 24;
+    const sh = rh / slices;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = 'rgba(158, 231, 242, 0.9)';
+    ctx.shadowBlur = 24 * scale;
+    for (let i = 0; i < slices; i++) {
+      const dx = Math.sin(i * 0.7 + t / 90) * wobble;
+      ctx.drawImage(ghost, 0, i * sh * dpr, ghost.width, sh * dpr + 1,
+        x - (rw / 2) * scale + dx, y - (rh / 2) * scale + i * sh * scale, rw * scale, sh * scale + 0.5);
+    }
+    ctx.restore();
+  }
+
+  const home = { x: rx + rw / 2, y: ry + rh / 2 };
+  await frames((t) => {
+    const p = t / LIFT;
+    base(p);
+    drawGhost(home.x, home.y - 14 * easeOut(p), 1 + 0.04 * p, 0.85, 4 * p, t);
+  }, LIFT);
+  // A curve that rises before it falls into him.
+  const mid = { x: (home.x + to.x) / 2, y: Math.min(home.y, to.y) - 160 };
+  await frames((t) => {
+    const p = easeIn(t / FLY) * 0.7 + (t / FLY) * 0.3;
+    const q = 1 - p;
+    const x = q * q * home.x + 2 * q * p * mid.x + p * p * to.x;
+    const y = q * q * (home.y - 14) + 2 * q * p * mid.y + p * p * to.y;
+    base(1);
+    drawGhost(x, y, 1.04 * (1 - p) + 0.08 * p, 0.85 * (1 - p * 0.4), 6 + 10 * p, t);
+  }, FLY);
+  await frames(() => base(1), GONE);
+  await frames((t) => base(1 - easeOut(t / MEND)), MEND);
+  canvas.classList.add('is-closing');
+  await frames(() => {}, CLOSE);
   canvas.remove();
 }

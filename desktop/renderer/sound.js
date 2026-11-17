@@ -109,6 +109,68 @@ export function shatter() {
   noise(t + 1.45, 0.6, { freq: 1200, q: 0.4, gain: 0.18, type: 'lowpass' });
 }
 
+// A tone that slides from one pitch to another.
+function glide(from, to, start, dur, { type = 'sine', gain = 0.12 } = {}) {
+  const a = audio();
+  const osc = a.createOscillator();
+  const amp = a.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(to, start + dur);
+  amp.gain.setValueAtTime(0.0001, start);
+  amp.gain.exponentialRampToValueAtTime(gain, start + Math.min(0.15, dur / 3));
+  amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  osc.connect(amp).connect(a.destination);
+  osc.start(start);
+  osc.stop(start + dur + 0.05);
+}
+
+// Vortex: a rumble that winds up into a howl, then a pop as it lets go.
+export function vortex() {
+  if (muted) return;
+  const t = audio().currentTime;
+  glide(40, 90, t, 1.6, { type: 'sawtooth', gain: 0.08 });
+  glide(180, 900, t + 0.2, 1.3, { gain: 0.05 });
+  noise(t, 1.5, { freq: 300, q: 0.7, gain: 0.25, type: 'lowpass' });
+  glide(900, 120, t + 1.55, 0.7, { gain: 0.06 });
+  tone(60, t + 1.6, 0.4, { type: 'triangle', gain: 0.2 });
+}
+
+// Burn: a roar under crackling embers.
+export function burn() {
+  if (muted) return;
+  const t = audio().currentTime;
+  noise(t, 2.0, { freq: 500, q: 0.5, gain: 0.3, type: 'lowpass' });
+  for (let i = 0; i < 40; i++) {
+    noise(t + Math.random() * 2.0, 0.015 + Math.random() * 0.03, { freq: 2500 + Math.random() * 4000, q: 1.5, gain: 0.35 });
+  }
+  noise(t + 2.1, 0.8, { freq: 1500, q: 0.4, gain: 0.12, type: 'lowpass' });
+}
+
+// Melt: a sagging, sliding tone with drips, then a wet snap.
+export function melt() {
+  if (muted) return;
+  const t = audio().currentTime;
+  glide(330, 70, t, 1.5, { type: 'triangle', gain: 0.1 });
+  for (let i = 0; i < 7; i++) {
+    const at = t + 0.3 + Math.random() * 1.2;
+    glide(1400 + Math.random() * 900, 500, at, 0.12, { gain: 0.05 });
+  }
+  glide(90, 420, t + 1.75, 0.25, { type: 'triangle', gain: 0.12 });
+}
+
+// Soul Rip: a tearing rasp, a falling wail, and a gulp.
+export function soulRip() {
+  if (muted) return;
+  const t = audio().currentTime;
+  noise(t, 0.35, { freq: 1800, q: 3, gain: 0.35 });
+  glide(220, 2000, t, 0.35, { type: 'sawtooth', gain: 0.03 });
+  glide(880, 330, t + 0.45, 1.0, { gain: 0.06 });
+  glide(886, 333, t + 0.45, 1.0, { gain: 0.04 });
+  tone(180, t + 1.55, 0.25, { type: 'square', gain: 0.05 });
+  tone(90, t + 1.67, 0.35, { type: 'square', gain: 0.05 });
+}
+
 // Glitch: square-wave blips and bursts of static, out of time.
 export function glitch() {
   if (muted) return;

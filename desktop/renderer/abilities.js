@@ -9,7 +9,6 @@ const RAVEN_SVG = '<svg class="raven" viewBox="0 0 64 40" aria-hidden="true"><pa
   'C46 14 55 16 62 23 C52 21 45 23 39 27 L35 37 L31 27 C21 28 11 26 2 21 Z"/><circle cx="35" cy="20" r="1.4"/></svg>';
 
 const HUNT_MS = 10000;
-const ECLIPSE_MS = 60000;
 const VANISH_MS = 30 * 60000;
 
 function cardHead(title, onClose) {
@@ -33,7 +32,6 @@ export function createAbilities(ctx) {
   const { say, soul, cursor, field, card, sound, companion, minutesText } = ctx;
   const sand = document.getElementById('sand');
   const huntRing = document.getElementById('huntRing');
-  const eclipseEl = document.getElementById('eclipse');
 
   // --- Hourglass: a focus timer -----------------------------------------------------
   let glass = null; // { ends, total }
@@ -294,31 +292,6 @@ export function createAbilities(ctx) {
     return loose.length;
   }
 
-  // --- Eclipse: the screen goes dark but for a light at the cursor -----------------------------
-  let eclipseTimer = null;
-
-  function startEclipse() {
-    clearTimeout(eclipseTimer);
-    eclipseEl.classList.remove('is-ending');
-    eclipseEl.hidden = false;
-    paintEclipse(cursor.x, cursor.y);
-    eclipseTimer = setTimeout(stopEclipse, ECLIPSE_MS);
-  }
-
-  function stopEclipse() {
-    clearTimeout(eclipseTimer);
-    if (eclipseEl.hidden) return;
-    eclipseEl.classList.add('is-ending');
-    setTimeout(() => { eclipseEl.hidden = true; eclipseEl.classList.remove('is-ending'); }, 800);
-  }
-
-  function paintEclipse(x, y) {
-    if (eclipseEl.hidden) return;
-    const inside = x > -999;
-    eclipseEl.style.setProperty('--cx', inside ? x + 'px' : '50%');
-    eclipseEl.style.setProperty('--cy', inside ? y + 'px' : '50%');
-  }
-
   // --- Scythe Slash: the screen is cut in two for a moment ----------------------------------------
   const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
@@ -357,29 +330,75 @@ export function createAbilities(ctx) {
     return { cut: !!shot, reaped };
   }
 
-  // --- Shatter and Glitch: one screen effect at a time ---------------------------------------------
+  // --- Shatter, Glitch, Vortex, Burn, Melt, Soul Rip: one screen effect at a time --------------------
   let wrecking = false;
 
+  // Where he was asked to strike: the cursor, or himself if it is elsewhere.
+  const aim = () => (cursor.x > -999 ? { x: cursor.x, y: cursor.y } : ctx.center());
+
+  const WRECKS = {
+    shatter(shot) {
+      sound.shatter();
+      ctx.swing();
+      const done = effects.shatter(field, shot, aim());
+      reapAll();
+      return done;
+    },
+    glitch(shot) {
+      sound.glitch();
+      return effects.glitch(field, shot);
+    },
+    vortex(shot) {
+      sound.vortex();
+      const done = effects.vortex(field, shot, aim());
+      // Loose ghosts are pulled in with everything else.
+      setTimeout(reapAll, 700);
+      return done;
+    },
+    burn(shot) {
+      sound.burn();
+      return effects.burn(field, shot);
+    },
+    melt(shot) {
+      sound.melt();
+      return effects.melt(field, shot);
+    },
+    soulrip(shot) {
+      sound.soulRip();
+      const c = ctx.center();
+      return effects.soulRip(field, shot, aim(), { x: c.x, y: c.y - 10 });
+    }
+  };
+
+  // Resolves to 'seen' (on the real screen), 'blind' (no screen access: over
+  // dark glass) or 'nogl' (this computer can't run the shader).
   async function wreck(kind) {
     wrecking = true;
     try {
       const shot = await photograph();
-      if (kind === 'shatter') {
-        // From the cursor: where he was asked to strike.
-        const at = cursor.x > -999 ? { x: cursor.x, y: cursor.y } : ctx.center();
-        sound.shatter();
-        ctx.swing();
-        const done = effects.shatter(field, shot, at);
-        reapAll();
-        await done;
-      } else {
-        sound.glitch();
-        await effects.glitch(field, shot);
-      }
-      return !!shot;
+      const ran = await WRECKS[kind](shot);
+      if (ran === false) return 'nogl';
+      return shot ? 'seen' : 'blind';
     } finally {
       wrecking = false;
     }
+  }
+
+  // The ring entry for a screen effect: what he says when it's done.
+  function wrecker(id, name, cost, school, blurb, done, blind) {
+    return {
+      id, name, cost, school, blurb,
+      ready: wreckReady,
+      cast: async () => {
+        const how = await wreck(id);
+        if (how === 'nogl') {
+          soul.gain(cost);
+          say('My magic fails here.\n(This computer can’t draw it.)', 5000);
+        } else {
+          say(how === 'seen' ? done : blind, how === 'seen' ? 2500 : 5000);
+        }
+      }
+    };
   }
 
   function wreckReady() {
@@ -435,32 +454,22 @@ export function createAbilities(ctx) {
         say(cut ? 'Cut.' : 'Cut.\n(Give me screen access to cut deeper.)', cut ? 2500 : 5000);
       }
     },
-    {
-      id: 'shatter', name: 'Shatter', cost: 25, school: 'death', blurb: 'The screen breaks like glass where your cursor is, falls away, and comes back together.',
-      ready: wreckReady,
-      cast: async () => {
-        const seen = await wreck('shatter');
-        say(seen ? 'Broken. Mended.' : 'Broken.\n(Give me screen access to break the real thing.)', seen ? 2500 : 5000);
-      }
-    },
-    {
-      id: 'glitch', name: 'Glitch', cost: 15, school: 'glitch', blurb: 'Y2K corruption: the screen tears, splits and stutters for a moment.',
-      ready: wreckReady,
-      cast: async () => {
-        const seen = await wreck('glitch');
-        say(seen ? 'Signal restored.' : 'Static.\n(Give me screen access for the full effect.)', seen ? 2500 : 5000);
-      }
-    },
+    wrecker('shatter', 'Shatter', 25, 'death', 'The screen breaks like glass where your cursor is, falls away, and comes back together.',
+      'Broken. Mended.', 'Broken.\n(Give me screen access to break the real thing.)'),
+    wrecker('glitch', 'Glitch', 15, 'glitch', 'Y2K corruption: the screen tears, splits and stutters for a moment.',
+      'Signal restored.', 'Static.\n(Give me screen access for the full effect.)'),
+    wrecker('vortex', 'Vortex', 25, 'curse', 'A black hole opens at your cursor and swallows the screen, then spits it back.',
+      'It always gives it back.', 'Swallowed.\n(Give me screen access to take the real thing.)'),
+    wrecker('burn', 'Burn', 30, 'fire', 'The screen burns away from the edges like paper, then un-burns.',
+      'Ashes to pixels.', 'Burned.\n(Give me screen access to burn the real thing.)'),
+    wrecker('melt', 'Melt', 20, 'light', 'The screen drips down like hot wax, then snaps back.',
+      'Set again.', 'Melted.\n(Give me screen access to melt the real thing.)'),
+    wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
+      'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
       id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'Ten seconds. Catch the ghosts.',
       ready: () => (hunt ? 'Already hunting.' : null),
       cast: () => { startHunt(); say('Ten seconds. Catch them.', 3000); }
-    },
-    {
-      id: 'eclipse', name: 'Eclipse', cost: 10, school: 'curse', blurb: 'Darkness, but for a light at the cursor. One minute.',
-      active: () => !eclipseEl.hidden,
-      stop: () => { stopEclipse(); say('Light returns.'); },
-      cast: () => { startEclipse(); say('Eclipse.', 2500); }
     },
     {
       id: 'hourglass', name: 'Hourglass', cost: 10, school: 'time', blurb: 'A focus timer. He rings when the sand runs out.',
@@ -476,31 +485,11 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
-      id: 'harvest', name: 'Harvest', cost: 0, school: 'light', blurb: 'How today went.',
-      cast: async () => {
-        const h = await harvest();
-        ctx.swing();
-        say('Today’s harvest:\n' + minutesText(h.activeMinutes) + ' at the screen\n' +
-          h.hourglasses + (h.hourglasses === 1 ? ' hourglass' : ' hourglasses') + '\n' +
-          h.ghostsCaught + ' souls caught\n' + h.filesReaped + ' files reaped', 9000);
-      }
-    },
-    {
       id: 'hum', name: 'Hum', cost: 5, school: 'music', blurb: 'An old tune from a music box.',
       active: () => sound.humming(),
       ready: () => (sound.isMuted() ? 'My voice is muted.\n(Tray → Sounds.)' : null),
       stop: () => { sound.stopHum(); say('Quiet.'); },
       cast: () => { sound.startHum(); say('Something old.', 2500); }
-    },
-    {
-      id: 'reap', name: 'Reap', cost: 0, school: 'death', blurb: 'Drop files on him. They go to the Trash.',
-      cast: () => say('Drop files on me.\nThey go to the Trash.', 6000)
-    },
-    {
-      id: 'haunt', name: 'Haunt', cost: 5, school: 'spirit', blurb: 'He follows your cursor for two minutes. Click him to stop.',
-      active: () => ctx.getMode() === 'haunt',
-      stop: () => { ctx.unhaunt(); say('Fine. I’ll keep my distance.'); },
-      cast: () => { ctx.haunt(120000); say('Lead on.', 2000); }
     },
     {
       id: 'vanish', name: 'Vanish', cost: 0, school: 'soul', blurb: 'He fades into the corner for half an hour. Click him to call him back.',
@@ -539,7 +528,7 @@ export function createAbilities(ctx) {
   }
 
   // Speak's tools. Inputs are checked here: they arrive as streamed JSON.
-  const CASTABLE = ['slash', 'shatter', 'glitch', 'summon', 'eclipse', 'hum', 'vanish', 'haunt'];
+  const CASTABLE = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'hum', 'vanish'];
 
   async function runTool(name, input) {
     switch (name) {
@@ -623,7 +612,6 @@ export function createAbilities(ctx) {
       end.setHours(23, 59, 59, 999);
       return ravens.filter((r) => r.at <= end.getTime()).length;
     },
-    onCursor: paintEclipse,
     onHover() {
       if (glass) say(mmss(glass.ends - Date.now()) + ' left', 2000);
     },

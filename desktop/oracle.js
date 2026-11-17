@@ -28,7 +28,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
-- visual tricks they ask for (cut, break or glitch the screen, a ghost game, darken the screen, music, hide, follow the cursor) -> cast
+- visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, a ghost game, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
 - when they want text they can paste ("copy that", "put it on my clipboard") -> copy_to_clipboard
@@ -79,8 +79,8 @@ const TOOLS = [
     input_schema: object({
       ability: {
         type: 'string',
-        enum: ['slash', 'shatter', 'glitch', 'summon', 'eclipse', 'hum', 'vanish', 'haunt'],
-        description: 'slash: the scythe cuts the screen in two for a moment (visual only, nothing is changed). shatter: the screen breaks like glass from the cursor, falls away and mends (visual only). glitch: a second of Y2K digital corruption over the screen (visual only). summon: a 10-second game of catching ghosts across the screen. eclipse: darkens the screen except a light around the cursor, for a minute. hum: starts or stops a dark music-box tune. vanish: the reaper fades into a corner for 30 minutes. haunt: the reaper follows the cursor for two minutes.'
+        enum: ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'hum', 'vanish'],
+        description: 'slash: the scythe cuts the screen in two for a moment (visual only, nothing is changed). shatter: the screen breaks like glass from the cursor, falls away and mends (visual only). glitch: a second of Y2K digital corruption over the screen (visual only). vortex: a black hole at the cursor swallows the screen and spits it back (visual only). burn: the screen burns away from the edges and un-burns (visual only). melt: the screen drips down like wax and snaps back (visual only). soulrip: the patch of screen at the cursor tears off as a ghost and the reaper swallows it (visual only). summon: a 10-second game of catching ghosts across the screen. hum: starts or stops a dark music-box tune. vanish: the reaper fades into a corner for 30 minutes.'
       }
     }, ['ability'])
   },

@@ -21,12 +21,11 @@ const vel = { x: 0, y: 0 };
 const cursor = { x: -9999, y: -9999 };
 const settings = { wander: true, chatty: true, hasKey: false };
 
-// wander | drag | fly | rest | sleep | vanish | haunt
+// wander | drag | fly | rest | sleep | vanish
 let mode = 'wander';
 let target = null;
 let waitUntil = 0;
 let facingLeft = true;
-let hauntUntil = 0;
 // Asleep because the computer went idle; cleared when the main process says
 // the user is back, even if a click woke him first.
 let napping = false;
@@ -69,7 +68,7 @@ function setMode(next) {
   reaper.classList.toggle('is-resting', mode === 'rest');
   reaper.classList.toggle('is-sleeping', mode === 'sleep');
   reaper.classList.toggle('is-vanished', mode === 'vanish');
-  if (mode !== 'wander' && mode !== 'fly' && mode !== 'haunt') reaper.classList.remove('is-moving');
+  if (mode !== 'wander' && mode !== 'fly') reaper.classList.remove('is-moving');
 }
 
 // --- Speech ------------------------------------------------------------------------
@@ -206,8 +205,6 @@ const cardApi = {
     closeRing();
     bubble.hidden = true;
     cardOwner = owner || null;
-    // He holds still for a card: Haunt would carry it away from the cursor.
-    if (mode === 'haunt') ctx.unhaunt();
     card.replaceChildren(el);
     card.style.setProperty('--school', `var(--${school})`);
     card.hidden = false;
@@ -259,20 +256,6 @@ const ctx = {
     waitUntil = performance.now() + 4000;
     const c = center();
     puff(c.x, c.y);
-  },
-  // Haunt: he trails the cursor for a while.
-  haunt(ms) {
-    // Following with a card open would drag the card away from the cursor.
-    cardApi.close();
-    hauntUntil = performance.now() + ms;
-    target = null;
-    setMode('haunt');
-  },
-  unhaunt() {
-    if (mode !== 'haunt') return;
-    setMode('wander');
-    target = null;
-    waitUntil = performance.now() + 5000;
   }
 };
 
@@ -370,7 +353,6 @@ companion.onCursor((p) => {
   cursor.x = p.x;
   cursor.y = p.y;
   hitTest();
-  abilities.onCursor(p.x, p.y);
   feelRub(performance.now());
   if (ringAt && dist(cursor, ringAt) > 250) closeRing();
 });
@@ -445,7 +427,7 @@ body.addEventListener('pointerup', endDrag);
 body.addEventListener('pointercancel', endDrag);
 
 function clicked(was) {
-  if (was === 'vanish' || was === 'haunt') {
+  if (was === 'vanish') {
     abilities.cast(was);
     return;
   }
@@ -548,27 +530,6 @@ function step(dt, now) {
       waitUntil = now + 3000;
       if (Math.random() < 0.5) say(pick(['Again.', 'Undignified.', 'I felt that.', 'Wheee. (Deadpan.)']));
     }
-    place();
-    return;
-  }
-
-  if (mode === 'haunt') {
-    if (now > hauntUntil) {
-      ctx.unhaunt();
-      say('I tire of following.');
-      return;
-    }
-    // Off to the side of the cursor, not on it: the side with more room.
-    const side = cursor.x > innerWidth - 220 ? -1 : 1;
-    target = { x: cursor.x + side * 70 - W / 2, y: cursor.y + 30 - H / 2 };
-    const b = bounds();
-    target.x = clamp(target.x, b.minX, b.maxX);
-    target.y = clamp(target.y, b.minY, b.maxY);
-    const d = Math.hypot(target.x - pos.x, target.y - pos.y);
-    reaper.classList.toggle('is-moving', d > 4);
-    if (d > 1) moveToward(dt, Math.min(0.7, 0.05 + d * 0.004));
-    if (Math.abs(cursor.x - center().x) > 8) facingLeft = cursor.x < center().x;
-    if (d > 30) wisp(now);
     place();
     return;
   }
