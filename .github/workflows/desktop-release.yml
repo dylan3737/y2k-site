@@ -29,6 +29,9 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
       - run: npm ci
+      # llama-server, which runs the free mind's model: both builds on the Mac
+      # runner, which makes the arm64 and x64 installers.
+      - run: node tools/fetch-llama-server.mjs ${{ matrix.os == 'macos-latest' && '--mac' || '' }}
       # Unsigned builds: no certificates are configured.
       - run: npx electron-builder --publish never
         env:

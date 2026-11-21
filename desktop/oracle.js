@@ -313,9 +313,13 @@ export function createOracle({ getKey, runTool, memory, freeMind = null, getBrai
 
   async function runCommand(run, signal, emit) {
     const reply = await run({ tool: (name, input) => useTool(name, input, signal, emit), memory });
-    if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+    if (signal.aborted) {
+      emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      return null;
+    }
     emit({ type: 'delta', text: reply });
     emit({ type: 'done' });
+    return reply;
   }
 
   async function askClaude(text, signal, emit) {
@@ -457,15 +461,21 @@ export function createOracle({ getKey, runTool, memory, freeMind = null, getBrai
   // A small model on this computer: a clear command (a reminder, a timer, the
   // Crypt) is done straight away by the parser, which gets times exactly right
   // and needs no model loaded. Everything else goes to the model.
-  async function quick(text, signal, emit) {
+  // The exchange goes into the free mind's conversation too, so the model can
+  // be asked about it later ("what did I ask you to remind me about?").
+  async function quick(text, signal, emit, free = false) {
     const run = parseCommand(text, new Date(), { withModel: true });
     if (!run) return false;
-    await runCommand(run, signal, emit);
+    const reply = await runCommand(run, signal, emit);
+    if (free && reply !== null && freeMind && freeMind.record) {
+      freeMind.record(freeBegun ? '[' + stamp() + '] ' + text : opening(text), reply);
+      freeBegun = true;
+    }
     return true;
   }
 
   async function askFree(text, signal, emit) {
-    if (await quick(text, signal, emit)) return;
+    if (await quick(text, signal, emit, true)) return;
     const status = freeMind ? freeMind.status() : null;
     if (!status || !status.installed) {
       const message = status && status.downloading

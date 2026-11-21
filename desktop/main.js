@@ -9,7 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
-import { createFreeMind } from './freemind.js';
+import { createFreeMind, serverPath } from './freemind.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
@@ -149,7 +149,10 @@ const freeMind = createFreeMind({
   // REAPER_MODELS_DIR lets the tests point it at a model they already have.
   dir: process.env.REAPER_MODELS_DIR || path.join(app.getPath('userData'), 'models'),
   system: SYSTEM + SMALL_MODEL_NOTE,
-  tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name))
+  tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)),
+  // llama.cpp's llama-server, which runs the model in its own process.
+  // REAPER_LLAMA_SERVER lets the tests use another one.
+  server: process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: app.isPackaged, resources: process.resourcesPath, here })
 });
 const hasKey = () => !!state.apiKey || !!process.env.ANTHROPIC_API_KEY;
 

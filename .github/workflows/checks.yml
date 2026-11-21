@@ -40,6 +40,8 @@ jobs:
         working-directory: desktop
       - run: node tests/minds.mjs
         working-directory: desktop
+      - run: node tests/engine.mjs
+        working-directory: desktop
       - run: node tests/crypt.mjs
         working-directory: desktop
       - run: xvfb-run -a node tests/launch.mjs

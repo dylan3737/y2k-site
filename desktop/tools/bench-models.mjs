@@ -1,13 +1,19 @@
 // Scores local models on Speak's own work: the system prompt and tools the app
-// sends, and requests a user would make. Run it with node-llama-cpp installed:
+// sends, and requests a user would make. It runs each model the way the app
+// does, in llama-server through freemind.js:
+//   node tools/fetch-llama-server.mjs          (once, for llama-server)
 //   node tools/bench-models.mjs <model.gguf> [more.gguf ...]
-// For each model it prints load time, how many requests it handled right, the
-// average time to a finished answer, and generation speed. `forModel` counts
-// only the requests the app gives the model: clear commands never reach it,
-// because the plain-command parser does them (see quick() in oracle.js).
+// For each model it prints how many requests it handled right, and the
+// average time to a finished answer (the first includes loading the model).
+// `forModel` counts only the requests the app gives the model: clear commands
+// never reach it, because the plain-command parser does them (see quick() in
+// oracle.js).
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { getLlama, LlamaChatSession, defineChatSessionFunction } from 'node-llama-cpp';
-import { SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS } from '../oracle.js';
+import { fileURLToPath } from 'node:url';
+import { SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from '../oracle.js';
+import { createFreeMind, serverPath } from '../freemind.js';
 import { parseCommand } from '../offline.js';
 
 // The local date and time leads every message, as in the app.
@@ -47,63 +53,61 @@ const ANSWERS = {
   read_clipboard: { text: 'Meeting moved to Thursday at 10. Bring the Q3 numbers.' }
 };
 
-// Speak's tools in node-llama-cpp's shape. The app uses this same conversion.
-function functionsFor(calls) {
-  return Object.fromEntries(TOOL_DEFS.filter((t) => t.name !== 'look_at_screen').map((t) => [t.name, defineChatSessionFunction({
-    description: t.description,
-    params: Object.keys(t.input_schema.properties).length ? t.input_schema : undefined,
-    handler: (input) => {
-      calls.push({ name: t.name, input: input || {} });
-      return ANSWERS[t.name] || { ok: true };
-    }
-  })]));
+const here = path.dirname(fileURLToPath(import.meta.url));
+const server = process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: false, here: path.join(here, '..') });
+if (!fs.existsSync(server)) {
+  console.error('No llama-server at ' + server + '. Run: node tools/fetch-llama-server.mjs');
+  process.exit(1);
 }
 
-const llama = await getLlama({ gpu: false });
-for (const file of process.argv.slice(2)) {
-  const t0 = performance.now();
-  const model = await llama.loadModel({ modelPath: file });
-  const context = await model.createContext({ contextSize: 4096 });
-  const loadMs = performance.now() - t0;
-  const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: SYSTEM + SMALL_MODEL_NOTE });
-  const fresh = session.getChatHistory();
+for (const given of process.argv.slice(2)) {
+  // A models folder holding just this file, as the app's would.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-'));
+  const file = path.basename(given);
+  fs.symlinkSync(path.resolve(given), path.join(dir, file));
+  const mind = createFreeMind({
+    dir, server, system: SYSTEM + SMALL_MODEL_NOTE,
+    tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)),
+    model: { name: file, file, bytes: fs.statSync(given).size, url: '' }
+  });
   let right = 0;
   let modelRight = 0;
   let totalMs = 0;
-  let tokens = 0;
-  let genMs = 0;
+  let firstMs = 0;
   const misses = [];
   for (const c of CASES) {
-    // Each request starts a new conversation; the shared opening stays cached.
-    session.setChatHistory(fresh);
+    // Each request starts a new conversation.
+    mind.reset();
     const calls = [];
     const start = performance.now();
     let text = '';
-    let first = 0;
-    let pieces = 0;
     try {
-      text = await session.prompt(STAMP + c.ask, {
-        functions: functionsFor(calls), maxTokens: 300, budgets: { thoughtTokens: 0 },
-        onTextChunk: () => { if (!first) first = performance.now(); pieces += 1; }
+      await mind.ask(STAMP + c.ask, {
+        onText: (piece) => { text += piece; },
+        use: async (name, input) => {
+          calls.push({ name, input });
+          return { ok: true, result: ANSWERS[name] || { ok: true } };
+        }
       });
     } catch (err) {
       text = 'ERROR ' + err.message;
     }
     const ms = performance.now() - start;
-    totalMs += ms;
-    if (first) { tokens += pieces; genMs += performance.now() - first; }
+    if (!firstMs) firstMs = ms;
+    else totalMs += ms;
     const call = calls[0];
     const good = c.tool ? !!call && call.name === c.tool && c.ok(call.input) : !calls.length && c.ok(text);
     if (good && reachesModel(c)) modelRight += 1;
     if (good) right += 1;
     else misses.push(c.ask + ' -> ' + (call ? call.name + JSON.stringify(call.input) : JSON.stringify(text.slice(0, 80))));
   }
+  mind.unload();
+  fs.rmSync(dir, { recursive: true, force: true });
   console.log(JSON.stringify({
-    model: path.basename(file), right: right + '/' + CASES.length,
-    forModel: modelRight + '/' + CASES.filter(reachesModel).length, avgSeconds: +(totalMs / CASES.length / 1000).toFixed(1),
-    tokensPerSecond: genMs ? +(tokens / (genMs / 1000)).toFixed(1) : null, loadSeconds: +(loadMs / 1000).toFixed(1),
-    ramMB: Math.round(process.memoryUsage().rss / 1048576), misses
+    model: file, right: right + '/' + CASES.length,
+    forModel: modelRight + '/' + CASES.filter(reachesModel).length,
+    firstSeconds: +(firstMs / 1000).toFixed(1),
+    avgSeconds: +(totalMs / (CASES.length - 1) / 1000).toFixed(1),
+    misses
   }));
-  await context.dispose();
-  await model.dispose();
 }

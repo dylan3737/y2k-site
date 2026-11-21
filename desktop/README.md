@@ -26,8 +26,11 @@ Or run it from source:
 ```bash
 cd desktop
 npm install
+npm run fetch-llama
 npm start
 ```
+
+`npm run fetch-llama` fetches the program that runs the free mind (see [The free mind](#the-free-mind)). Without it, everything else works and the free mind says its engine is missing.
 
 ## Handling him
 
@@ -164,9 +167,24 @@ The plain commands also step in when the chosen mind can't be reached: before th
 
 ### The free mind
 
-The free mind is a small language model, **Qwen3.5 2B**, that runs inside the app on your own computer, on the graphics card where it can (Metal on a Mac, Vulkan on Windows and Linux) and on the processor otherwise. The first time you open Speak, the card offers the download; it's kept in the app's data folder, and a download that's cut off carries on where it stopped. The model is loaded when you first ask something and let go after 10 minutes unused, so he costs no memory while he's quiet.
+The free mind is a small language model, **Qwen3 4B Instruct** (2.3 GB), that runs on your own computer: on the graphics card where it can (Metal on a Mac, Vulkan on Windows and Linux) and on the processor otherwise. The first time you open Speak, the card offers the download. It's kept in the app's data folder, and a download that's cut off carries on where it stopped.
 
-It is slower and less capable than Claude. It can't see pictures, so Look isn't offered, and it sometimes uses an ability nobody asked for. `tools/bench-models.mjs` scores a model on Speak's own requests, which is how this one was chosen; see [Checks](#checks).
+The model runs in **llama-server**, from [llama.cpp](https://github.com/ggml-org/llama.cpp), a small program that comes with the app. It runs as its own process rather than inside the app, because Electron's memory allocator can't give a model this size the memory it needs. The app starts it when you first ask something and stops it after 10 minutes unused, so he costs no memory while he's quiet.
+
+It is slower and less capable than Claude: on a 4-core processor with no graphics card, an answer takes 10 to 30 seconds. It can't see pictures, so Look isn't offered. Before reading your clipboard it tends to ask "may I?" in words; say yes.
+
+#### How the model was chosen
+
+`tools/bench-models.mjs` scores a model on 20 requests a user would make, of which 15 reach the model (the plain commands do the rest). On a 4-core processor with no graphics card:
+
+| Model | Download | Right, of 15 | Seconds per answer | Uses abilities unasked? |
+|---|---|---|---|---|
+| Qwen3.5 2B | 1.3 GB | 12 | 19 | Yes: answered a sum by sending a raven |
+| **Qwen3 4B Instruct** | 2.5 GB | 12 | 11.5 | Never |
+| Granite 4.2 3B | 2.2 GB | 13 | 65 | Never |
+| Qwen3.5 4B | 2.7 GB | 13 | 35 | Yes: answered a sum by glitching the screen |
+
+Qwen3 4B Instruct is the quickest, and never uses an ability when it's only asked a question. Llama 3.2 3B (6 right of 15) and Qwen3.5 0.8B (7 of 15) were dropped early.
 
 ### Claude
 
@@ -286,7 +304,7 @@ git push origin reaper-v0.2.0
 
 Running the workflow by hand from the Actions tab only builds the installers, as downloadable artifacts, without making a release.
 
-To build on your own machine instead, run the command for that machine (each writes to `desktop/dist/`):
+To build on your own machine instead, first fetch llama-server for it (`npm run fetch-llama`, or `npm run fetch-llama -- --mac` on a Mac, which builds for both kinds), then run the command for that machine (each writes to `desktop/dist/`):
 
 ```bash
 npm run dist:mac
@@ -306,7 +324,8 @@ npm run dist:linux
 |---|---|
 | `main.js` | The window, tray, shortcuts, idle detection, screen capture, clipboard, the Trash, memory and saved state |
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
-| `freemind.js` | The free mind: downloading its model and running it on this computer |
+| `freemind.js` | The free mind: downloading its model, and running it in llama-server |
+| `tools/fetch-llama-server.mjs` | Fetches llama-server for each platform into `vendor/llama/`; the release workflow runs it before building |
 | `screens.js` | Which edges of a monitor lead to another one |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
@@ -329,10 +348,11 @@ From this folder:
 npm test
 ```
 
-This runs four files, with no network and no real model:
+This runs these, with no network and no real model:
 
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
-- `tests/minds.mjs` tests the local model against a fake Ollama, and the plain commands.
+- `tests/minds.mjs` tests the free mind and Ollama against stand-ins, and the plain commands.
+- `tests/engine.mjs` tests how the free mind runs llama-server (starting, streaming, tools, stopping, failing) and downloads its model, against a stand-in server (`tests/fixtures/fake-llama-server.mjs`). Linux and macOS only.
 - `tests/crypt.mjs` tests the Crypt's rules.
 
 Two more need something extra, so `npm test` leaves them out:
@@ -343,14 +363,15 @@ Two more need something extra, so `npm test` leaves them out:
   tests/plp-desktop.sh node tests/roam.mjs
   ```
 
-- `tests/freemind.mjs` runs the free mind's real model, in Node and inside the app. Point it at the downloaded model file:
+- `tests/freemind.mjs` runs the free mind's real model in the real llama-server, in Node and inside the app. Run `npm run fetch-llama` first, then point it at the downloaded model file:
 
   ```bash
-  REAPER_FREE_MODEL=/path/to/Qwen3.5-2B-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
+  REAPER_FREE_MODEL=/path/to/Qwen3-4B-Instruct-2507-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
   ```
 
-`tools/bench-models.mjs` scores models for the free mind on Speak's requests: `node tools/bench-models.mjs model.gguf [more.gguf …]`.
-- `tests/launch.mjs` starts the real app and checks the window, the bridge and the main process.
+`tools/bench-models.mjs` scores models for the free mind on Speak's requests, in llama-server as the app runs them: `node tools/bench-models.mjs model.gguf [more.gguf …]`.
+
+Last, `npm test` runs `tests/launch.mjs`, which starts the real app and checks the window, the bridge and the main process.
 
 On Linux without a display, run it under `xvfb-run -a npm test`.
 

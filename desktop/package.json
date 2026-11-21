@@ -8,20 +8,20 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tests/oracle.mjs && node tests/minds.mjs && node tests/crypt.mjs && node tests/launch.mjs",
+    "test": "node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/launch.mjs",
     "pacing": "node tools/pacing.mjs",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "fetch-llama": "node tools/fetch-llama-server.mjs"
   },
   "devDependencies": {
     "electron": "^45.3.2",
     "electron-builder": "^26.18.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
-    "node-llama-cpp": "3.22.3"
+    "@anthropic-ai/sdk": "^1.8.0"
   },
   "author": "Dylan Dyal",
   "build": {
@@ -34,20 +34,13 @@
       "main.js",
       "oracle.js",
       "offline.js",
-      "ollama.js",
       "crypt.js",
       "screens.js",
       "preload.cjs",
       "renderer/**",
       "assets/**",
       "package.json",
-      "freemind.js",
-      "!node_modules/@node-llama-cpp/*cuda*{,/**}",
-      "!node_modules/@node-llama-cpp/*arm*{,/**}",
-      "node_modules/@node-llama-cpp/mac-arm64-metal{,/**}",
-      "!node_modules/@node-llama-cpp/*riscv*{,/**}",
-      "!node_modules/node-llama-cpp/llama/gitRelease.bundle",
-      "!node_modules/node-llama-cpp/llama/llama.cpp{,/**}"
+      "freemind.js"
     ],
     "mac": {
       "category": "public.app-category.entertainment",
@@ -79,9 +72,11 @@
       "category": "Utility"
     },
     "artifactName": "Reaper-${version}-${os}-${arch}.${ext}",
-    "asarUnpack": [
-      "node_modules/node-llama-cpp/**",
-      "node_modules/@node-llama-cpp/**"
+    "extraResources": [
+      {
+        "from": "vendor/llama/${platform}-${arch}",
+        "to": "llama"
+      }
     ]
   },
   "repository": {

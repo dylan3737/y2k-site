@@ -1,13 +1,14 @@
-// The free mind with a real model: in plain Node through the oracle, and inside
-// the Electron app. Needs the model file, so it is skipped unless given one:
-//   REAPER_FREE_MODEL=/path/to/Qwen3.5-2B-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
+// The free mind with a real model and the real llama-server: in plain Node
+// through the oracle, and inside the Electron app. Needs the model file and
+// llama-server (node tools/fetch-llama-server.mjs), so it is skipped without them:
+//   REAPER_FREE_MODEL=/path/to/Qwen3-4B-Instruct-2507-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
 import { _electron as electron } from 'playwright';
 import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { createFreeMind, MODEL } from '../freemind.js';
+import { createFreeMind, MODEL, serverPath } from '../freemind.js';
 import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from '../oracle.js';
 
 let failures = 0;
@@ -17,8 +18,10 @@ function check(name, ok, detail = '') {
 }
 
 const given = process.env.REAPER_FREE_MODEL;
-if (!given || !fs.existsSync(given)) {
-  console.log('SKIP  the free mind with a real model (set REAPER_FREE_MODEL to ' + MODEL.file + ')');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const server = process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: false, here: path.join(here, '..') });
+if (!given || !fs.existsSync(given) || !fs.existsSync(server)) {
+  console.log('SKIP  the free mind with a real model (set REAPER_FREE_MODEL to ' + MODEL.file + ', and run tools/fetch-llama-server.mjs)');
   process.exit(0);
 }
 // A models folder holding the given file under the name the app expects.
@@ -29,7 +32,7 @@ fs.symlinkSync(path.resolve(given), path.join(dir, MODEL.file));
 const calls = [];
 const notes = [];
 const memory = { list: () => notes, add(text) { const n = { id: 'm' + notes.length, text }; notes.push(n); return n; }, remove: () => false };
-const freeMind = createFreeMind({ dir, system: SYSTEM + SMALL_MODEL_NOTE, tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)) });
+const freeMind = createFreeMind({ dir, server, system: SYSTEM + SMALL_MODEL_NOTE, tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)) });
 const oracle = createOracle({
   getKey: () => null, getBrain: () => ({ kind: 'free', model: null }), memory, freeMind,
   runTool: async (name, input) => { calls.push({ name, input }); return { ok: true, result: name === 'send_raven' ? { id: 'r1', due: '2:20 PM' } : 'cast' }; }
@@ -65,14 +68,13 @@ try {
   check('Hush stops it mid-answer', ended !== 'timeout' && ended.code === 'stopped', JSON.stringify(ended));
   events = await ask('say hi');
   check('and it answers again after', events.at(-1).type === 'done' && words(events).length > 0);
-  await freeMind.unload();
+  freeMind.unload();
 } catch (err) {
   console.error(err);
   failures++;
 }
 
 // --- Inside the app -------------------------------------------------------------------
-const here = path.dirname(fileURLToPath(import.meta.url));
 const env = { ...process.env, XDG_CONFIG_HOME: fs.mkdtempSync(path.join(tmpdir(), 'reaper-')), REAPER_MODELS_DIR: dir, OLLAMA_HOST: '127.0.0.1:1' };
 delete env.ANTHROPIC_API_KEY;
 const app = await electron.launch({ executablePath: createRequire(import.meta.url)('electron'), args: [path.join(here, '..')], env });
