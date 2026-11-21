@@ -279,11 +279,14 @@ function clockwork(text, now) {
   return null;
 }
 
-export function parseCommand(input, now = new Date()) {
+// With a model to hand, `withModel` leaves it the requests a pattern can
+// misread (spells: "how do I burn a CD?") and "help", which lists these
+// commands as if there were no model.
+export function parseCommand(input, now = new Date(), { withModel = false } = {}) {
   const original = String(input || '');
   const text = original.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[!.]+$/, '');
   if (!text) return null;
-  if (/^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
+  if (!withModel && /^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
   return reminder(original, now) || reminders(text) || timer(text) || tally(text) || cryptwork(text) ||
-    remembering(text, original) || clockwork(text, now) || casting(text);
+    remembering(text, original) || clockwork(text, now) || (withModel ? null : casting(text));
 }

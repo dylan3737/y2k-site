@@ -36,7 +36,8 @@ npm start
 | Click him | opens his ring of abilities |
 | Right-click him | shows the tray menu |
 | Drag him and let go gently | kneels and rests; soul refills fast |
-| Fling him | flies off, bouncing off the screen edges |
+| Fling him | flies off, bouncing off the screen edges, or onto the next monitor through an edge it touches |
+| Drag him past the edge of a monitor and let go | lands on the monitor next to it |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
 | Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
@@ -51,11 +52,23 @@ The tray icon has the same commands, plus:
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
 - **Skeletons on screen:** show or hide the skeletons. Hidden ones still dig.
+- **Roam between screens:** on or off. Only offered with more than one monitor. See [More than one monitor](#more-than-one-monitor).
 - **Hide**
 - **Open at login:** macOS and Windows only.
 - **Forget what he remembers**
 - **Forget API key**
 - **Quit**
+
+## More than one monitor
+
+With several monitors, he roams across all of them. Wherever the edge of one monitor touches another, there's a doorway: now and then he wanders through it, a fling carries him through, and you can drag him across.
+
+- He comes out at the same place on your desktop, so with monitors of different heights (portrait, landscape, portrait, say) he only crosses where they actually meet.
+- Monitors with a gap between them, or that only touch at a corner, have no doorway.
+- His cards, his ring, his skeletons and his reminders go with him.
+- He doesn't wander off in the middle of something: while Summon or a screen effect is running, he stays put.
+- **Ctrl+Alt+R** (**⌘⌥R**) still brings him to the cursor, whichever monitor it's on.
+- **Roam between screens** in the tray menu keeps him on one monitor.
 
 ## Abilities
 
@@ -138,15 +151,22 @@ The first prints a line a day for all three over four weeks. The second prints e
 
 ## Speak
 
-Speak can borrow one of three minds. Choose one in the card the first time you open Speak, or any time from **Mind** in the tray menu.
+Speak can borrow one of four minds. Choose one in the card, or any time from **Mind** in the tray menu.
 
 | Mind | Cost | What you need | What he can do |
 |---|---|---|---|
-| **Claude** | A fraction of a cent per reply | An Anthropic API key | Everything below |
-| **Local model** | Free | [Ollama](https://ollama.com/) and a model, on your computer | Everything the model can manage; nothing leaves your computer |
+| **Free, on this computer** (the default) | Free | A one-time download of about 1.2 GB, offered in the card | Everything but Look; nothing leaves your computer |
+| **Claude** | A fraction of a cent per reply | An Anthropic API key | Everything below, and the best answers |
+| **Your own Ollama** | Free | [Ollama](https://ollama.com/) and a model, on your computer | Everything the model can manage |
 | **None** | Free | Nothing | The [plain commands](#plain-commands) only |
 
-The plain commands also step in when the chosen mind can't be reached: no key yet, no network, or Ollama not running.
+The plain commands also step in when the chosen mind can't be reached: before the free mind's download, with no key, no network, or Ollama not running. With the free mind or Ollama, a clear command (a reminder, a timer, the Crypt, memory) is always done by the plain commands, straight away: they get times exactly right, which small models often don't.
+
+### The free mind
+
+The free mind is a small language model, **Qwen3.5 2B**, that runs inside the app on your own computer, on the graphics card where it can (Metal on a Mac, Vulkan on Windows and Linux) and on the processor otherwise. The first time you open Speak, the card offers the download; it's kept in the app's data folder, and a download that's cut off carries on where it stopped. The model is loaded when you first ask something and let go after 10 minutes unused, so he costs no memory while he's quiet.
+
+It is slower and less capable than Claude. It can't see pictures, so Look isn't offered, and it sometimes uses an ability nobody asked for. `tools/bench-models.mjs` scores a model on Speak's own requests, which is how this one was chosen; see [Checks](#checks).
 
 ### Claude
 
@@ -160,7 +180,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 - If there's no keychain, which is common on Linux, the key isn't saved. Set `ANTHROPIC_API_KEY` in the environment before starting the app instead. A profile saved with `ant auth login` also works.
 - **Forget API key** in the tray menu removes the saved key.
 
-### A free local model
+### Your own Ollama
 
 1. Install [Ollama](https://ollama.com/) and start it.
 2. Download a model. This one is about 2 GB and can use his abilities:
@@ -169,7 +189,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
    ollama pull llama3.2
    ```
 
-3. Open Speak and choose **Free local model** (or **Mind → Local model** in the tray menu).
+3. Choose **Mind → Your own Ollama** in the tray menu.
 
 He picks a model from the ones you have, preferring those that handle tools well. To choose yourself, pick one under **Mind** in the tray menu.
 
@@ -286,6 +306,8 @@ npm run dist:linux
 |---|---|
 | `main.js` | The window, tray, shortcuts, idle detection, screen capture, clipboard, the Trash, memory and saved state |
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
+| `freemind.js` | The free mind: downloading its model and running it on this computer |
+| `screens.js` | Which edges of a monitor lead to another one |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
 | `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
@@ -307,11 +329,27 @@ From this folder:
 npm test
 ```
 
-This runs four files:
+This runs four files, with no network and no real model:
 
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
 - `tests/minds.mjs` tests the local model against a fake Ollama, and the plain commands.
 - `tests/crypt.mjs` tests the Crypt's rules.
+
+Two more need something extra, so `npm test` leaves them out:
+
+- `tests/roam.mjs` checks roaming between monitors. It needs a desktop of several monitors; `tests/plp-desktop.sh` makes a pretend portrait-landscape-portrait one with X.org's dummy driver (on Debian or Ubuntu: `xserver-xorg-video-dummy` and `x11-xserver-utils`), and CI runs it that way:
+
+  ```bash
+  tests/plp-desktop.sh node tests/roam.mjs
+  ```
+
+- `tests/freemind.mjs` runs the free mind's real model, in Node and inside the app. Point it at the downloaded model file:
+
+  ```bash
+  REAPER_FREE_MODEL=/path/to/Qwen3.5-2B-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
+  ```
+
+`tools/bench-models.mjs` scores models for the free mind on Speak's requests: `node tools/bench-models.mjs model.gguf [more.gguf …]`.
 - `tests/launch.mjs` starts the real app and checks the window, the bridge and the main process.
 
 On Linux without a display, run it under `xvfb-run -a npm test`.

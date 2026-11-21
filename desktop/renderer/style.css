@@ -89,6 +89,8 @@ body.is-capturing * { visibility: hidden !important; }
 .reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.7) drop-shadow(0 0 4px rgba(120, 36, 186, 0.5)); }
 .reaper.is-hungry .body { filter: drop-shadow(0 0 14px var(--death)) drop-shadow(0 0 4px #fff); animation: hunger 0.4s ease-in-out infinite; }
 .reaper.is-vanished { opacity: 0.22; }
+/* Passing from one monitor to the next. */
+.reaper.is-crossing { opacity: 0; transition: opacity 0.12s ease; }
 .reaper.is-vanished .soul { visibility: hidden; }
 
 @keyframes float {
@@ -159,6 +161,10 @@ body.is-capturing * { visibility: hidden !important; }
 .soul-pop.is-souls { color: var(--gold); }
 
 /* The Crypt */
+/* The free mind's download */
+.progress { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--school, var(--lilac)) 20%, transparent); overflow: hidden; }
+.progress span { display: block; height: 100%; width: 0; background: var(--school, var(--lilac)); transition: width 0.25s ease; }
+
 .crypt { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0 0; }
 .crypt-tabs { gap: 6px; }

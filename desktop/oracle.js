@@ -2,10 +2,11 @@
 // never reaches the page. Most of his tools are his abilities, which the page
 // runs; memory is kept here.
 //
-// He can borrow one of three minds: Claude (the user's API key), a local model
-// through Ollama (free, on this computer), or none, in which case he still
-// follows the plain commands in offline.js. Those commands are also what he
-// falls back on when the chosen mind can't be reached.
+// He can borrow one of four minds: the free one built into the app (a small
+// model run on this computer by freemind.js; the default), Claude (the user's
+// API key), a model the user runs through Ollama, or none, in which case he
+// still follows the plain commands in offline.js. Those commands are also what
+// he falls back on when the chosen mind can't be reached.
 import Anthropic from '@anthropic-ai/sdk';
 import { parseCommand } from './offline.js';
 import { chat, listModels, capabilities, OllamaError, SUGGESTED_MODEL } from './ollama.js';
@@ -22,7 +23,7 @@ const MAX_TOOL_TURNS = 6;
 // history the model's earlier thinking is bound to.
 const MAX_HISTORY = 80;
 
-const SYSTEM = `You are the Reaper: a small pixel-art grim reaper who lives on the user's computer desktop as a companion. You float around their screen, carry a scythe, and keep a meter of "soul".
+export const SYSTEM = `You are the Reaper: a small pixel-art grim reaper who lives on the user's computer desktop as a companion. You float around their screen, carry a scythe, and keep a meter of "soul".
 
 Voice: dry, deadpan, a little gothic, warm underneath. Short sentences. You find the living mildly amusing and you are on their side.
 
@@ -52,7 +53,7 @@ const object = (properties = {}, required = []) => ({ type: 'object', properties
 
 // Tiny inputs, but the request streams, so stream tool inputs too; every input
 // is validated before it runs.
-const TOOL_DEFS = [
+export const TOOL_DEFS = [
   {
     name: 'set_hourglass',
     description: 'Start a focus timer. A ring of sand drains around the reaper and a bell and a system notification mark the end. Replaces a timer that is already running.',
@@ -146,6 +147,8 @@ const localTools = (canSee) => TOOL_DEFS
 
 const ALONE = ' Until then, say "help" to see what I can do alone.';
 const NO_MIND = 'I have no mind to borrow for that. Say "help" to see what I can do alone, or give me one from the tray menu (Mind).';
+// Everything but Look: the free mind can't see pictures.
+export const FREE_TOOLS_EXCLUDE = ['look_at_screen'];
 
 function stamp() {
   return new Date().toLocaleString(undefined, {
@@ -211,7 +214,7 @@ function resultContent(outcome) {
   ];
 }
 
-export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind: 'claude', model: null }) }) {
+export function createOracle({ getKey, runTool, memory, freeMind = null, getBrain = () => ({ kind: 'claude', model: null }) }) {
   let history = [];
   let controller = null;
   // Whose conversation `history` is. Claude and Ollama keep theirs in different
@@ -298,6 +301,10 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
   async function alone(text, signal, emit, otherwise) {
     const run = parseCommand(text);
     if (!run) return emit(otherwise);
+    return runCommand(run, signal, emit);
+  }
+
+  async function runCommand(run, signal, emit) {
     const reply = await run({ tool: (name, input) => useTool(name, input, signal, emit), memory });
     if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
     emit({ type: 'delta', text: reply });
@@ -309,7 +316,7 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     try {
       api = client();
     } catch {
-      return alone(text, signal, emit, { type: 'error', code: 'key', message: 'I need a mind to answer that: an Anthropic API key, or a free local model.' });
+      return alone(text, signal, emit, { type: 'error', code: 'key', message: 'I need a mind to answer that: an Anthropic API key, or the free one that runs on this computer.' });
     }
     // This question works on its own copy of the conversation and commits it
     // only when it finishes, so ↺ or Hush mid-answer can't leave a half-written
@@ -361,6 +368,7 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
   const abilitiesOf = new Map();
 
   async function askLocal(text, wanted, signal, emit) {
+    if (await quick(text, signal, emit)) return;
     let model = wanted;
     let acted = false;
     try {
@@ -436,6 +444,55 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     }
   }
 
+  // The free mind keeps its own conversation; this only notes whether one has begun.
+  let freeBegun = false;
+
+  // A small model on this computer: a clear command (a reminder, a timer, the
+  // Crypt) is done straight away by the parser, which gets times exactly right
+  // and needs no model loaded. Everything else goes to the model.
+  async function quick(text, signal, emit) {
+    const run = parseCommand(text, new Date(), { withModel: true });
+    if (!run) return false;
+    await runCommand(run, signal, emit);
+    return true;
+  }
+
+  async function askFree(text, signal, emit) {
+    if (await quick(text, signal, emit)) return;
+    const status = freeMind ? freeMind.status() : null;
+    if (!status || !status.installed) {
+      const message = status && status.downloading
+        ? 'My mind is still on its way (' + Math.floor((100 * status.downloading.done) / status.downloading.total) + '%).' + ALONE.replace('Until then', ' Meanwhile')
+        : 'My free mind needs a one-time download first.' + ALONE;
+      return alone(text, signal, emit, { type: 'error', code: 'free', message });
+    }
+    let acted = false;
+    const said = freeBegun ? '[' + stamp() + '] ' + text : opening(text);
+    try {
+      const { full } = await freeMind.ask(said, {
+        signal,
+        onText: (piece) => emit({ type: 'delta', text: piece }),
+        use: (name, input) => {
+          acted = true;
+          return useTool(name, input, signal, emit);
+        }
+      });
+      if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      if (full) emit({ type: 'note', text: 'The old conversation is buried. Starting fresh.' });
+      freeBegun = true;
+      emit({ type: 'done' });
+    } catch (err) {
+      if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      const reason = String((err && err.message) || err).slice(0, 200);
+      // It never started (no memory to load it, a broken download): plain commands still work.
+      if (!acted) {
+        emit({ type: 'reset' });
+        return alone(text, signal, emit, { type: 'error', code: 'free', message: 'My free mind would not wake: ' + reason + '.' + ALONE });
+      }
+      emit({ type: 'error', code: 'error', message: 'My free mind stumbled: ' + reason });
+    }
+  }
+
   async function ask(text, send) {
     if (controller) return send({ type: 'error', code: 'busy', message: 'One question at a time.' });
     const brain = getBrain();
@@ -443,6 +500,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     if (whose !== mind) {
       mind = whose;
       history = [];
+      freeBegun = false;
+      if (freeMind) freeMind.reset();
     }
     if (history.length > MAX_HISTORY) {
       history = [];
@@ -458,7 +517,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     };
     controller = own;
     try {
-      if (brain.kind === 'ollama') await askLocal(text, brain.model, signal, emit);
+      if (brain.kind === 'free') await askFree(text, signal, emit);
+      else if (brain.kind === 'ollama') await askLocal(text, brain.model, signal, emit);
       else if (brain.kind === 'offline') {
         await alone(text, signal, emit, { type: 'error', code: 'alone', message: NO_MIND });
       } else await askClaude(text, signal, emit);
@@ -479,6 +539,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
       }
       controller = null;
       history = [];
+      freeBegun = false;
+      if (freeMind) freeMind.reset();
     }
   };
 }

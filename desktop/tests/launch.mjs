@@ -80,7 +80,7 @@ try {
   await page.waitForTimeout(200);
   check('a tray command casts an ability', (await page.$$('.ghost')).length > 0);
 
-  // Speak without a key asks for one rather than failing silently.
+  // Speak with nothing downloaded offers the free mind rather than failing silently.
   const reply = await page.evaluate(() => new Promise((resolve) => {
     const off = window.companion.onSpeech((e) => {
       if (e.type === 'error' || e.type === 'done') { off(); resolve(e); }
@@ -88,7 +88,8 @@ try {
     window.companion.speak('hello');
     setTimeout(() => resolve({ type: 'timeout' }), 20000);
   }));
-  check('Speak without a key asks for one', reply.type === 'error' && reply.code === 'key', JSON.stringify(reply));
+  check('a new user is offered the free mind, not asked for a key', reply.type === 'error' && reply.code === 'free', JSON.stringify(reply));
+  check('a new user starts with the free mind', (await page.evaluate(() => window.companion.state())).brain === 'free');
 
   // A plain command needs no key: the main process reads it and the page runs it.
   const heard = () => page.evaluate((text) => new Promise((resolve) => {

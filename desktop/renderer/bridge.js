@@ -17,6 +17,7 @@ function browserStandIn() {
   };
   const emit = (channel, data) => (listeners[channel] || []).forEach((fn) => fn(data));
   const stats = { activeSec: 0, focus: 0, caught: 0, reaped: 0 };
+  const freeStatus = () => window.__companion.free || { name: 'Qwen3.5 2B', bytes: 1280835840, installed: false, downloading: null, loaded: false };
   // The crypt, kept in localStorage here; the app keeps it in the main process.
   const crypt = rules.clean(read().crypt);
   const saveCrypt = () => write({ crypt });
@@ -35,8 +36,8 @@ function browserStandIn() {
       saveCrypt();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
-        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false, brain: s.brain || 'claude',
-        minions: s.minions !== false, crypt: { ...rules.view(crypt), dug },
+        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false, brain: s.brain || 'free',
+        minions: s.minions !== false, roam: s.roam !== false, doors: window.__companion.doors || [], crypt: { ...rules.view(crypt), dug },
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };
     },
@@ -47,6 +48,11 @@ function browserStandIn() {
       const { gained, reached } = rules.deed(crypt, key, Number.isFinite(worth) ? worth : n);
       saveCrypt();
       if (gained) emit('crypt', { crypt: rules.view(crypt), gained, reached });
+    },
+    // Tests stand in for other monitors with window.__companion.crossTo.
+    async cross(through) {
+      window.__companion.crossed = (window.__companion.crossed || []).concat([through]);
+      return window.__companion.crossTo ? window.__companion.crossTo(through) : null;
     },
     async crypt(action = {}) {
       const { reached, ...out } = rules.act(crypt, action);
@@ -65,7 +71,11 @@ function browserStandIn() {
     setAbilities() {},
     menu() {},
     speak() {
-      setTimeout(() => emit('speech', { type: 'error', code: 'key', message: 'Speak works in the desktop app.' }), 50);
+      // As the app answers with nothing to think with: the free mind, or a key, is missing.
+      const free = (read().brain || 'free') === 'free';
+      setTimeout(() => emit('speech', free
+        ? { type: 'error', code: 'free', message: 'Speak thinks in the desktop app.' }
+        : { type: 'error', code: 'key', message: 'Speak works in the desktop app.' }), 50);
     },
     speakStop() {},
     speakForget() {},
@@ -73,17 +83,31 @@ function browserStandIn() {
     // Tests set window.__companion.local to stand for Ollama.
     async brain(patch = {}) {
       if (patch.kind) write({ brain: patch.kind });
-      const kind = read().brain || 'claude';
+      const kind = read().brain || 'free';
       const local = kind === 'ollama' ? window.__companion.local || { running: false, models: [], using: null } : null;
       emit('settings', { brain: kind, hasKey: false });
-      return { kind, model: null, hasKey: false, local };
+      return { kind, model: null, hasKey: false, local, free: freeStatus() };
     },
+    // The free mind's download, pretended: tests set window.__companion.free.
+    async freeFetch() {
+      const total = 1280835840;
+      for (const done of [0.25, 0.6, 1]) {
+        await new Promise((r) => setTimeout(r, 40));
+        emit('free-progress', { done: done * total, total });
+      }
+      window.__companion.free = { ...freeStatus(), installed: true };
+      emit('free-progress', { finished: true, installed: true });
+      return { ok: true, free: freeStatus() };
+    },
+    freeCancel() {},
     toolResult(id, outcome) { emit('tool-result', { id, outcome }); },
     onCursor: listen('cursor'),
     onAway: listen('away'),
     onCommand: listen('command'),
     onSettings: listen('settings'),
     onCrypt: listen('crypt'),
+    onDoors: listen('doors'),
+    onFreeProgress: listen('free-progress'),
     onSpeech: listen('speech'),
     onToolCall: listen('tool-call'),
     onToolCancel: listen('tool-cancel')

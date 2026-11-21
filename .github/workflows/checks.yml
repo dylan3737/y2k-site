@@ -44,3 +44,12 @@ jobs:
         working-directory: desktop
       - run: xvfb-run -a node tests/launch.mjs
         working-directory: desktop
+      # Roaming between monitors, on a pretend portrait-landscape-portrait desktop.
+      # Xvfb shows Electron only one monitor, so this uses X.org's dummy driver.
+      - name: Roaming between monitors
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xserver-xorg-video-dummy x11-xserver-utils
+          printf 'allowed_users=anybody\nneeds_root_rights=no\n' | sudo tee /etc/X11/Xwrapper.config
+          tests/plp-desktop.sh node tests/roam.mjs
+        working-directory: desktop

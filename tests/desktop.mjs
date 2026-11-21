@@ -169,28 +169,55 @@ try {
   out = await tool('get_harvest', {});
   check('get_harvest reports the day', out.ok && 'activeMinutes' in out.result && out.result.hourglassMinutesLeft === 25);
 
-  // Speak card
+  // Speak card: a new user is offered the free mind, not asked for a key
   page = await open({ wander: false });
   await castFromRing(page, 'speak');
   check('Speak opens its card', await visible(page, '#card textarea'));
-  check('without a key it asks for one', await visible(page, '#card input[type=password]'));
+  await page.waitForTimeout(150);
+  check('it offers the free mind\'s download, and asks for no key', await page.isVisible('#card .chip:has-text("Download")') &&
+    !(await visible(page, '#card input[type=password]')) && (await page.textContent('#card')).includes('1.2 GB'), await page.textContent('#card'));
   await page.fill('#card textarea', 'hello');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
   check('the question shows in the card', (await page.textContent('.line.you')) === 'hello');
-  check('an error is shown in the card', (await page.$$('.line.oops, #card input[type=password]')).length > 0);
-  // The free minds, offered beside the key form
-  await page.click('#card .chip:has-text("Free local model")');
+  // Claude instead: the key form, which leads back to the free mind.
+  await page.click('#card .chip:has-text("Use a key")');
   await page.waitForTimeout(150);
-  check('a local mind with no Ollama says how to get it', (await page.textContent('#card')).includes('ollama pull llama3.2') &&
-    !(await visible(page, '#card input[type=password]')));
-  await page.evaluate(() => { window.__companion.local = { running: true, models: ['llama3.2:latest'], using: 'llama3.2:latest' }; });
-  await page.click('#card .chip:has-text("Try again")');
+  check('"Use a key" asks for one', await visible(page, '#card input[type=password]'));
+  await page.click('#card .chip:has-text("Free mind")');
   await page.waitForTimeout(150);
-  check('once Ollama answers, he borrows its model', (await page.textContent('.log')).includes('borrowing llama3.2:latest') &&
-    (await page.$$('#card .chip:has-text("Try again")')).length === 0);
+  check('and "Free mind" goes back to the download', await page.isVisible('#card .chip:has-text("Download")') &&
+    (await page.evaluate(() => window.__companion.read().brain)) === 'free');
+  // The download, with its progress.
+  const seenProgress = page.evaluate(() => new Promise((resolve) => {
+    const widths = [];
+    const look = setInterval(() => {
+      const fill = document.querySelector('#card .progress span');
+      if (fill) widths.push(fill.style.width);
+      if (window.__companion.free && window.__companion.free.installed) { clearInterval(look); resolve(widths); }
+    }, 10);
+  }));
+  await page.click('#card .chip:has-text("Download")');
+  const widths = await seenProgress;
+  await page.waitForTimeout(150);
+  check('the download shows its progress', widths.some((w) => w !== '0.0%' && w !== '100.0%'), widths.join(' '));
+  check('when it is done he is ready to talk', (await page.textContent('.log')).includes('his mind is here') &&
+    !(await page.isVisible('#card .chip:has-text("Download")')));
+  // A mind that would not wake offers the other ways.
+  await page.evaluate(() => window.__companion.emit('speech', { type: 'error', code: 'free', message: 'My free mind would not wake.' }));
+  await page.waitForTimeout(100);
+  check('trouble with the free mind is shown', (await page.textContent('.log')).includes('would not wake'));
+  // Ollama, for those who run it, from the tray menu (Mind).
+  await page.evaluate(() => window.__reaper.speak.close());
+  await page.evaluate(async () => {
+    const { companion } = await import('./bridge.js');
+    window.__companion.local = { running: false, models: [], using: null };
+    await companion.brain({ kind: 'ollama' });
+  });
   await page.evaluate(() => window.__companion.emit('speech', { type: 'error', code: 'local', message: 'Ollama is not running.' }));
-  check('trouble with the local mind offers the other ways', await page.isVisible('#card .chip:has-text("Commands only")'));
+  await page.evaluate(() => window.__reaper.speak.open());
+  await page.waitForTimeout(150);
+  check('trouble with Ollama offers the other ways', await page.isVisible('#card .chip:has-text("Commands only")'));
   await page.click('#card .chip:has-text("Commands only")');
   await page.waitForTimeout(150);
   check('he can go without a mind', (await page.textContent('.log')).includes('no mind borrowed') &&

@@ -20,7 +20,8 @@
     "electron-builder": "^26.18.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0"
+    "@anthropic-ai/sdk": "^1.8.0",
+    "node-llama-cpp": "3.22.3"
   },
   "author": "Dylan Dyal",
   "build": {
@@ -35,10 +36,18 @@
       "offline.js",
       "ollama.js",
       "crypt.js",
+      "screens.js",
       "preload.cjs",
       "renderer/**",
       "assets/**",
-      "package.json"
+      "package.json",
+      "freemind.js",
+      "!node_modules/@node-llama-cpp/*cuda*{,/**}",
+      "!node_modules/@node-llama-cpp/*arm*{,/**}",
+      "node_modules/@node-llama-cpp/mac-arm64-metal{,/**}",
+      "!node_modules/@node-llama-cpp/*riscv*{,/**}",
+      "!node_modules/node-llama-cpp/llama/gitRelease.bundle",
+      "!node_modules/node-llama-cpp/llama/llama.cpp{,/**}"
     ],
     "mac": {
       "category": "public.app-category.entertainment",
@@ -69,7 +78,11 @@
       ],
       "category": "Utility"
     },
-    "artifactName": "Reaper-${version}-${os}-${arch}.${ext}"
+    "artifactName": "Reaper-${version}-${os}-${arch}.${ext}",
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**",
+      "node_modules/@node-llama-cpp/**"
+    ]
   },
   "repository": {
     "type": "git",
