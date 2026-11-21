@@ -92,16 +92,17 @@ body.is-capturing * { visibility: hidden !important; }
 
 .reaper.is-sleeping .sprite { animation-duration: 6s; }
 
-/* His cartoon eyes, a separate layer over the hood: bored, half-lidded,
-   blinking now and then and glancing off to the side. Shut while he sleeps. */
+/* His cartoon eyes, a separate layer over the hood: tall glowing ovals with
+   big pupils, bored and half-lidded, blinking now and then and glancing off
+   to the side. Shut while he sleeps. */
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
   left: 43px;
-  top: 20px;
+  top: 19px;
   width: 13px;
-  height: 5px;
-  background: url('../assets/eyes.png') 0 0 / 39px 5px no-repeat;
+  height: 7px;
+  background: url('../assets/eyes.png') 0 0 / 39px 7px no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 2px rgba(220, 200, 255, 0.9));
   animation: glance 11s steps(1, end) infinite;
