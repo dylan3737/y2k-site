@@ -92,18 +92,17 @@ body.is-capturing * { visibility: hidden !important; }
 
 .reaper.is-sleeping .sprite { animation-duration: 6s; }
 
-/* His cartoon eyes, a separate layer over the hood: two touching ovals with a
-   thick black outline and big pupils that look off to the side, bored and
-   half-lidded. They blink now and then and glance the other way. Shut while
-   he sleeps. */
+/* His eyes, a separate layer over the hood, in a chibi anime pixel style: two
+   violet irises with sparkles and a heavy lash line. They blink now and then
+   and droop, bored, for a while. While he sleeps they are closed arcs. */
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
   left: 43px;
-  top: 16px;
-  width: 14px;
-  height: 12px;
-  background: url('../assets/eyes.png') 0 0 / 42px 12px no-repeat;
+  top: 19px;
+  width: 13px;
+  height: 7px;
+  background: url('../assets/eyes.png') 0 0 / 39px 7px no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 2px rgba(220, 200, 255, 0.9));
   animation: glance 11s steps(1, end) infinite;
@@ -111,15 +110,15 @@ body.is-capturing * { visibility: hidden !important; }
 
 @keyframes glance {
   0% { background-position: 0 0; }
-  28% { background-position: -28px 0; }
+  28% { background-position: -26px 0; }
   29.5% { background-position: 0 0; }
-  52% { background-position: -14px 0; }
+  52% { background-position: -13px 0; }
   74% { background-position: 0 0; }
-  88% { background-position: -28px 0; }
+  88% { background-position: -26px 0; }
   89.5% { background-position: 0 0; }
 }
 
-.reaper.is-sleeping .eyes { animation: none; background-position: -28px 0; }
+.reaper.is-sleeping .eyes { animation: none; background-position: -26px 0; }
 
 .reaper.is-left .sprite { transform: scaleX(-1); }
 
