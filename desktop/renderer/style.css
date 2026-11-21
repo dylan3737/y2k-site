@@ -92,17 +92,18 @@ body.is-capturing * { visibility: hidden !important; }
 
 .reaper.is-sleeping .sprite { animation-duration: 6s; }
 
-/* His eyes, a separate layer over the hood: almond-shaped, with violet irises
-   under heavy, bored lids. They blink now and then and glance aside. Shut
-   while he sleeps. */
+/* His cartoon eyes, a separate layer over the hood: two touching ovals with a
+   thick black outline and big pupils that look off to the side, bored and
+   half-lidded. They blink now and then and glance the other way. Shut while
+   he sleeps. */
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
-  left: 42px;
-  top: 19px;
+  left: 43px;
+  top: 16px;
   width: 14px;
-  height: 5px;
-  background: url('../assets/eyes.png') 0 0 / 42px 5px no-repeat;
+  height: 12px;
+  background: url('../assets/eyes.png') 0 0 / 42px 12px no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 2px rgba(220, 200, 255, 0.9));
   animation: glance 11s steps(1, end) infinite;
