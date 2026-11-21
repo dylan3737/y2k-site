@@ -90,6 +90,18 @@ export function createCrypt(ctx) {
 
   companion.onCrypt((event) => { if (event && event.crypt) update(event.crypt, event); });
 
+  // A skeleton fades almost away while the cursor is over it, so it never
+  // hides what is underneath. (Clicks already pass through it.) The window
+  // ignores the mouse here, so this goes by the cursor position the app sends.
+  const SLACK = 6;
+  companion.onCursor((p) => {
+    for (const node of diggers) {
+      const r = node.getBoundingClientRect();
+      const over = p.x >= r.left - SLACK && p.x <= r.right + SLACK && p.y >= r.top - SLACK && p.y <= r.bottom + SLACK;
+      node.classList.toggle('is-faded', over);
+    }
+  });
+
   return {
     open() { paint(); card.open(box, 'soul', owner); },
     close() { card.close(owner); },

@@ -233,6 +233,14 @@ try {
   check('souls raise a skeleton', (await page.textContent('#card .crypt-souls')) === '22 souls' &&
     (await page.textContent('#card')).includes('1 skeleton digs up 6 souls an hour'), await page.textContent('#card'));
   check('the skeleton digs on screen', (await page.$$('.field .digger')).length === 1);
+  const bones = await page.locator('.field .digger').boundingBox();
+  await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
+  await page.waitForTimeout(50);
+  const fadedOver = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  await page.mouse.move(bones.x + bones.width / 2, bones.y - 120);
+  await page.waitForTimeout(50);
+  const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
   check('the next one costs 25, more than he has', (await page.textContent('#card .chip.solid')).includes('25') && await page.isDisabled('#card .chip.solid'));
   out = await tool('raise_skeleton', {});
   check('Speak cannot raise one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));

@@ -92,17 +92,17 @@ body.is-capturing * { visibility: hidden !important; }
 
 .reaper.is-sleeping .sprite { animation-duration: 6s; }
 
-/* His cartoon eyes, a separate layer over the hood: tall glowing ovals with
-   big pupils, bored and half-lidded, blinking now and then and glancing off
+/* His cartoon eyes, a separate layer over the hood: tall, narrow glowing ovals
+   with big pupils, bored and half-lidded, blinking now and then and glancing off
    to the side. Shut while he sleeps. */
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
-  left: 43px;
-  top: 19px;
-  width: 13px;
-  height: 7px;
-  background: url('../assets/eyes.png') 0 0 / 39px 7px no-repeat;
+  left: 44px;
+  top: 18px;
+  width: 11px;
+  height: 8px;
+  background: url('../assets/eyes.png') 0 0 / 33px 8px no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 2px rgba(220, 200, 255, 0.9));
   animation: glance 11s steps(1, end) infinite;
@@ -110,15 +110,15 @@ body.is-capturing * { visibility: hidden !important; }
 
 @keyframes glance {
   0% { background-position: 0 0; }
-  28% { background-position: -26px 0; }
+  28% { background-position: -22px 0; }
   29.5% { background-position: 0 0; }
-  52% { background-position: -13px 0; }
+  52% { background-position: -11px 0; }
   74% { background-position: 0 0; }
-  88% { background-position: -26px 0; }
+  88% { background-position: -22px 0; }
   89.5% { background-position: 0 0; }
 }
 
-.reaper.is-sleeping .eyes { animation: none; background-position: -26px 0; }
+.reaper.is-sleeping .eyes { animation: none; background-position: -22px 0; }
 
 .reaper.is-left .sprite { transform: scaleX(-1); }
 
@@ -212,6 +212,8 @@ body.is-capturing * { visibility: hidden !important; }
   animation: dig 1.2s steps(16) infinite;
 }
 .digger.is-flipped { transform: scaleX(-1); }
+.digger { transition: opacity 0.2s ease; }
+.digger.is-faded { opacity: 0.15; }
 @keyframes dig { to { background-position: -576px 0; } }
 @media (prefers-reduced-motion: reduce) {
   .digger { animation: none; }

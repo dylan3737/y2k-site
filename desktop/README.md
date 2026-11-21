@@ -101,7 +101,7 @@ Souls raise **skeletons**, for 25 souls each. Every skeleton digs up 6 souls an 
 
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight skeletons dig along the bottom of your screen. Clicks pass through them.
+- Up to eight skeletons dig along the bottom of your screen. Clicks pass through them, and each fades almost away while your cursor is over it.
 
 Open the Crypt from his ring to see your souls and raise a skeleton. Speak can do it too ("raise two skeletons", "how's the crypt?"), and so can the plain commands.
 
