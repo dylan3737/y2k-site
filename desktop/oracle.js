@@ -35,7 +35,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
-- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. How many souls or skeletons they have -> get_crypt. Raising skeletons -> raise_skeleton
+- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Every ghost caught in Summon is also bound in the Crypt as a spirit, which earns a soul an hour for good while there is room. The more souls the Crypt has ever gathered, the deeper it goes, and each depth adds 10% to all it earns. Souls also buy upgrades: Shovels (faster digging), Deeper vault (more away time counted), Urns (room for more spirits), Lantern (a longer, slower ghost hunt) and Bone bell (more golden ghosts). How many souls, skeletons or spirits they have, or what the upgrades are -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, a ghost game, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
@@ -99,13 +99,18 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_crypt',
-    description: 'The Crypt: souls banked, skeletons raised, souls they dig up per hour, and what the next skeleton costs.',
+    description: 'The Crypt: souls banked, skeletons raised, spirits bound and their room, souls earned per hour, the upgrades and their next costs, and how Summon goes.',
     input_schema: object()
   },
   {
     name: 'raise_skeleton',
     description: 'Spend banked souls to raise skeletons, which dig up more souls on their own. Raises as many of `count` as the souls allow.',
     input_schema: object({ count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' } })
+  },
+  {
+    name: 'buy_upgrade',
+    description: 'Spend banked souls on the next level of a Crypt upgrade: shovels (skeletons dig faster), vault (more away time counted), urns (room for 25 more spirits), lantern (Summon lasts longer and its ghosts drift slower) or bell (more golden ghosts in Summon).',
+    input_schema: object({ upgrade: { type: 'string', enum: ['shovels', 'vault', 'urns', 'lantern', 'bell'], description: 'Which upgrade.' } }, ['upgrade'])
   },
   {
     name: 'look_at_screen',

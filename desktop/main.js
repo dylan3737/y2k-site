@@ -457,7 +457,9 @@ function wireIpc() {
 
   ipcMain.handle('crypt', (_e, action = {}) => {
     crypt.settle(state.crypt);
-    const out = action && action.raise ? crypt.raise(state.crypt, action.raise) : { ok: true };
+    const out = action && action.raise ? crypt.raise(state.crypt, action.raise)
+      : action && action.buy ? crypt.buy(state.crypt, String(action.buy))
+        : { ok: true };
     writeState();
     // The page hears too, so the skeletons on screen always match the crypt.
     send('crypt', { crypt: crypt.view(state.crypt) });

@@ -39,7 +39,7 @@ npm start
 | Fling him | flies off, bouncing off the screen edges |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
-| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
+| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the crypt took in, when you're back |
 | Start the day | greets you with how many reminders are due today |
 | Press **Ctrl+Alt+R** (**⌘⌥R** on a Mac) | vanishes and reappears at your cursor, even on another monitor |
 | Press **Ctrl+Alt+Space** (**⌘⌥Space**) | appears at your cursor with Speak open |
@@ -78,7 +78,7 @@ When it's low, he fades.
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 25 | Ten seconds of ghosts flying across your whole desktop. Click them to catch them. Golden ones are worth three. Your best catch is saved. |
+| **Summon** | 25 | A ghost hunt: 15 seconds of ghosts drifting across your whole desktop. Click them to catch them; golden ones are worth three. Every ghost caught is bound in the [Crypt](#the-crypt) as a spirit that earns souls. The Crypt's Lantern and Bone bell make it easier. Your best catch is saved. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
 | **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
@@ -97,13 +97,37 @@ You earn souls by using him:
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls raise **skeletons**, for 25 souls each. Every skeleton digs up 6 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+Souls earn more souls in two ways, all the time: while you work, while you're away, and while the app is shut.
 
-- When you come back to the computer, he tells you what they dug up while you were gone.
-- When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
+- **Skeletons** cost 25 souls each, and each digs up 6 souls an hour.
+- **Spirits** come from Summon: every ghost you catch is bound in the Crypt as a spirit (a golden one binds three), and each spirit earns 1 soul an hour for good. The Crypt has room for 25 spirits at first.
+
+The more souls the Crypt has ever gathered, the deeper it goes. Each **depth** adds 10% to everything it earns, from skeletons and spirits alike:
+
+| Depth | Souls ever gathered | Earnings |
+|---|---|---|
+| 1 | 100 | +10% |
+| 2 | 500 | +20% |
+| 3 | 2,000 | +30% |
+| 4 | 8,000 | +40% |
+| 5 | 30,000 | +50% |
+| 6 | 100,000 | +60% |
+
+Souls also buy **upgrades**. Each level costs twice the last:
+
+| Upgrade | Levels | First level | Each level |
+|---|---|---|---|
+| **Shovels** | 5 | 40 | Skeletons dig 50% faster |
+| **Deeper vault** | 3 | 50 | 4 more hours counted while you're away |
+| **Urns** | 4 | 40 | Room for 25 more spirits |
+| **Lantern** | 3 | 30 | Summon lasts 3 seconds longer, and its ghosts drift slower |
+| **Bone bell** | 3 | 30 | More golden ghosts in Summon |
+
+- When you come back to the computer, he tells you what the Crypt took in while you were gone.
+- When the app was shut or the computer asleep, the Crypt is paid for up to 8 hours of it (more with the Deeper vault).
 - Up to eight skeletons dig along the bottom of your screen. Clicks pass through them, and each fades almost away while your cursor is over it.
 
-Open the Crypt from his ring to see your souls and raise a skeleton. Speak can do it too ("raise two skeletons", "how's the crypt?"), and so can the plain commands.
+Open the Crypt from his ring to see your souls, spirits and depth, raise skeletons (one, or as many as you can afford), buy upgrades, or start a ghost hunt. Speak can do it too ("raise two skeletons", "buy a lantern", "how's the crypt?"), and so can the plain commands.
 
 ## Speak
 
@@ -160,6 +184,7 @@ These need no model at all. Type them the way they are written here, or close to
 | `how did today go` | gives today's tally |
 | `crypt` | counts your souls and skeletons |
 | `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
+| `buy shovels`, `buy urns`, `buy a lantern`, `buy a bone bell`, `buy a deeper vault` | buys the next level of that upgrade |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
@@ -178,7 +203,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
-| "How's the crypt?" / "Raise two skeletons" | **Crypt**: counts your souls and skeletons, or raises more |
+| "How's the crypt?" / "Raise two skeletons" / "Buy a lantern" | **Crypt**: counts your souls, skeletons and spirits, raises more skeletons, or buys upgrades |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
@@ -254,7 +279,7 @@ npm run dist:linux
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
-| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig |
+| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons and spirits earn, the depths and upgrades, and how Summon goes |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |

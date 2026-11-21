@@ -265,6 +265,7 @@ ctx.crypt = crypt;
 const speak = createSpeak(ctx);
 ctx.speak = speak;
 const abilities = createAbilities(ctx);
+ctx.abilities = abilities;
 
 companion.setAbilities(abilities.list.map((a) => ({ id: a.id, name: a.name })));
 

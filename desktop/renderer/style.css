@@ -203,6 +203,16 @@ body.is-capturing * { visibility: hidden !important; }
 
 /* The Crypt */
 .crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0; }
+/* Cards flatten their content; the Crypt keeps its own box so its long list scrolls. */
+.card > .crypt { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+.crypt p { margin: 0; }
+.crypt-depth { color: var(--soul); }
+.crypt h3 { margin: 4px 0 0; font-size: 9px; font-weight: normal; color: var(--lilac); letter-spacing: 1px; }
+.crypt-shop { display: flex; flex-direction: column; gap: 6px; }
+.upgrade { display: flex; align-items: center; gap: 8px; }
+.upgrade .what { flex: 1; display: flex; flex-direction: column; }
+.upgrade b { font-weight: normal; color: var(--text); }
+.upgrade small { font-size: 9px; line-height: 1.35; }
 .digger {
   position: fixed;
   bottom: 0;
@@ -582,6 +592,9 @@ body.is-capturing * { visibility: hidden !important; }
 }
 
 @keyframes ghostSwim { to { background-position: -864px 0; } }
+
+/* A wider catch than the ghost itself, so a near miss still counts. */
+.ghost::after { content: ''; position: absolute; inset: -12px; }
 
 .ghost.is-golden { filter: sepia(1) saturate(2.4) hue-rotate(-12deg) brightness(1.15) drop-shadow(0 0 10px rgba(255, 226, 154, 0.95)); }
 .ghost.is-caught { animation: caughtPop 0.3s ease forwards; pointer-events: none; }

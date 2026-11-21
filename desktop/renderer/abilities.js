@@ -8,7 +8,8 @@ const GHOST_W = 54;
 const GHOST_H = 48;
 const GHOST_LOOP_S = 1.6;
 
-const HUNT_MS = 10000;
+// Summon as a fresh crypt leaves it; the Lantern and Bone bell improve it.
+const BASE_HUNT = { seconds: 15, pace: 1, golden: 0.15 };
 const VANISH_MS = 30 * 60000;
 
 function cardHead(title, onClose) {
@@ -195,7 +196,7 @@ export function createAbilities(ctx) {
   let scoreEl = null;
 
   function spawnGhost() {
-    const golden = Math.random() < 0.1;
+    const golden = Math.random() < hunt.golden;
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
     // Each starts at its own point in the swim, so they don't move in step.
     g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
@@ -204,8 +205,8 @@ export function createAbilities(ctx) {
       node: g, golden,
       x: side ? -GHOST_W : innerWidth + 10,
       y: 40 + Math.random() * (innerHeight - 140),
-      vx: (side ? 1 : -1) * (0.08 + Math.random() * 0.16),
-      vy: (Math.random() - 0.5) * 0.14,
+      vx: (side ? 1 : -1) * (0.05 + Math.random() * 0.09) * hunt.pace,
+      vy: (Math.random() - 0.5) * 0.09 * hunt.pace,
       phase: Math.random() * 6
     };
     g.addEventListener('pointerdown', (e) => {
@@ -233,16 +234,7 @@ export function createAbilities(ctx) {
     hunt.last = now;
     for (const g of hunt.ghosts) {
       if (g.caught) continue;
-      // They shy away from the cursor.
-      const dx = g.x + GHOST_W / 2 - cursor.x;
-      const dy = g.y + GHOST_H / 2 - cursor.y;
-      const d = Math.hypot(dx, dy);
-      if (d < 120 && d > 0) {
-        g.vx += (dx / d) * 0.004 * dt;
-        g.vy += (dy / d) * 0.004 * dt;
-      }
-      const speed = Math.hypot(g.vx, g.vy);
-      if (speed > 0.35) { g.vx *= 0.35 / speed; g.vy *= 0.35 / speed; }
+      // They drift at their own pace; the cursor doesn't scare them.
       g.x += g.vx * dt;
       g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
       if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - GHOST_W && g.vx > 0)) g.vx = -g.vx;
@@ -252,10 +244,10 @@ export function createAbilities(ctx) {
       g.node.style.setProperty('--at', at);
     }
     const left = hunt.ends - Date.now();
-    huntRing.style.setProperty('--left', Math.max(0, left / HUNT_MS).toFixed(3));
+    huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 3000);
     if (left <= 0) return endHunt();
-    if (now - hunt.lastSpawn > 900 && hunt.ghosts.filter((g) => !g.caught).length < 12) {
+    if (now - hunt.lastSpawn > 700 && hunt.ghosts.filter((g) => !g.caught).length < 14) {
       hunt.lastSpawn = now;
       spawnGhost();
     }
@@ -263,7 +255,13 @@ export function createAbilities(ctx) {
   }
 
   function startHunt() {
-    hunt = { ends: Date.now() + HUNT_MS, score: 0, ghosts: [], last: performance.now(), lastSpawn: performance.now() };
+    // The crypt's upgrades set how the hunt goes.
+    const how = { ...BASE_HUNT, ...((ctx.crypt && ctx.crypt.get().hunt) || {}) };
+    const length = how.seconds * 1000;
+    hunt = {
+      ends: Date.now() + length, length, pace: how.pace, golden: how.golden,
+      score: 0, ghosts: [], last: performance.now(), lastSpawn: performance.now()
+    };
     scoreEl = el('div', 'score', 'SOULS 0');
     field.appendChild(scoreEl);
     huntRing.hidden = false;
@@ -279,12 +277,19 @@ export function createAbilities(ctx) {
     const board = scoreEl;
     setTimeout(() => board.remove(), 2500);
     companion.stat('caught', score);
+    // Each ghost caught is bound in the crypt as a spirit, while there is room.
+    const c = ctx.crypt ? ctx.crypt.get() : null;
+    const room = c && Number.isFinite(c.spiritRoom) ? Math.max(0, c.spiritRoom - c.spirits) : score;
+    const bound = Math.min(score, room);
+    const help = !score ? '' : bound
+      ? '\n' + bound + (bound === 1 ? ' spirit bound' : ' spirits bound') + ' in the crypt.'
+      : '\nNo room for more spirits. Buy urns.';
     if (score > best) {
       best = score;
       companion.save({ best });
-      say(score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.', 5000);
+      say((score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.') + help, 5000);
     } else {
-      say(score + ' souls.\nBest: ' + best + '.', 5000);
+      say(score + ' souls.\nBest: ' + best + '.' + help, 5000);
     }
   }
 
@@ -470,9 +475,9 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'Ten seconds. Catch the ghosts.',
+      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'A ghost hunt. Each ghost caught is bound in the Crypt as a spirit.',
       ready: () => (hunt ? 'Already hunting.' : null),
-      cast: () => { startHunt(); say('Ten seconds. Catch them.', 3000); }
+      cast: () => { startHunt(); say(Math.round(hunt.length / 1000) + ' seconds. Catch them.', 3000); }
     },
     {
       id: 'hourglass', name: 'Hourglass', cost: 10, school: 'time', blurb: 'A focus timer. He rings when the sand runs out.',
@@ -573,6 +578,11 @@ export function createAbilities(ctx) {
       }
       case 'get_harvest':
         return { ok: true, result: await harvest() };
+      case 'buy_upgrade': {
+        if (typeof input.upgrade !== 'string') return { ok: false, error: 'upgrade must be one of shovels, vault, urns, lantern, bell' };
+        const out = await ctx.crypt.buy(input.upgrade);
+        return out.ok ? { ok: true, result: { upgrade: out.id, level: out.level, spent: out.spent, souls: out.crypt.souls } } : { ok: false, error: out.error };
+      }
       case 'get_crypt': {
         const out = await companion.crypt();
         ctx.crypt.update(out.crypt);

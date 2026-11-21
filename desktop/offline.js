@@ -15,6 +15,7 @@ export const HELP = [
   '• 25 minute timer / stop timer',
   '• how did today go',
   '• crypt / raise a skeleton / raise 3 skeletons',
+  '• buy shovels / buy urns / buy a lantern / buy a bone bell / buy a deeper vault',
   '• remember I like tea / what do you remember / forget tea',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -179,15 +180,27 @@ function cryptwork(text) {
       return plural(out.result.raised, 'skeleton') + ' risen. ' + plural(out.result.souls, 'soul') + ' left.';
     };
   }
-  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|minions)\??$|^how many (souls|skeletons)\b/.test(text)) return null;
+  const upgrade = /^(buy|upgrade|get)\s+(?:a\s+|an\s+|the\s+|more\s+|my\s+)?(?:(?:deeper\s+)?(vault)|(shovels?)|(lanterns?)|(?:bone\s+)?(bells?)|(urns?))$/.exec(text);
+  if (upgrade) {
+    const id = upgrade[2] ? 'vault' : upgrade[3] ? 'shovels' : upgrade[4] ? 'lantern' : upgrade[5] ? 'bell' : 'urns';
+    return async ({ tool }) => {
+      const out = await tool('buy_upgrade', { upgrade: id });
+      if (!out.ok) return out.error || 'The crypt would not take it.';
+      return 'Done: level ' + out.result.level + '. ' + plural(out.result.souls, 'soul') + ' left.';
+    };
+  }
+  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|spirits|minions|upgrades)\??$|^how many (souls|skeletons|spirits)\b/.test(text)) return null;
   return async ({ tool }) => {
     const out = await tool('get_crypt', {});
     if (!out.ok) return failed(out);
     const c = out.result;
     return [
       'The crypt holds ' + plural(c.souls, 'soul') + '.',
-      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + c.perHour + ' souls an hour.' : 'No skeletons yet.',
-      'The next one costs ' + c.nextCost + '.'
+      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + (c.digPerHour ?? c.perHour) + ' souls an hour.' : 'No skeletons yet.',
+      ...(c.spirits ? [plural(c.spirits, 'spirit') + ' bound (room for ' + c.spiritRoom + '): ' + c.spiritsPerHour + ' souls an hour.'] : []),
+      'The next one costs ' + c.nextCost + '.',
+      ...(c.depth ? ['Depth ' + c.depth + ': +' + c.depthBonus + '% to all it earns.'] : []),
+      ...(c.upgrades || []).map((u) => u.name + ' ' + u.level + '/' + u.max + (u.cost === null ? '' : ', next ' + u.cost))
     ].join('\n');
   };
 }

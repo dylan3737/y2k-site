@@ -50,7 +50,9 @@ function browserStandIn() {
     },
     async crypt(action = {}) {
       rules.settle(crypt);
-      const out = action.raise ? rules.raise(crypt, action.raise) : { ok: true };
+      const out = action.raise ? rules.raise(crypt, action.raise)
+        : action.buy ? rules.buy(crypt, String(action.buy))
+          : { ok: true };
       saveCrypt();
       return { ...out, crypt: rules.view(crypt) };
     },

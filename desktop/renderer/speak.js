@@ -12,6 +12,7 @@ const TOOL_LINES = {
   get_harvest: () => '✦ weighs the day',
   get_crypt: () => '✦ counts the crypt',
   raise_skeleton: () => '✦ raises the dead',
+  buy_upgrade: () => '✦ improves the crypt',
   look_at_screen: () => '✦ asks to look at your screen',
   read_clipboard: () => '✦ asks to read what you copied',
   copy_to_clipboard: () => '✦ copies it for you',

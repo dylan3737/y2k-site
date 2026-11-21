@@ -98,10 +98,14 @@ try {
   const ghosts = await page.$$('.ghost:not(.is-caught)');
   check('Summon releases ghosts', ghosts.length >= 6, String(ghosts.length));
   const before = await soul(page);
-  // Click one that has flown well onto the screen, where it is now.
+  // Click one once it has drifted fully onto the screen, where it is now.
+  // (They drift slowly and don't dodge the cursor.)
+  const ghostOnScreen = () => Array.from(document.querySelectorAll('.ghost:not(.is-caught)'), (n) => n.getBoundingClientRect())
+    .some((b) => b.left > 0 && b.right < innerWidth);
+  await page.waitForFunction(ghostOnScreen, null, { timeout: 5000 }).catch(() => {});
   const at = await page.evaluate(() => {
     const r = Array.from(document.querySelectorAll('.ghost:not(.is-caught)'), (n) => n.getBoundingClientRect())
-      .find((b) => b.left > 60 && b.right < innerWidth - 60);
+      .find((b) => b.left > 0 && b.right < innerWidth);
     return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   });
   if (at) await page.mouse.click(at.x, at.y);
@@ -113,8 +117,10 @@ try {
   await page.waitForTimeout(150);
   check('Slash draws the cut', !!(await page.$('.slash-line')));
   await page.waitForTimeout(1200);
-  check('Slash reaps every loose ghost', (await page.$$('.ghost:not(.is-caught)')).length <= 1);
-  await page.waitForTimeout(9000);
+  // New ghosts keep coming every 0.7 seconds; at most two can arrive since.
+  check('Slash reaps every loose ghost', (await page.$$('.ghost:not(.is-caught)')).length <= 2);
+  // A fresh crypt's hunt lasts 15 seconds.
+  await page.waitForTimeout(14000);
   check('the hunt ends and ghosts leave', (await page.$$('.ghost')).length === 0);
   const best = await page.evaluate(() => window.__companion.read().best);
   check('best catch is saved', best >= 1, String(best));
@@ -248,7 +254,8 @@ try {
   check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 25, JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
-  // Shut for two hours with one skeleton: twelve souls, told on the way in.
+  // Shut for two hours with one skeleton (6 an hour) and the 12 spirits bound
+  // from the ghosts caught (12 an hour): 36 souls, told on the way in.
   await page.evaluate(() => {
     const saved = window.__companion.read();
     saved.crypt.at -= 2 * 3600000;
@@ -257,8 +264,8 @@ try {
   await page.reload();
   await page.waitForSelector('#body');
   await page.waitForTimeout(1900);
-  check('he says what was dug while the app was shut', (await page.textContent('#bubble')).includes('The skeletons dug up 12 souls'), await page.textContent('#bubble'));
-  check('and it is in the crypt', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 34);
+  check('he says what the crypt took in while the app was shut', (await page.textContent('#bubble')).includes('The crypt took in 36 souls'), await page.textContent('#bubble'));
+  check('and it is in the crypt', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 58);
   // Back from being away
   await page.evaluate(() => {
     window.__companion.emit('away', { away: true });
@@ -266,7 +273,43 @@ try {
   });
   await page.waitForTimeout(100);
   const back = await page.textContent('#bubble');
-  check('coming back reports the dig', back.includes('Gone') && back.includes('The skeletons dug up 9 souls'), back);
+  check('coming back reports the dig', back.includes('Gone') && back.includes('The crypt took in 9 souls'), back);
+
+  // Summon feeds the Crypt: ghosts caught are bound as spirits that earn.
+  page = await open({ wander: false, muted: true, crypt: { souls: 100, skeletons: 0, total: 0, at: Date.now() } });
+  await castFromRing(page, 'crypt');
+  check('the Crypt lists five upgrades', (await page.$$('#card .upgrade')).length === 5);
+  check('it has no spirits yet, and says how to get them', (await page.textContent('#card')).includes('Catch ghosts in Summon to bind them here'));
+  check('it says how Summon goes', (await page.textContent('#card')).includes('Summon: 15 seconds, 15% of ghosts golden'), await page.textContent('#card'));
+  check('it says how deep it is, and when it goes deeper', (await page.textContent('#card .crypt-depth')).includes('Depth 0. Deeper at 100 souls gathered'),
+    await page.textContent('#card .crypt-depth'));
+  check('it offers to raise as many skeletons as the souls cover', (await page.textContent('#card')).includes('Raise 4'));
+  await page.click('#card .chip:has-text("Hunt ghosts")');
+  await page.waitForTimeout(400);
+  check('the Crypt starts a hunt', (await page.$$('.ghost')).length >= 6 && !(await visible(page, '#card')) &&
+    (await page.textContent('#bubble')).includes('15 seconds'), await page.textContent('#bubble'));
+  check('ghosts have a wider target than they look', await page.$eval('.ghost', (g) => getComputedStyle(g, '::after').inset === '-12px'));
+  await castFromRing(page, 'slash');
+  await page.waitForTimeout(16000);
+  const told = await page.textContent('#bubble');
+  check('when the hunt ends, the ghosts are bound in the crypt', /\d+ spirits? bound in the crypt/.test(told), told);
+  const after = await page.evaluate(() => window.__reaper.crypt.get());
+  check('and the spirits earn souls an hour, with no skeletons', after.spirits >= 6 && after.perHour === after.spirits, JSON.stringify(after));
+  await castFromRing(page, 'crypt');
+  check('the Crypt shows them', (await page.textContent('#card')).includes(after.spirits + ' spirits haunt the crypt, room for 25'), await page.textContent('#card'));
+  await page.click('#card .upgrade:has-text("Lantern") .chip');
+  await page.waitForTimeout(150);
+  check('an upgrade can be bought from the card', (await page.textContent('#card .upgrade:has-text("Lantern")')).includes('Lantern 1/3') &&
+    (await page.textContent('#card')).includes('Summon: 18 seconds'), await page.textContent('#card'));
+  out = await page.evaluate(async () => window.__reaper.abilities.runTool('buy_upgrade', { upgrade: 'urns' }));
+  check('Speak can buy an upgrade', out.ok && out.result.upgrade === 'urns' && out.result.level === 1, JSON.stringify(out));
+  out = await page.evaluate(async () => window.__reaper.abilities.runTool('buy_upgrade', { upgrade: 'vault' }));
+  check('and is told when the souls fall short', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  // Gathering 100 souls in all takes the crypt a depth deeper, and he says so.
+  await page.evaluate(async () => { const { companion } = await import('./bridge.js'); companion.stat('reaped', 20); });
+  await page.waitForTimeout(150);
+  check('going deeper is announced', (await page.textContent('#bubble')).includes('The crypt goes deeper') &&
+    (await page.evaluate(() => window.__reaper.crypt.get().depth)) === 1, await page.textContent('#bubble'));
 
   // Away and back
   page = await open({ wander: false, soul: 50 });
