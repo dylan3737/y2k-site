@@ -15,7 +15,7 @@ export const HELP = [
   '• 25 minute timer / stop timer',
   '• how did today go',
   '• crypt / raise a skeleton / raise 3 skeletons',
-  '• buy shovels / buy urns / buy a lantern / buy a bone bell / buy a deeper vault',
+  '• upgrades / buy shovels (or graves, sand, lure) / milestones',
   '• remember I like tea / what do you remember / forget tea',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -180,27 +180,36 @@ function cryptwork(text) {
       return plural(out.result.raised, 'skeleton') + ' risen. ' + plural(out.result.souls, 'soul') + ' left.';
     };
   }
-  const upgrade = /^(buy|upgrade|get)\s+(?:a\s+|an\s+|the\s+|more\s+|my\s+)?(?:(?:deeper\s+)?(vault)|(shovels?)|(lanterns?)|(?:bone\s+)?(bells?)|(urns?))$/.exec(text);
-  if (upgrade) {
-    const id = upgrade[2] ? 'vault' : upgrade[3] ? 'shovels' : upgrade[4] ? 'lantern' : upgrade[5] ? 'bell' : 'urns';
+  const shop = /^(buy|upgrade|get|sharpen|deepen)\s+(the\s+|my\s+|a\s+)?(sharper\s+|deeper\s+|finer\s+|ghost\s+)?(shovels?|graves?|sand|lures?)$/.exec(text);
+  if (shop) {
+    const upgrade = { sh: 'shovels', gr: 'graves', sa: 'sand', lu: 'lure' }[shop[4].slice(0, 2)];
     return async ({ tool }) => {
-      const out = await tool('buy_upgrade', { upgrade: id });
-      if (!out.ok) return out.error || 'The crypt would not take it.';
-      return 'Done: level ' + out.result.level + '. ' + plural(out.result.souls, 'soul') + ' left.';
+      const out = await tool('buy_upgrade', { upgrade });
+      if (!out.ok) return out.error || 'It could not be bought.';
+      return out.result.bought + ', level ' + out.result.level + '. ' + plural(out.result.souls, 'soul') + ' left.';
     };
   }
-  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|spirits|minions|upgrades)\??$|^how many (souls|skeletons|spirits)\b/.test(text)) return null;
+  if (/^((show|list)\s+)?(my\s+|the\s+)?(upgrades|milestones)\??$/.test(text)) {
+    const wanted = /upgrades/.test(text) ? 'upgrades' : 'milestones';
+    return async ({ tool }) => {
+      const out = await tool('get_crypt', {});
+      if (!out.ok) return failed(out);
+      const c = out.result;
+      if (wanted === 'milestones') {
+        return [c.milestonesReached + ' milestones reached.', ...c.nextMilestones.map((m) => '• ' + m)].join('\n');
+      }
+      return c.upgrades.map((u) => '• ' + u.name + ' ' + u.level + '/' + u.max + (u.cost === null ? ' (done)' : ': ' + u.cost + ' souls for ' + u.next)).join('\n');
+    };
+  }
+  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|minions)\??$|^how many (souls|skeletons)\b/.test(text)) return null;
   return async ({ tool }) => {
     const out = await tool('get_crypt', {});
     if (!out.ok) return failed(out);
     const c = out.result;
     return [
       'The crypt holds ' + plural(c.souls, 'soul') + '.',
-      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + (c.digPerHour ?? c.perHour) + ' souls an hour.' : 'No skeletons yet.',
-      ...(c.spirits ? [plural(c.spirits, 'spirit') + ' bound (room for ' + c.spiritRoom + '): ' + c.spiritsPerHour + ' souls an hour.'] : []),
-      'The next one costs ' + c.nextCost + '.',
-      ...(c.depth ? ['Depth ' + c.depth + ': +' + c.depthBonus + '% to all it earns.'] : []),
-      ...(c.upgrades || []).map((u) => u.name + ' ' + u.level + '/' + u.max + (u.cost === null ? '' : ', next ' + u.cost))
+      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + c.perHour + ' souls an hour.' : 'No skeletons yet.',
+      'The next one costs ' + c.nextCost + '.'
     ].join('\n');
   };
 }
@@ -212,7 +221,9 @@ function remembering(text, original) {
       return notes.length ? notes.map((n) => '• ' + n.text).join('\n') : 'Nothing yet. Tell me: remember I like tea.';
     };
   }
-  const keep = /^(please\s+)?remember\s+(that\s+)?(.+)$/i.exec(original.trim());
+  // "remember I like tea", or "my name is Sam, remember that".
+  const keep = /^(please\s+)?remember\s+(that\s+)?(.+)$/i.exec(original.trim()) ||
+    /^()()(.+?)[\s,;.!-]+(please\s+)?remember\s+(that|this|it)[\s.!]*$/i.exec(original.trim());
   if (keep) {
     const note = keep[3].replace(/[\s.]+$/, '');
     return async ({ tool }) => {
@@ -270,11 +281,14 @@ function clockwork(text, now) {
   return null;
 }
 
-export function parseCommand(input, now = new Date()) {
+// With a model to hand, `withModel` leaves it the requests a pattern can
+// misread (spells: "how do I burn a CD?") and "help", which lists these
+// commands as if there were no model.
+export function parseCommand(input, now = new Date(), { withModel = false } = {}) {
   const original = String(input || '');
   const text = original.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[!.]+$/, '');
   if (!text) return null;
-  if (/^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
+  if (!withModel && /^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
   return reminder(original, now) || reminders(text) || timer(text) || tally(text) || cryptwork(text) ||
-    remembering(text, original) || clockwork(text, now) || casting(text);
+    remembering(text, original) || clockwork(text, now) || (withModel ? null : casting(text));
 }

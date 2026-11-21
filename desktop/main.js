@@ -8,9 +8,11 @@ import {
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createOracle } from './oracle.js';
+import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
+import { createFreeMind, serverPath } from './freemind.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
+import { doorsOf, SIDES, OPPOSITE } from './screens.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const asset = (name) => path.join(here, 'assets', name);
@@ -30,11 +32,13 @@ app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const state = {
   soul: 100, best: 0, wander: true, chatty: true, muted: false,
   ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null,
-  // Whose mind Speak borrows: 'claude' (an API key), 'ollama' (a free model on
-  // this computer) or 'offline' (none; plain commands only).
-  brain: 'claude', localModel: null,
+  // Whose mind Speak borrows: 'free' (built in, on this computer), 'claude' (an
+  // API key), 'ollama' (the user's own Ollama) or 'offline' (plain commands only).
+  brain: 'free', localModel: null,
   // The idle game: banked souls and the skeletons that dig for more.
-  crypt: crypt.fresh(), minions: true
+  crypt: crypt.fresh(), minions: true,
+  // Whether he walks (and can be flung) from one monitor to the next.
+  roam: true
 };
 
 // What Speak remembers about the user, kept with the rest of the state.
@@ -62,6 +66,9 @@ const statePath = () => path.join(app.getPath('userData'), 'companion.json');
 
 function readState() {
   try { Object.assign(state, JSON.parse(fs.readFileSync(statePath(), 'utf8'))); } catch {}
+  // Before the free mind, Claude was the default whether or not there was a key.
+  // Without one it was never really chosen: give those the free mind.
+  if (state.brain === 'claude' && !hasKey()) state.brain = 'free';
 }
 
 // What the skeletons dug while the app was shut, told to the page once.
@@ -81,8 +88,10 @@ function takeDug() {
 // Count what the skeletons dug since the last look, and tell the page.
 function tendCrypt(event = {}) {
   crypt.settle(state.crypt);
+  // Digging alone can reach a milestone; one reached by a deed is passed in.
+  const reached = [...(event.reached || []), ...crypt.reach(state.crypt)];
   writeState();
-  send('crypt', { crypt: crypt.view(state.crypt), ...event });
+  send('crypt', { ...event, crypt: crypt.view(state.crypt), reached });
 }
 
 function writeNow() {
@@ -132,8 +141,19 @@ function setKey(key) {
   return true;
 }
 
-const BRAINS = ['claude', 'ollama', 'offline'];
-const getBrain = () => ({ kind: BRAINS.includes(state.brain) ? state.brain : 'claude', model: state.localModel || null });
+const BRAINS = ['free', 'claude', 'ollama', 'offline'];
+const getBrain = () => ({ kind: BRAINS.includes(state.brain) ? state.brain : 'free', model: state.localModel || null });
+
+// The free mind: its model is downloaded into the app's data folder on first use.
+const freeMind = createFreeMind({
+  // REAPER_MODELS_DIR lets the tests point it at a model they already have.
+  dir: process.env.REAPER_MODELS_DIR || path.join(app.getPath('userData'), 'models'),
+  system: SYSTEM + SMALL_MODEL_NOTE,
+  tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)),
+  // llama.cpp's llama-server, which runs the model in its own process.
+  // REAPER_LLAMA_SERVER lets the tests use another one.
+  server: process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: app.isPackaged, resources: process.resourcesPath, here })
+});
 const hasKey = () => !!state.apiKey || !!process.env.ANTHROPIC_API_KEY;
 
 // The models Ollama has, as last seen; the tray menu lists them.
@@ -156,7 +176,7 @@ async function setBrain(patch = {}) {
     }
   }
   rebuildMenu();
-  const status = { kind, model, hasKey: hasKey(), local };
+  const status = { kind, model, hasKey: hasKey(), local, free: freeMind.status() };
   send('settings', { brain: kind, hasKey: status.hasKey });
   return status;
 }
@@ -179,6 +199,37 @@ function send(channel, data) {
 function fitTo(display) {
   displayId = display.id;
   if (win && !win.isDestroyed()) win.setBounds(display.workArea);
+  send('doors', doors());
+}
+
+// --- Other monitors ---------------------------------------------------------------
+// He lives in one window the size of one monitor. Where an edge of that monitor
+// touches another, there is a door: he can walk or be flung through it, and the
+// window moves to the other monitor with him. (One window across every monitor
+// would not work on macOS, and breaks with mixed scaling on Windows.)
+function doors() {
+  if (!state.roam) return [];
+  return doorsOf(currentDisplay(), screen.getAllDisplays());
+}
+
+// Through a door: the window moves to the other monitor, and the page is told
+// where he comes in (the opposite side, at the same place on the desktop).
+function cross({ id, side, along } = {}) {
+  const from = currentDisplay();
+  const to = screen.getAllDisplays().find((d) => d.id === id);
+  if (!state.roam || !to || to.id === from.id || !SIDES.includes(side) || !Number.isFinite(along)) return null;
+  if (!doors().some((door) => door.id === id && door.side === side)) return null;
+  const upright = side === 'left' || side === 'right';
+  const onDesktop = (upright ? from.workArea.y : from.workArea.x) + along;
+  fitTo(to);
+  const w = to.workArea;
+  return {
+    side: OPPOSITE[side],
+    along: onDesktop - (upright ? w.y : w.x),
+    width: w.width,
+    height: w.height,
+    doors: doors()
+  };
 }
 
 function setInteractive(on) {
@@ -319,8 +370,9 @@ function rebuildMenu() {
     {
       label: 'Mind',
       submenu: [
+        { label: 'Free, on this computer', type: 'radio', checked: getBrain().kind === 'free', click: () => setBrain({ kind: 'free' }) },
         { label: 'Claude (your API key)', type: 'radio', checked: getBrain().kind === 'claude', click: () => setBrain({ kind: 'claude' }) },
-        { label: 'Local model (Ollama, free)', type: 'radio', checked: getBrain().kind === 'ollama', click: () => setBrain({ kind: 'ollama' }) },
+        { label: 'Your own Ollama', type: 'radio', checked: getBrain().kind === 'ollama', click: () => setBrain({ kind: 'ollama' }) },
         { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
         ...(getBrain().kind === 'ollama' && localModels.length ? [
           { type: 'separator' },
@@ -343,6 +395,11 @@ function rebuildMenu() {
     {
       label: 'Sounds', type: 'checkbox', checked: !state.muted,
       click: (item) => { state.muted = !item.checked; writeState(); send('settings', { muted: state.muted }); }
+    },
+    {
+      label: 'Roam between screens', type: 'checkbox', checked: state.roam,
+      enabled: screen.getAllDisplays().length > 1,
+      click: (item) => { state.roam = item.checked; writeState(); send('settings', { roam: state.roam }); send('doors', doors()); }
     },
     {
       label: 'Skeletons on screen', type: 'checkbox', checked: state.minions,
@@ -406,7 +463,7 @@ function runTool(name, input, signal) {
   });
 }
 
-const oracle = createOracle({ getKey, runTool, memory, getBrain });
+const oracle = createOracle({ getKey, runTool, memory, getBrain, freeMind });
 
 function wireIpc() {
   ipcMain.on('interactive', (_e, on) => setInteractive(!!on));
@@ -429,6 +486,9 @@ function wireIpc() {
     hasKey: hasKey(),
     brain: getBrain().kind,
     minions: state.minions,
+    roam: state.roam,
+    free: freeMind.status(),
+    doors: doors(),
     // `dug` is what the skeletons brought up while the app was shut; told once.
     crypt: { ...crypt.view(state.crypt), dug: takeDug() },
     keys: { come: COME_KEY, speak: SPEAK_KEY },
@@ -450,19 +510,18 @@ function wireIpc() {
   ipcMain.on('stat', (_e, { key, n, worth } = {}) => {
     if (!STAT_KEYS.includes(key) || !Number.isFinite(n)) return;
     today()[key] += n;
-    const gained = crypt.earn(state.crypt, key, Number.isFinite(worth) ? worth : n);
-    if (gained) tendCrypt({ gained });
+    const { gained, reached } = crypt.deed(state.crypt, key, Number.isFinite(worth) ? worth : n);
+    if (gained) tendCrypt({ gained, reached });
     writeState();
   });
 
+  ipcMain.handle('cross', (_e, through) => cross(through));
+
   ipcMain.handle('crypt', (_e, action = {}) => {
-    crypt.settle(state.crypt);
-    const out = action && action.raise ? crypt.raise(state.crypt, action.raise)
-      : action && action.buy ? crypt.buy(state.crypt, String(action.buy))
-        : { ok: true };
-    writeState();
-    // The page hears too, so the skeletons on screen always match the crypt.
-    send('crypt', { crypt: crypt.view(state.crypt) });
+    const { reached, ...out } = crypt.act(state.crypt, action);
+    // The page hears too, so the skeletons on screen always match the crypt,
+    // and that is where it learns of milestones.
+    tendCrypt({ reached });
     return { ...out, crypt: crypt.view(state.crypt) };
   });
 
@@ -570,6 +629,26 @@ function wireIpc() {
     return ok;
   });
   ipcMain.handle('brain', (_e, patch) => setBrain(patch && typeof patch === 'object' ? patch : {}));
+
+  // The free mind's one-time download, with progress for the card.
+  ipcMain.handle('free-fetch', async () => {
+    let last = 0;
+    try {
+      const ok = await freeMind.fetchModel((p) => {
+        // A few updates a second is plenty for a progress bar.
+        if (Date.now() - last < 250) return;
+        last = Date.now();
+        send('free-progress', p);
+      });
+      send('free-progress', { finished: true, installed: ok });
+      return { ok, free: freeMind.status() };
+    } catch (err) {
+      const error = String((err && err.message) || err).slice(0, 200);
+      send('free-progress', { finished: true, installed: false, error });
+      return { ok: false, error, free: freeMind.status() };
+    }
+  });
+  ipcMain.on('free-cancel', () => freeMind.cancelDownload());
 }
 
 // --- Start -----------------------------------------------------------------------
@@ -600,7 +679,8 @@ if (!app.requestSingleInstanceLock()) {
     setInterval(() => tendCrypt({ dug: true }), 60000);
     powerMonitor.on('lock-screen', () => goAway(Date.now()));
 
-    const refit = () => fitTo(currentDisplay());
+    // A monitor added, removed or rearranged: the doors change, and the menu's roam item.
+    const refit = () => { fitTo(currentDisplay()); rebuildMenu(); };
     screen.on('display-metrics-changed', refit);
     screen.on('display-removed', refit);
     screen.on('display-added', refit);
@@ -608,6 +688,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
+    freeMind.cancelDownload();
+    freeMind.unload();
     clearTimeout(saveTimer);
     writeNow();
   });

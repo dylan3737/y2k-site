@@ -177,28 +177,55 @@ try {
   out = await tool('get_harvest', {});
   check('get_harvest reports the day', out.ok && 'activeMinutes' in out.result && out.result.hourglassMinutesLeft === 25);
 
-  // Speak card
+  // Speak card: a new user is offered the free mind, not asked for a key
   page = await open({ wander: false });
   await castFromRing(page, 'speak');
   check('Speak opens its card', await visible(page, '#card textarea'));
-  check('without a key it asks for one', await visible(page, '#card input[type=password]'));
+  await page.waitForTimeout(150);
+  check('it offers the free mind\'s download, and asks for no key', await page.isVisible('#card .chip:has-text("Download")') &&
+    !(await visible(page, '#card input[type=password]')) && (await page.textContent('#card')).includes('2.3 GB'), await page.textContent('#card'));
   await page.fill('#card textarea', 'hello');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
   check('the question shows in the card', (await page.textContent('.line.you')) === 'hello');
-  check('an error is shown in the card', (await page.$$('.line.oops, #card input[type=password]')).length > 0);
-  // The free minds, offered beside the key form
-  await page.click('#card .chip:has-text("Free local model")');
+  // Claude instead: the key form, which leads back to the free mind.
+  await page.click('#card .chip:has-text("Use a key")');
   await page.waitForTimeout(150);
-  check('a local mind with no Ollama says how to get it', (await page.textContent('#card')).includes('ollama pull llama3.2') &&
-    !(await visible(page, '#card input[type=password]')));
-  await page.evaluate(() => { window.__companion.local = { running: true, models: ['llama3.2:latest'], using: 'llama3.2:latest' }; });
-  await page.click('#card .chip:has-text("Try again")');
+  check('"Use a key" asks for one', await visible(page, '#card input[type=password]'));
+  await page.click('#card .chip:has-text("Free mind")');
   await page.waitForTimeout(150);
-  check('once Ollama answers, he borrows its model', (await page.textContent('.log')).includes('borrowing llama3.2:latest') &&
-    (await page.$$('#card .chip:has-text("Try again")')).length === 0);
+  check('and "Free mind" goes back to the download', await page.isVisible('#card .chip:has-text("Download")') &&
+    (await page.evaluate(() => window.__companion.read().brain)) === 'free');
+  // The download, with its progress.
+  const seenProgress = page.evaluate(() => new Promise((resolve) => {
+    const widths = [];
+    const look = setInterval(() => {
+      const fill = document.querySelector('#card .progress span');
+      if (fill) widths.push(fill.style.width);
+      if (window.__companion.free && window.__companion.free.installed) { clearInterval(look); resolve(widths); }
+    }, 10);
+  }));
+  await page.click('#card .chip:has-text("Download")');
+  const widths = await seenProgress;
+  await page.waitForTimeout(150);
+  check('the download shows its progress', widths.some((w) => w !== '0.0%' && w !== '100.0%'), widths.join(' '));
+  check('when it is done he is ready to talk', (await page.textContent('.log')).includes('his mind is here') &&
+    !(await page.isVisible('#card .chip:has-text("Download")')));
+  // A mind that would not wake offers the other ways.
+  await page.evaluate(() => window.__companion.emit('speech', { type: 'error', code: 'free', message: 'My free mind would not wake.' }));
+  await page.waitForTimeout(100);
+  check('trouble with the free mind is shown', (await page.textContent('.log')).includes('would not wake'));
+  // Ollama, for those who run it, from the tray menu (Mind).
+  await page.evaluate(() => window.__reaper.speak.close());
+  await page.evaluate(async () => {
+    const { companion } = await import('./bridge.js');
+    window.__companion.local = { running: false, models: [], using: null };
+    await companion.brain({ kind: 'ollama' });
+  });
   await page.evaluate(() => window.__companion.emit('speech', { type: 'error', code: 'local', message: 'Ollama is not running.' }));
-  check('trouble with the local mind offers the other ways', await page.isVisible('#card .chip:has-text("Commands only")'));
+  await page.evaluate(() => window.__reaper.speak.open());
+  await page.waitForTimeout(150);
+  check('trouble with Ollama offers the other ways', await page.isVisible('#card .chip:has-text("Commands only")'));
   await page.click('#card .chip:has-text("Commands only")');
   await page.waitForTimeout(150);
   check('he can go without a mind', (await page.textContent('.log')).includes('no mind borrowed') &&
@@ -222,9 +249,9 @@ try {
 
   // The Crypt: deeds bank souls, souls raise skeletons, skeletons dig
   page = await open({ wander: false });
+  const banked = () => page.textContent('#card .crypt-souls');
   await page.evaluate(() => window.__reaper.abilities.cast('crypt'));
-  check('the Crypt opens empty', (await page.textContent('#card .crypt-souls')) === '0 souls' &&
-    await page.isDisabled('#card .chip.solid'));
+  check('the Crypt opens empty', (await banked()) === '0 souls' && await page.isDisabled('#card .chip.solid'));
   await page.evaluate(async () => {
     const { companion } = await import('./bridge.js');
     companion.stat('caught', 12);
@@ -232,12 +259,14 @@ try {
     companion.stat('focus', 1, 25);
   });
   await page.waitForTimeout(100);
-  check('ghosts, files and a finished hourglass bank souls', (await page.textContent('#card .crypt-souls')) === '47 souls',
-    await page.textContent('#card .crypt-souls'));
+  // 12 ghosts, 2 files (10) and 25 minutes, plus two first-time milestones (10 and 15).
+  check('ghosts, files and a finished hourglass bank souls', (await banked()) === '72 souls', await banked());
+  await page.waitForTimeout(1300);
+  check('a milestone is announced', /Milestone: .*First sand/.test(await page.textContent('#bubble')), await page.textContent('#bubble'));
   await page.click('#card .chip.solid');
   await page.waitForTimeout(200);
-  check('souls raise a skeleton', (await page.textContent('#card .crypt-souls')) === '22 souls' &&
-    (await page.textContent('#card')).includes('1 skeleton digs up 6 souls an hour'), await page.textContent('#card'));
+  check('souls raise a skeleton', (await banked()) === '57 souls' &&
+    (await page.textContent('#card')).includes('1 skeleton digs up 1.5 souls an hour'), await page.textContent('#card'));
   check('the skeleton digs on screen', (await page.$$('.field .digger')).length === 1);
   const bones = await page.locator('.field .digger').boundingBox();
   await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
@@ -247,15 +276,38 @@ try {
   await page.waitForTimeout(50);
   const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
   check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
-  check('the next one costs 25, more than he has', (await page.textContent('#card .chip.solid')).includes('25') && await page.isDisabled('#card .chip.solid'));
-  out = await tool('raise_skeleton', {});
-  check('Speak cannot raise one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
+
+  // Upgrades
+  await page.evaluate(async () => (await import('./bridge.js')).companion.stat('focus', 1, 50));
+  await page.click('#card .chip[data-tab="upgrades"]');
+  check('the upgrades are listed with prices', (await page.$$('#card .crypt-item')).length === 4 &&
+    (await page.textContent('#card .crypt-item')).includes('Sharper shovels 0/10') && (await page.textContent('#card .crypt-item .chip')) === '60');
+  await page.click('#card .crypt-item .chip');
+  await page.waitForTimeout(200);
+  // 57 + 50 minutes + 50 (a 50-minute hourglass) - 60 + 20 (the first upgrade).
+  check('souls buy an upgrade', (await banked()) === '117 souls' && (await page.textContent('#card .crypt-item')).includes('Sharper shovels 1/10') &&
+    (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 1.9, await banked());
+  check('what he cannot afford cannot be clicked', await page.isDisabled('#card .crypt-item:nth-child(3) .chip'));
+  await page.click('#card .chip[data-tab="milestones"]');
+  check('milestones show what is reached and what is ahead', (await page.textContent('#card .crypt-page')).includes('5 of 17 reached') &&
+    (await page.$$('#card .crypt-item.is-done')).length === 5 && (await page.$$('#card .crypt-item')).length === 17);
+
+  // Speak's tools for it
   out = await tool('get_crypt', {});
-  check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 25, JSON.stringify(out));
+  check('Speak can count the crypt', out.ok && out.result.souls === 117 && out.result.skeletons === 1 && out.result.nextCost === 32 &&
+    out.result.milestonesReached === '5 of 17' && out.result.nextMilestones.length === 3 && out.result.upgrades[0].level === 1, JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'graves' });
+  check('Speak can buy an upgrade', out.ok && out.result.level === 1 && out.result.souls === 27, JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'lure' });
+  check('Speak cannot buy one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  out = await tool('buy_upgrade', { upgrade: 'cheat' });
+  check('or one that does not exist', !out.ok && /No such upgrade/.test(out.error), JSON.stringify(out));
+  out = await tool('raise_skeleton', {});
+  check('Speak cannot raise a skeleton without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
-  // Shut for two hours with one skeleton (6 an hour) and the 12 spirits bound
-  // from the ghosts caught (12 an hour): 36 souls, told on the way in.
+  // Shut for two hours with one skeleton and sharper shovels: 3.75 souls, told on the way in.
   await page.evaluate(() => {
     const saved = window.__companion.read();
     saved.crypt.at -= 2 * 3600000;
@@ -264,8 +316,9 @@ try {
   await page.reload();
   await page.waitForSelector('#body');
   await page.waitForTimeout(1900);
-  check('he says what the crypt took in while the app was shut', (await page.textContent('#bubble')).includes('The crypt took in 36 souls'), await page.textContent('#bubble'));
-  check('and it is in the crypt', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 58);
+  check('he says what was dug while the app was shut', (await page.textContent('#bubble')).includes('The skeletons dug up 3 souls'), await page.textContent('#bubble'));
+  check('and it is in the crypt, with the upgrades kept', (await page.evaluate(() => window.__reaper.crypt.get().souls)) === 30 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().awayCapHours)) === 12);
   // Back from being away
   await page.evaluate(() => {
     window.__companion.emit('away', { away: true });
@@ -273,43 +326,7 @@ try {
   });
   await page.waitForTimeout(100);
   const back = await page.textContent('#bubble');
-  check('coming back reports the dig', back.includes('Gone') && back.includes('The crypt took in 9 souls'), back);
-
-  // Summon feeds the Crypt: ghosts caught are bound as spirits that earn.
-  page = await open({ wander: false, muted: true, crypt: { souls: 100, skeletons: 0, total: 0, at: Date.now() } });
-  await castFromRing(page, 'crypt');
-  check('the Crypt lists five upgrades', (await page.$$('#card .upgrade')).length === 5);
-  check('it has no spirits yet, and says how to get them', (await page.textContent('#card')).includes('Catch ghosts in Summon to bind them here'));
-  check('it says how Summon goes', (await page.textContent('#card')).includes('Summon: 15 seconds, 15% of ghosts golden'), await page.textContent('#card'));
-  check('it says how deep it is, and when it goes deeper', (await page.textContent('#card .crypt-depth')).includes('Depth 0. Deeper at 100 souls gathered'),
-    await page.textContent('#card .crypt-depth'));
-  check('it offers to raise as many skeletons as the souls cover', (await page.textContent('#card')).includes('Raise 4'));
-  await page.click('#card .chip:has-text("Hunt ghosts")');
-  await page.waitForTimeout(400);
-  check('the Crypt starts a hunt', (await page.$$('.ghost')).length >= 6 && !(await visible(page, '#card')) &&
-    (await page.textContent('#bubble')).includes('15 seconds'), await page.textContent('#bubble'));
-  check('ghosts have a wider target than they look', await page.$eval('.ghost', (g) => getComputedStyle(g, '::after').inset === '-12px'));
-  await castFromRing(page, 'slash');
-  await page.waitForTimeout(16000);
-  const told = await page.textContent('#bubble');
-  check('when the hunt ends, the ghosts are bound in the crypt', /\d+ spirits? bound in the crypt/.test(told), told);
-  const after = await page.evaluate(() => window.__reaper.crypt.get());
-  check('and the spirits earn souls an hour, with no skeletons', after.spirits >= 6 && after.perHour === after.spirits, JSON.stringify(after));
-  await castFromRing(page, 'crypt');
-  check('the Crypt shows them', (await page.textContent('#card')).includes(after.spirits + ' spirits haunt the crypt, room for 25'), await page.textContent('#card'));
-  await page.click('#card .upgrade:has-text("Lantern") .chip');
-  await page.waitForTimeout(150);
-  check('an upgrade can be bought from the card', (await page.textContent('#card .upgrade:has-text("Lantern")')).includes('Lantern 1/3') &&
-    (await page.textContent('#card')).includes('Summon: 18 seconds'), await page.textContent('#card'));
-  out = await page.evaluate(async () => window.__reaper.abilities.runTool('buy_upgrade', { upgrade: 'urns' }));
-  check('Speak can buy an upgrade', out.ok && out.result.upgrade === 'urns' && out.result.level === 1, JSON.stringify(out));
-  out = await page.evaluate(async () => window.__reaper.abilities.runTool('buy_upgrade', { upgrade: 'vault' }));
-  check('and is told when the souls fall short', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
-  // Gathering 100 souls in all takes the crypt a depth deeper, and he says so.
-  await page.evaluate(async () => { const { companion } = await import('./bridge.js'); companion.stat('reaped', 20); });
-  await page.waitForTimeout(150);
-  check('going deeper is announced', (await page.textContent('#bubble')).includes('The crypt goes deeper') &&
-    (await page.evaluate(() => window.__reaper.crypt.get().depth)) === 1, await page.textContent('#bubble'));
+  check('coming back reports the dig', back.includes('Gone') && back.includes('The skeletons dug up 9 souls'), back);
 
   // Away and back
   page = await open({ wander: false, soul: 50 });

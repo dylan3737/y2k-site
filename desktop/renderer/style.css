@@ -131,6 +131,8 @@ body.is-capturing * { visibility: hidden !important; }
 .reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.8) drop-shadow(0 0 4px rgba(200, 170, 255, 0.55)); }
 .reaper.is-hungry .body { filter: drop-shadow(0 0 14px var(--death)) drop-shadow(0 0 4px #fff); animation: hunger 0.4s ease-in-out infinite; }
 .reaper.is-vanished { opacity: 0.22; }
+/* Passing from one monitor to the next. */
+.reaper.is-crossing { opacity: 0; transition: opacity 0.12s ease; }
 .reaper.is-vanished .soul { visibility: hidden; }
 
 @keyframes float {
@@ -201,17 +203,20 @@ body.is-capturing * { visibility: hidden !important; }
 .soul-pop.is-souls { color: var(--gold); }
 
 /* The Crypt */
-.crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0; }
-/* Cards flatten their content; the Crypt keeps its own box so its long list scrolls. */
-.card > .crypt { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
-.crypt p { margin: 0; }
-.crypt-depth { color: var(--soul); }
-.crypt h3 { margin: 4px 0 0; font-size: 9px; font-weight: normal; color: var(--lilac); letter-spacing: 1px; }
-.crypt-shop { display: flex; flex-direction: column; gap: 6px; }
-.upgrade { display: flex; align-items: center; gap: 8px; }
-.upgrade .what { flex: 1; display: flex; flex-direction: column; }
-.upgrade b { font-weight: normal; color: var(--text); }
-.upgrade small { font-size: 9px; line-height: 1.35; }
+/* The free mind's download */
+.progress { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--school, var(--lilac)) 20%, transparent); overflow: hidden; }
+.progress span { display: block; height: 100%; width: 0; background: var(--school, var(--lilac)); transition: width 0.25s ease; }
+
+.crypt { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.crypt-souls { font-size: 14px; color: var(--gold); margin: 4px 0 0; }
+.crypt-tabs { gap: 6px; }
+.crypt-page { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.crypt-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.crypt-item b { display: block; font-weight: normal; font-size: 9px; color: #fff; margin-bottom: 3px; }
+.crypt-item .muted { display: block; }
+.crypt-item .chip { flex: none; min-width: 52px; }
+.crypt-item.is-done { opacity: 0.5; }
+.crypt-reward { flex: none; font-size: 9px; color: var(--gold); }
 .digger {
   position: fixed;
   bottom: 0;

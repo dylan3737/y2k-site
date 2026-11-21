@@ -20,7 +20,7 @@ const H = 114;
 const pos = { x: innerWidth - 150, y: innerHeight - 190 };
 const vel = { x: 0, y: 0 };
 const cursor = { x: -9999, y: -9999 };
-const settings = { wander: true, chatty: true, hasKey: false };
+const settings = { wander: true, chatty: true, hasKey: false, roam: true };
 
 // wander | drag | fly | rest | sleep | vanish
 let mode = 'wander';
@@ -402,6 +402,8 @@ function endDrag(e) {
   try { body.releasePointerCapture(e.pointerId); } catch {}
   if (d.moved < 6) {
     clicked(d.was);
+  } else if (dropThrough(d)) {
+    // Carried off the edge onto another monitor.
   } else {
     const now = performance.now();
     const recent = d.samples.filter((s) => now - s.t < 110);
@@ -494,8 +496,112 @@ window.addEventListener('keydown', (e) => {
   else cardApi.close();
 });
 
+// --- Other monitors ---------------------------------------------------------------------------
+// Doors are the stretches of this monitor's edges that lead to another one, in
+// page coordinates; the main process sends them whenever they change.
+let doors = [];
+let crossing = false;
+companion.onDoors((list) => { doors = Array.isArray(list) ? list : []; });
+
+const upright = (side) => side === 'left' || side === 'right';
+const doorAt = (side, along) => doors.find((d) => d.side === side && along >= d.from && along <= d.to);
+
+// Not in the middle of something that belongs to this monitor.
+function canRoam() {
+  return settings.roam !== false && !crossing && doors.length > 0 && !abilities.hunting && !document.querySelector('.fx-canvas');
+}
+
+// The window waits for the main process to resize it; this waits for the page to see it.
+function sized(width, height) {
+  return new Promise((resolve) => {
+    const until = performance.now() + 700;
+    const look = () => {
+      if ((innerWidth === width && innerHeight === height) || performance.now() > until) resolve();
+      else requestAnimationFrame(look);
+    };
+    look();
+  });
+}
+
+// Through a door, walking, flying or carried. He fades out, the window moves to
+// the next monitor, and he comes in from the matching edge.
+async function cross(door, how) {
+  crossing = true;
+  const c = center();
+  const along = clamp(upright(door.side) ? c.y : c.x, door.from, door.to);
+  closeRing();
+  reaper.classList.add('is-crossing');
+  let res = null;
+  try {
+    res = await companion.cross({ id: door.id, side: door.side, along });
+  } catch {}
+  if (!res) {
+    // The door closed meanwhile (a monitor unplugged, roaming switched off).
+    crossing = false;
+    reaper.classList.remove('is-crossing');
+    target = null;
+    keepOnScreen();
+    place();
+    return false;
+  }
+  await sized(res.width, res.height);
+  if (Array.isArray(res.doors)) doors = res.doors;
+  const b = bounds();
+  if (upright(res.side)) {
+    pos.y = clamp(res.along - H / 2, b.minY, b.maxY);
+    pos.x = res.side === 'left' ? b.minX : b.maxX;
+  } else {
+    pos.x = clamp(res.along - W / 2, b.minX, b.maxX);
+    pos.y = res.side === 'top' ? b.minY : b.maxY;
+  }
+  if (how === 'walk') {
+    // A few steps in from the edge, so he doesn't stand in the doorway.
+    const inward = 120 + Math.random() * 260;
+    target = {
+      x: clamp(pos.x + (res.side === 'left' ? inward : res.side === 'right' ? -inward : 0), b.minX, b.maxX),
+      y: clamp(pos.y + (res.side === 'top' ? inward : res.side === 'bottom' ? -inward : 0), b.minY, b.maxY)
+    };
+  } else if (how === 'drop') {
+    setMode('wander');
+    target = null;
+    waitUntil = performance.now() + 5000;
+  }
+  // A flight keeps its speed: he carries on into the new monitor.
+  crossing = false;
+  reaper.classList.remove('is-crossing');
+  place();
+  return true;
+}
+
+// Let go past an edge with a door: he goes through, where the cursor is.
+function dropThrough(d) {
+  if (!canRoam()) return false;
+  const side = d.lastX < 0 ? 'left' : d.lastX > innerWidth ? 'right' : d.lastY < 0 ? 'top' : d.lastY > innerHeight ? 'bottom' : null;
+  const door = side && doorAt(side, upright(side) ? d.lastY : d.lastX);
+  if (!door) return false;
+  cross(door, 'drop');
+  return true;
+}
+
+// Now and then a wander leads to a door instead of somewhere on this monitor.
+function pickDoor() {
+  if (!canRoam() || Math.random() > 0.25) return false;
+  const door = pick(doors);
+  const b = bounds();
+  // Where his middle can be and still be in the doorway.
+  const lo = Math.max(door.from, upright(door.side) ? b.minY + H / 2 : b.minX + W / 2);
+  const hi = Math.min(door.to, upright(door.side) ? b.maxY + H / 2 : b.maxX + W / 2);
+  if (hi <= lo) return false;
+  const along = lo + Math.random() * (hi - lo);
+  target = upright(door.side)
+    ? { x: door.side === 'left' ? b.minX : b.maxX, y: along - H / 2, door }
+    : { x: along - W / 2, y: door.side === 'top' ? b.minY : b.maxY, door };
+  return true;
+}
+
 // --- Movement ------------------------------------------------------------------------------
 function pickTarget() {
+  if (pickDoor()) return;
   const b = bounds();
   // Mostly the lower part of the screen, where he is less in the way.
   target = {
@@ -517,6 +623,7 @@ function moveToward(dt, speed) {
 }
 
 function step(dt, now) {
+  if (crossing) return;
   if (mode === 'fly') {
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
@@ -524,6 +631,14 @@ function step(dt, now) {
     vel.x *= drag;
     vel.y *= drag;
     const b = bounds();
+    // Flung at an edge with a door: he flies through it instead of bouncing.
+    const wall = pos.x < b.minX ? 'left' : pos.x > b.maxX ? 'right' : pos.y < b.minY ? 'top' : pos.y > b.maxY ? 'bottom' : null;
+    const c = center();
+    const door = wall && canRoam() && doorAt(wall, upright(wall) ? c.y : c.x);
+    if (door) {
+      cross(door, 'fly');
+      return;
+    }
     if (pos.x < b.minX || pos.x > b.maxX) { vel.x = -vel.x * 0.6; pos.x = clamp(pos.x, b.minX, b.maxX); }
     if (pos.y < b.minY || pos.y > b.maxY) { vel.y = -vel.y * 0.6; pos.y = clamp(pos.y, b.minY, b.maxY); }
     if (Math.abs(vel.x) > 0.05) facingLeft = vel.x < 0;
@@ -556,8 +671,14 @@ function step(dt, now) {
   }
   reaper.classList.add('is-moving');
   if (moveToward(dt, 0.045)) {
+    const door = target.door;
     target = null;
     waitUntil = now + 2500 + Math.random() * 6000;
+    // At the doorway: through, if it is still open.
+    if (door && canRoam() && doors.some((d) => d.id === door.id && d.side === door.side)) {
+      cross(door, 'walk');
+      return;
+    }
   }
   place();
 }
@@ -571,6 +692,8 @@ function frame(now) {
 }
 
 window.addEventListener('resize', () => {
+  // A crossing places him itself once the window has its new size.
+  if (crossing) return;
   keepOnScreen();
   target = null;
   place();
@@ -630,6 +753,7 @@ companion.onSettings((s) => {
   if ('hasKey' in s) speak.setHasKey(s.hasKey);
   if ('muted' in s) sound.setMuted(s.muted);
   if ('minions' in s) crypt.setShown(s.minions);
+  if ('roam' in s) settings.roam = s.roam !== false;
 });
 
 // The first time he sees you each day (from 5am): a greeting, and what the
@@ -667,11 +791,14 @@ async function start() {
   settings.chatty = s.chatty !== false;
   settings.hasKey = !!s.hasKey;
   settings.greeted = s.greeted || null;
-  speak.setMind(s.brain || 'claude');
+  speak.setMind(s.brain || 'free');
+  speak.setFreeReady(!!(s.free && s.free.installed));
   speak.setHasKey(settings.hasKey);
   sound.setMuted(!!s.muted);
   abilities.restore(s);
   crypt.setShown(s.minions !== false);
+  settings.roam = s.roam !== false;
+  doors = Array.isArray(s.doors) ? s.doors : [];
   if (s.crypt) crypt.update(s.crypt);
   // What the skeletons dug while the app was shut leads his first words.
   const dug = crypt.report(s.crypt && s.crypt.dug);
@@ -686,4 +813,8 @@ async function start() {
 start();
 
 // Tests read state through this.
-window.__reaper = { pos, cursor, get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, say };
+window.__reaper = {
+  pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
+  // Forget where he was going and choose again now.
+  retarget() { target = null; waitUntil = 0; },
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, say };

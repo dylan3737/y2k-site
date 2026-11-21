@@ -12,7 +12,7 @@ const TOOL_LINES = {
   get_harvest: () => '✦ weighs the day',
   get_crypt: () => '✦ counts the crypt',
   raise_skeleton: () => '✦ raises the dead',
-  buy_upgrade: () => '✦ improves the crypt',
+  buy_upgrade: () => '✦ spends souls on his craft',
   look_at_screen: () => '✦ asks to look at your screen',
   read_clipboard: () => '✦ asks to read what you copied',
   copy_to_clipboard: () => '✦ copies it for you',
@@ -24,9 +24,11 @@ export function createSpeak(ctx) {
   const { companion, card, say } = ctx;
   const owner = {};
   let hasKey = false;
-  // Whose mind he borrows: 'claude' (needs a key), 'ollama' or 'offline'.
-  let mind = 'claude';
-  const ready = () => mind !== 'claude' || hasKey;
+  // Whose mind he borrows: 'free' (built in; needs a one-time download),
+  // 'claude' (needs a key), 'ollama' or 'offline'.
+  let mind = 'free';
+  let freeReady = false;
+  const ready = () => (mind === 'claude' ? hasKey : mind === 'free' ? freeReady : true);
   let busy = false;
   let current = null; // his line being written
   let reply = '';
@@ -74,14 +76,14 @@ export function createSpeak(ctx) {
   // Choosing a mind: paste a key for Claude, or take one of the free ways.
   function showKeyForm(message) {
     keyForm.replaceChildren();
-    const p = el('p', 'muted', message || 'I need a mind to borrow. Paste an Anthropic API key (it is stored encrypted on this computer), or take a free one.');
+    const p = el('p', 'muted', message || 'Claude needs an Anthropic API key. It is stored encrypted on this computer. Or use my free mind, which needs no key.');
     const field = el('input');
     field.type = 'password';
     field.placeholder = 'sk-ant-…';
     field.autocomplete = 'off';
     const save = chip('Save key', null, 'solid');
     const row = el('div', 'row end');
-    row.append(chip('Free local model', useLocal), chip('Commands only', useNone), save);
+    row.append(chip('Free mind', useFree), chip('Commands only', useNone), save);
     const submit = async () => {
       const key = field.value.trim();
       if (!key) return;
@@ -125,6 +127,80 @@ export function createSpeak(ctx) {
     row.append(chip('Use a key', useKey), chip('Commands only', useNone), chip('Try again', useLocal, 'solid'));
     keyForm.appendChild(row);
     card.refit();
+  }
+
+  const mb = (bytes) => Math.round(bytes / 1048576).toLocaleString() + ' MB';
+  const size = (bytes) => (bytes >= 1e9 ? (bytes / 1073741824).toFixed(1) + ' GB' : mb(bytes));
+
+  // The free mind: offered for download until it is here, then simply used.
+  // `quiet` leaves out the explanation when he has just said what is wrong.
+  function showFree(free, quiet) {
+    keyForm.replaceChildren();
+    if (free && free.installed) {
+      freeReady = true;
+      card.refit();
+      return;
+    }
+    if (free && free.downloading) return showProgress(free.downloading);
+    if (!quiet) {
+      keyForm.appendChild(el('p', 'muted', 'I can think for free, right here on this computer, with nothing sent anywhere. ' +
+        'I need my mind first: a one-time download of ' + ((free && free.name) || 'a small model') + ', ' + size((free && free.bytes) || 0) + '. ' +
+        'Plain commands work meanwhile; say "help".'));
+    }
+    const row = el('div', 'row end');
+    row.append(chip('Use a key', useKey), chip('Commands only', useNone), chip('Download', fetchFree, 'solid'));
+    keyForm.appendChild(row);
+    card.refit();
+  }
+
+  let bar = null;
+  function showProgress({ done, total }) {
+    if (!bar) {
+      keyForm.replaceChildren();
+      const track = el('div', 'progress');
+      const fill = el('span');
+      track.appendChild(fill);
+      const text = el('p', 'muted');
+      const row = el('div', 'row end');
+      row.appendChild(chip('Stop', () => companion.freeCancel()));
+      keyForm.append(text, track, row);
+      bar = { fill, text };
+      card.refit();
+    }
+    const share = total ? Math.min(1, done / total) : 0;
+    bar.fill.style.width = (share * 100).toFixed(1) + '%';
+    bar.text.textContent = 'Fetching my mind… ' + mb(done) + ' of ' + mb(total) + '. Plain commands work meanwhile.';
+  }
+
+  async function fetchFree() {
+    showProgress({ done: 0, total: 0 });
+    const out = await companion.freeFetch();
+    bar = null;
+    if (out.ok) {
+      freeReady = true;
+      keyForm.replaceChildren();
+      line('cast', '✦ his mind is here; ask him anything');
+      card.refit();
+      input.focus();
+    } else {
+      showFree(out.free, true);
+      keyForm.insertBefore(el('p', 'muted', out.error ? 'The download stopped: ' + out.error + '. Download again to carry on from there.' : 'The download stopped. Download again to carry on from there.'), keyForm.firstChild);
+      card.refit();
+    }
+  }
+
+  companion.onFreeProgress((p) => {
+    if (p && !p.finished && bar) showProgress(p);
+  });
+
+  async function useFree() {
+    const status = await companion.brain({ kind: 'free' });
+    mind = status.kind;
+    showFree(status.free);
+    if (status.free && status.free.installed) {
+      line('cast', '✦ thinking for free, on this computer');
+      input.focus();
+    }
   }
 
   async function useLocal() {
@@ -253,6 +329,9 @@ export function createSpeak(ctx) {
         if (event.code === 'key') {
           hasKey = false;
           showKeyForm(event.message);
+        } else if (event.code === 'free') {
+          line('oops', event.message);
+          companion.brain({}).then((status) => showFree(status.free, true));
         } else if (event.code === 'local') {
           line('oops', event.message);
           showLocal(null, true);
@@ -300,7 +379,10 @@ export function createSpeak(ctx) {
 
   function open() {
     card.open(box, 'voice', owner, { focus: true });
-    if (!ready() && !keyForm.childNodes.length && !log.childNodes.length) showKeyForm();
+    if (!ready() && !keyForm.childNodes.length && !log.childNodes.length) {
+      if (mind === 'free') companion.brain({}).then((status) => { if (!ready() && !keyForm.childNodes.length) showFree(status.free); });
+      else showKeyForm();
+    }
     scroll();
   }
 
@@ -317,6 +399,7 @@ export function createSpeak(ctx) {
     setMind(kind) {
       mind = kind;
       if (ready()) keyForm.replaceChildren();
-    }
+    },
+    setFreeReady(on) { freeReady = !!on; }
   };
 }

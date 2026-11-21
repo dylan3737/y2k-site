@@ -100,8 +100,13 @@ try {
   check('OLLAMA_HOST without a scheme is understood', ollamaHost() === `http://127.0.0.1:${port}`, ollamaHost());
 
   // --- A local model -------------------------------------------------------------
+  // A clear command never reaches the model: the parser does it, exactly.
+  let events = await ask('remind me in 20 minutes to check the oven');
+  check('a clear command is done without the model', requests.length === 0 && toolCalls[0].name === 'send_raven' &&
+    toolCalls[0].input.minutes === 20 && last(events).type === 'done', JSON.stringify(events));
+  toolCalls.length = 0;
   script = [calls('send_raven', { text: 'Check the oven', minutes: 20 }), words('It flies ', 'at 3:20.')];
-  let events = await ask('remind me to check the oven in 20 minutes');
+  events = await ask('could you nudge me about the oven in a bit');
   check('a local model answers, with no key', said(events) === 'It flies at 3:20.' && last(events).type === 'done', JSON.stringify(events));
   check('it picks a model that can use tools', requests[0].model === 'llama3.2:latest', requests[0].model);
   check('its tool call runs in the page', toolCalls.length === 1 && toolCalls[0].name === 'send_raven' && toolCalls[0].input.minutes === 20);
@@ -209,6 +214,101 @@ try {
   check('with no network a plain command still works', toolCalls.length === 1 && toolCalls[0].input.minutes === 25 && last(events).type === 'done', JSON.stringify(events));
   events = await ask('why is the sky blue');
   check('with no network a question says so', last(events).code === 'offline', JSON.stringify(last(events)));
+
+  // --- The free mind, built in ----------------------------------------------------------
+  // A stand-in for freemind.js: scripted answers, and a record of what it was asked.
+  const free = {
+    installed: false, downloading: null, asked: [], resets: 0, script: [],
+    status() { return { name: 'Test 2B', bytes: 100, installed: this.installed, downloading: this.downloading, loaded: false }; },
+    reset() { this.resets += 1; },
+    async ask(text, { onText, use, signal }) {
+      this.asked.push(text);
+      const step = this.script.shift() || { say: 'Hm.' };
+      if (step.hang) {
+        await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+        return { text: '', full: false };
+      }
+      if (step.fail) throw new Error(step.fail);
+      if (step.tool) {
+        const outcome = await use(step.tool, step.input || {});
+        if (step.failAfter) throw new Error(step.failAfter);
+        onText(step.say.replace('$', JSON.stringify(outcome.result)));
+        return { text: step.say, full: !!step.full };
+      }
+      onText(step.say);
+      return { text: step.say, full: !!step.full };
+    }
+  };
+  const freeOracle = createOracle({ getKey: () => null, getBrain: () => ({ kind: 'free', model: null }), memory, freeMind: free, runTool: async (name, input) => {
+    toolCalls.push({ name, input });
+    return { ok: true, result: { done: name } };
+  } });
+  const askFree = (text) => new Promise((resolve) => {
+    const events = [];
+    freeOracle.ask(text, (e) => { events.push(e); if (e.type === 'done' || e.type === 'error') resolve(events); });
+  });
+
+  toolCalls.length = 0;
+  events = await askFree('why is the sky blue');
+  check('before its download, a question says so and offers it', last(events).code === 'free' && /one-time download/.test(last(events).message) && free.asked.length === 0, JSON.stringify(last(events)));
+  events = await askFree('25 minute timer');
+  check('before its download, plain commands still work', toolCalls.length === 1 && toolCalls[0].name === 'set_hourglass' && last(events).type === 'done');
+  free.downloading = { done: 40, total: 100 };
+  events = await askFree('why is the sky blue');
+  check('while it downloads, he says how far along it is', last(events).code === 'free' && /40%/.test(last(events).message), last(events).message);
+
+  free.installed = true;
+  free.downloading = null;
+  free.script = [{ say: 'Light scatters.' }];
+  events = await askFree('why is the sky blue');
+  check('once it is here, the free mind answers', said(events) === 'Light scatters.' && last(events).type === 'done', JSON.stringify(events));
+  check('its first message carries the time and what he remembers', /^\[.+\]/.test(free.asked[0]) && free.asked[0].includes('What you remember about the user'), free.asked[0]);
+  toolCalls.length = 0;
+  const askedBefore = free.asked.length;
+  events = await askFree('remind me at 3pm to call Sam');
+  check('a clear command skips the free mind, and gets the time right', free.asked.length === askedBefore &&
+    toolCalls[0].name === 'send_raven' && toolCalls[0].input.text === 'Call Sam', JSON.stringify(toolCalls));
+  events = await askFree('help');
+  check('"help" goes to the free mind, not the list of plain commands', free.asked.length === askedBefore + 1);
+  events = await askFree('how do I burn a CD');
+  check('a question that mentions a spell goes to the free mind too', free.asked.length === askedBefore + 2 && toolCalls.length === 1);
+  free.script = [{ tool: 'send_raven', input: { text: 'Stretch', minutes: 30 }, say: 'Sent: $' }];
+  toolCalls.length = 0;
+  events = await askFree('could you nudge me to stretch in a while');
+  check('its tool calls run in the page', toolCalls[0].name === 'send_raven' && toolCalls[0].input.minutes === 30 && events.some((e) => e.type === 'tool' && e.name === 'send_raven'));
+  check('and it hears what they did', /send_raven/.test(said(events)), said(events));
+  check('later messages carry only the time', /^\[[^\]]+\] could you nudge/.test(free.asked.at(-1)) && !free.asked.at(-1).includes('remember about'), free.asked.at(-1));
+  free.script = [{ tool: 'remember', input: { note: 'Likes rain' }, say: 'Kept.' }];
+  await askFree('I like rain');
+  check('memory works with the free mind', notes.some((n) => n.text === 'Likes rain'));
+
+  const resetsBefore = free.resets;
+  freeOracle.forget();
+  free.script = [{ say: 'Hello again.' }];
+  await askFree('hello');
+  check('↺ starts its conversation afresh', free.resets === resetsBefore + 1 && free.asked.at(-1).includes('What you remember'));
+  free.script = [{ say: 'A long one.', full: true }];
+  events = await askFree('and another');
+  check('a conversation too long for it is started afresh, and he says so', events.some((e) => e.type === 'note' && /Starting fresh/.test(e.text)) && last(events).type === 'done');
+
+  free.script = [{ hang: true }];
+  const hush = new Promise((resolve) => freeOracle.ask('tell me everything', (e) => { if (e.type === 'error' || e.type === 'done') resolve(e); }));
+  await new Promise((r) => setTimeout(r, 100));
+  freeOracle.stop();
+  const hushedFree = await Promise.race([hush, new Promise((r) => setTimeout(() => r('timeout'), 2000))]);
+  check('Hush stops the free mind', hushedFree !== 'timeout' && hushedFree.code === 'stopped', JSON.stringify(hushedFree));
+
+  free.script = [{ fail: 'not enough memory' }];
+  toolCalls.length = 0;
+  events = await askFree('burn it');
+  check('if it will not wake, plain commands still work', toolCalls.length === 1 && toolCalls[0].name === 'cast' && last(events).type === 'done', JSON.stringify(events));
+  free.script = [{ fail: 'not enough memory' }];
+  events = await askFree('why is the sky blue');
+  check('and a question says why it would not wake', last(events).code === 'free' && /not enough memory/.test(last(events).message), last(events).message);
+  free.script = [{ tool: 'cast', input: { ability: 'burn' }, say: 'x', failAfter: 'ran out of room' }];
+  toolCalls.length = 0;
+  events = await askFree('burn it and tell me a story');
+  check('a failure after a spell is reported, and the spell is not cast twice', toolCalls.length === 1 && last(events).code === 'error', JSON.stringify(toolCalls));
 
   // --- The command parser ----------------------------------------------------------
   const at2pm = new Date(2026, 10, 17, 14, 0);

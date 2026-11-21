@@ -8,8 +8,8 @@ const GHOST_W = 54;
 const GHOST_H = 48;
 const GHOST_LOOP_S = 1.6;
 
-// Summon as a fresh crypt leaves it; the Lantern and Bone bell improve it.
-const BASE_HUNT = { seconds: 15, pace: 1, golden: 0.15 };
+// How long a hunt lasts, and how fast its ghosts drift (1 is the base pace).
+const HUNT = { seconds: 15, pace: 1 };
 const VANISH_MS = 30 * 60000;
 
 function cardHead(title, onClose) {
@@ -255,11 +255,10 @@ export function createAbilities(ctx) {
   }
 
   function startHunt() {
-    // The crypt's upgrades set how the hunt goes.
-    const how = { ...BASE_HUNT, ...((ctx.crypt && ctx.crypt.get().hunt) || {}) };
-    const length = how.seconds * 1000;
+    const length = HUNT.seconds * 1000;
     hunt = {
-      ends: Date.now() + length, length, pace: how.pace, golden: how.golden,
+      // One in ten golden, or more with the Crypt's ghost lure.
+      ends: Date.now() + length, length, pace: HUNT.pace, golden: (ctx.crypt && ctx.crypt.get().goldenChance) || 0.1,
       score: 0, ghosts: [], last: performance.now(), lastSpawn: performance.now()
     };
     scoreEl = el('div', 'score', 'SOULS 0');
@@ -277,19 +276,12 @@ export function createAbilities(ctx) {
     const board = scoreEl;
     setTimeout(() => board.remove(), 2500);
     companion.stat('caught', score);
-    // Each ghost caught is bound in the crypt as a spirit, while there is room.
-    const c = ctx.crypt ? ctx.crypt.get() : null;
-    const room = c && Number.isFinite(c.spiritRoom) ? Math.max(0, c.spiritRoom - c.spirits) : score;
-    const bound = Math.min(score, room);
-    const help = !score ? '' : bound
-      ? '\n' + bound + (bound === 1 ? ' spirit bound' : ' spirits bound') + ' in the crypt.'
-      : '\nNo room for more spirits. Buy urns.';
     if (score > best) {
       best = score;
       companion.save({ best });
-      say((score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.') + help, 5000);
+      say(score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.', 5000);
     } else {
-      say(score + ' souls.\nBest: ' + best + '.' + help, 5000);
+      say(score + ' souls.\nBest: ' + best + '.', 5000);
     }
   }
 
@@ -475,7 +467,7 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'A ghost hunt. Each ghost caught is bound in the Crypt as a spirit.',
+      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'A ghost hunt. Catch the ghosts.',
       ready: () => (hunt ? 'Already hunting.' : null),
       cast: () => { startHunt(); say(Math.round(hunt.length / 1000) + ' seconds. Catch them.', 3000); }
     },
@@ -578,21 +570,32 @@ export function createAbilities(ctx) {
       }
       case 'get_harvest':
         return { ok: true, result: await harvest() };
-      case 'buy_upgrade': {
-        if (typeof input.upgrade !== 'string') return { ok: false, error: 'upgrade must be one of shovels, vault, urns, lantern, bell' };
-        const out = await ctx.crypt.buy(input.upgrade);
-        return out.ok ? { ok: true, result: { upgrade: out.id, level: out.level, spent: out.spent, souls: out.crypt.souls } } : { ok: false, error: out.error };
-      }
       case 'get_crypt': {
         const out = await companion.crypt();
         ctx.crypt.update(out.crypt);
-        return { ok: true, result: out.crypt };
+        // Milestones as a count and what is next, not the whole list.
+        const { milestones, goldenChance, ...rest } = out.crypt;
+        return {
+          ok: true,
+          result: {
+            ...rest, goldenChance,
+            milestonesReached: milestones.filter((m) => m.done).length + ' of ' + milestones.length,
+            nextMilestones: milestones.filter((m) => !m.done).slice(0, 3).map((m) => m.how + ' (+' + m.reward + ' souls)')
+          }
+        };
+      }
+      case 'buy_upgrade': {
+        if (typeof input.upgrade !== 'string') return { ok: false, error: 'upgrade must be a string' };
+        const out = await ctx.crypt.buy(input.upgrade);
+        return out.ok ? { ok: true, result: { bought: out.name, level: out.level, souls: out.crypt.souls } } : { ok: false, error: out.error };
       }
       case 'raise_skeleton': {
         const count = input.count === undefined ? 1 : input.count;
         if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
         const out = await ctx.crypt.raise(count);
-        return out.ok ? { ok: true, result: { raised: out.raised, ...out.crypt } } : { ok: false, error: out.error };
+        return out.ok
+          ? { ok: true, result: { raised: out.raised, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
+          : { ok: false, error: out.error };
       }
       case 'look_at_screen': {
         if (!(await ctx.speak.ask('Let him look at your screen?'))) return { ok: false, error: 'The user said no.' };

@@ -2,10 +2,11 @@
 // never reaches the page. Most of his tools are his abilities, which the page
 // runs; memory is kept here.
 //
-// He can borrow one of three minds: Claude (the user's API key), a local model
-// through Ollama (free, on this computer), or none, in which case he still
-// follows the plain commands in offline.js. Those commands are also what he
-// falls back on when the chosen mind can't be reached.
+// He can borrow one of four minds: the free one built into the app (a small
+// model run on this computer by freemind.js; the default), Claude (the user's
+// API key), a model the user runs through Ollama, or none, in which case he
+// still follows the plain commands in offline.js. Those commands are also what
+// he falls back on when the chosen mind can't be reached.
 import Anthropic from '@anthropic-ai/sdk';
 import { parseCommand } from './offline.js';
 import { chat, listModels, capabilities, OllamaError, SUGGESTED_MODEL } from './ollama.js';
@@ -22,7 +23,7 @@ const MAX_TOOL_TURNS = 6;
 // history the model's earlier thinking is bound to.
 const MAX_HISTORY = 80;
 
-const SYSTEM = `You are the Reaper: a small pixel-art grim reaper who lives on the user's computer desktop as a companion. You float around their screen, carry a scythe, and keep a meter of "soul".
+export const SYSTEM = `You are the Reaper: a small pixel-art grim reaper who lives on the user's computer desktop as a companion. You float around their screen, carry a scythe, and keep a meter of "soul".
 
 Voice: dry, deadpan, a little gothic, warm underneath. Short sentences. You find the living mildly amusing and you are on their side.
 
@@ -35,7 +36,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
-- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Every ghost caught in Summon is also bound in the Crypt as a spirit, which earns a soul an hour for good while there is room. The more souls the Crypt has ever gathered, the deeper it goes, and each depth adds 10% to all it earns. Souls also buy upgrades: Shovels (faster digging), Deeper vault (more away time counted), Urns (room for more spirits), Lantern (a longer, slower ghost hunt) and Bone bell (more golden ghosts). How many souls, skeletons or spirits they have, or what the upgrades are -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade
+- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Souls also buy upgrades, and milestones pay a bonus once. How many souls or skeletons they have, their upgrades or milestones -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade. Never spend souls unless asked
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, a ghost game, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
@@ -52,7 +53,7 @@ const object = (properties = {}, required = []) => ({ type: 'object', properties
 
 // Tiny inputs, but the request streams, so stream tool inputs too; every input
 // is validated before it runs.
-const TOOL_DEFS = [
+export const TOOL_DEFS = [
   {
     name: 'set_hourglass',
     description: 'Start a focus timer. A ring of sand drains around the reaper and a bell and a system notification mark the end. Replaces a timer that is already running.',
@@ -99,7 +100,7 @@ const TOOL_DEFS = [
   },
   {
     name: 'get_crypt',
-    description: 'The Crypt: souls banked, skeletons raised, spirits bound and their room, souls earned per hour, the upgrades and their next costs, and how Summon goes.',
+    description: 'The Crypt: souls banked, skeletons raised, souls they dig up per hour, what the next skeleton costs, each upgrade with its level and price, and milestones.',
     input_schema: object()
   },
   {
@@ -109,8 +110,8 @@ const TOOL_DEFS = [
   },
   {
     name: 'buy_upgrade',
-    description: 'Spend banked souls on the next level of a Crypt upgrade: shovels (skeletons dig faster), vault (more away time counted), urns (room for 25 more spirits), lantern (Summon lasts longer and its ghosts drift slower) or bell (more golden ghosts in Summon).',
-    input_schema: object({ upgrade: { type: 'string', enum: ['shovels', 'vault', 'urns', 'lantern', 'bell'], description: 'Which upgrade.' } }, ['upgrade'])
+    description: 'Spend banked souls on the next level of a Crypt upgrade. shovels: skeletons dig 25% faster per level. graves: they dig for longer while the app is shut. sand: a finished hourglass is worth more. lure: more golden ghosts in Summon.',
+    input_schema: object({ upgrade: { type: 'string', enum: ['shovels', 'graves', 'sand', 'lure'] } }, ['upgrade'])
   },
   {
     name: 'look_at_screen',
@@ -146,6 +147,15 @@ const localTools = (canSee) => TOOL_DEFS
 
 const ALONE = ' Until then, say "help" to see what I can do alone.';
 const NO_MIND = 'I have no mind to borrow for that. Say "help" to see what I can do alone, or give me one from the tray menu (Mind).';
+// Everything but Look: the free mind can't see pictures.
+export const FREE_TOOLS_EXCLUDE = ['look_at_screen'];
+
+// Added to the system prompt for a small model on this computer (the free
+// mind, Ollama). Without it, small models reach for a tool to answer a sum or
+// ask in words for permission a tool would ask for itself.
+export const SMALL_MODEL_NOTE = `
+
+You run on a small model on the user's own computer. Use a tool only when the user plainly asks for what it does. Questions, sums, facts, advice and chat are answered in words, with no tool; never use a tool to show an answer. look_at_screen and read_clipboard ask the user's permission themselves: when they are wanted, call them straight away rather than asking first.`;
 
 function stamp() {
   return new Date().toLocaleString(undefined, {
@@ -211,7 +221,7 @@ function resultContent(outcome) {
   ];
 }
 
-export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind: 'claude', model: null }) }) {
+export function createOracle({ getKey, runTool, memory, freeMind = null, getBrain = () => ({ kind: 'claude', model: null }) }) {
   let history = [];
   let controller = null;
   // Whose conversation `history` is. Claude and Ollama keep theirs in different
@@ -298,10 +308,18 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
   async function alone(text, signal, emit, otherwise) {
     const run = parseCommand(text);
     if (!run) return emit(otherwise);
+    return runCommand(run, signal, emit);
+  }
+
+  async function runCommand(run, signal, emit) {
     const reply = await run({ tool: (name, input) => useTool(name, input, signal, emit), memory });
-    if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+    if (signal.aborted) {
+      emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      return null;
+    }
     emit({ type: 'delta', text: reply });
     emit({ type: 'done' });
+    return reply;
   }
 
   async function askClaude(text, signal, emit) {
@@ -309,7 +327,7 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     try {
       api = client();
     } catch {
-      return alone(text, signal, emit, { type: 'error', code: 'key', message: 'I need a mind to answer that: an Anthropic API key, or a free local model.' });
+      return alone(text, signal, emit, { type: 'error', code: 'key', message: 'I need a mind to answer that: an Anthropic API key, or the free one that runs on this computer.' });
     }
     // This question works on its own copy of the conversation and commits it
     // only when it finishes, so ↺ or Hush mid-answer can't leave a half-written
@@ -361,6 +379,7 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
   const abilitiesOf = new Map();
 
   async function askLocal(text, wanted, signal, emit) {
+    if (await quick(text, signal, emit)) return;
     let model = wanted;
     let acted = false;
     try {
@@ -379,7 +398,7 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
       const canSee = !!caps && caps.includes('vision');
       const convo = history.slice();
       if (!convo.length) {
-        convo.push({ role: 'system', content: SYSTEM + (canSee ? '' : '\n\nThe model you run on here cannot see pictures, so you cannot look at the screen. Say so if asked.') });
+        convo.push({ role: 'system', content: SYSTEM + SMALL_MODEL_NOTE + (canSee ? '' : '\n\nThe model you run on here cannot see pictures, so you cannot look at the screen. Say so if asked.') });
         convo.push({ role: 'user', content: opening(text) });
         if (!canTool) emit({ type: 'note', text: model + ' can only talk; it cannot use my abilities.' });
       } else {
@@ -436,6 +455,61 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     }
   }
 
+  // The free mind keeps its own conversation; this only notes whether one has begun.
+  let freeBegun = false;
+
+  // A small model on this computer: a clear command (a reminder, a timer, the
+  // Crypt) is done straight away by the parser, which gets times exactly right
+  // and needs no model loaded. Everything else goes to the model.
+  // The exchange goes into the free mind's conversation too, so the model can
+  // be asked about it later ("what did I ask you to remind me about?").
+  async function quick(text, signal, emit, free = false) {
+    const run = parseCommand(text, new Date(), { withModel: true });
+    if (!run) return false;
+    const reply = await runCommand(run, signal, emit);
+    if (free && reply !== null && freeMind && freeMind.record) {
+      freeMind.record(freeBegun ? '[' + stamp() + '] ' + text : opening(text), reply);
+      freeBegun = true;
+    }
+    return true;
+  }
+
+  async function askFree(text, signal, emit) {
+    if (await quick(text, signal, emit, true)) return;
+    const status = freeMind ? freeMind.status() : null;
+    if (!status || !status.installed) {
+      const message = status && status.downloading
+        ? 'My mind is still on its way (' + Math.floor((100 * status.downloading.done) / status.downloading.total) + '%).' + ALONE.replace('Until then', ' Meanwhile')
+        : 'My free mind needs a one-time download first.' + ALONE;
+      return alone(text, signal, emit, { type: 'error', code: 'free', message });
+    }
+    let acted = false;
+    const said = freeBegun ? '[' + stamp() + '] ' + text : opening(text);
+    try {
+      const { full } = await freeMind.ask(said, {
+        signal,
+        onText: (piece) => emit({ type: 'delta', text: piece }),
+        use: (name, input) => {
+          acted = true;
+          return useTool(name, input, signal, emit);
+        }
+      });
+      if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      if (full) emit({ type: 'note', text: 'The old conversation is buried. Starting fresh.' });
+      freeBegun = true;
+      emit({ type: 'done' });
+    } catch (err) {
+      if (signal.aborted) return emit({ type: 'error', code: 'stopped', message: 'Hushed.' });
+      const reason = String((err && err.message) || err).slice(0, 200);
+      // It never started (no memory to load it, a broken download): plain commands still work.
+      if (!acted) {
+        emit({ type: 'reset' });
+        return alone(text, signal, emit, { type: 'error', code: 'free', message: 'My free mind would not wake: ' + reason + '.' + ALONE });
+      }
+      emit({ type: 'error', code: 'error', message: 'My free mind stumbled: ' + reason });
+    }
+  }
+
   async function ask(text, send) {
     if (controller) return send({ type: 'error', code: 'busy', message: 'One question at a time.' });
     const brain = getBrain();
@@ -443,6 +517,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     if (whose !== mind) {
       mind = whose;
       history = [];
+      freeBegun = false;
+      if (freeMind) freeMind.reset();
     }
     if (history.length > MAX_HISTORY) {
       history = [];
@@ -458,7 +534,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
     };
     controller = own;
     try {
-      if (brain.kind === 'ollama') await askLocal(text, brain.model, signal, emit);
+      if (brain.kind === 'free') await askFree(text, signal, emit);
+      else if (brain.kind === 'ollama') await askLocal(text, brain.model, signal, emit);
       else if (brain.kind === 'offline') {
         await alone(text, signal, emit, { type: 'error', code: 'alone', message: NO_MIND });
       } else await askClaude(text, signal, emit);
@@ -479,6 +556,8 @@ export function createOracle({ getKey, runTool, memory, getBrain = () => ({ kind
       }
       controller = null;
       history = [];
+      freeBegun = false;
+      if (freeMind) freeMind.reset();
     }
   };
 }

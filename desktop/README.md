@@ -26,8 +26,11 @@ Or run it from source:
 ```bash
 cd desktop
 npm install
+npm run fetch-llama
 npm start
 ```
+
+`npm run fetch-llama` fetches the program that runs the free mind (see [The free mind](#the-free-mind)). Without it, everything else works and the free mind says its engine is missing.
 
 ## Handling him
 
@@ -36,10 +39,11 @@ npm start
 | Click him | opens his ring of abilities |
 | Right-click him | shows the tray menu |
 | Drag him and let go gently | kneels and rests; soul refills fast |
-| Fling him | flies off, bouncing off the screen edges |
+| Fling him | flies off, bouncing off the screen edges, or onto the next monitor through an edge it touches |
+| Drag him past the edge of a monitor and let go | lands on the monitor next to it |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
-| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the crypt took in, when you're back |
+| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
 | Start the day | greets you with how many reminders are due today |
 | Press **Ctrl+Alt+R** (**⌘⌥R** on a Mac) | vanishes and reappears at your cursor, even on another monitor |
 | Press **Ctrl+Alt+Space** (**⌘⌥Space**) | appears at your cursor with Speak open |
@@ -51,11 +55,23 @@ The tray icon has the same commands, plus:
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
 - **Skeletons on screen:** show or hide the skeletons. Hidden ones still dig.
+- **Roam between screens:** on or off. Only offered with more than one monitor. See [More than one monitor](#more-than-one-monitor).
 - **Hide**
 - **Open at login:** macOS and Windows only.
 - **Forget what he remembers**
 - **Forget API key**
 - **Quit**
+
+## More than one monitor
+
+With several monitors, he roams across all of them. Wherever the edge of one monitor touches another, there's a doorway: now and then he wanders through it, a fling carries him through, and you can drag him across.
+
+- He comes out at the same place on your desktop, so with monitors of different heights (portrait, landscape, portrait, say) he only crosses where they actually meet.
+- Monitors with a gap between them, or that only touch at a corner, have no doorway.
+- His cards, his ring, his skeletons and his reminders go with him.
+- He doesn't wander off in the middle of something: while Summon or a screen effect is running, he stays put.
+- **Ctrl+Alt+R** (**⌘⌥R**) still brings him to the cursor, whichever monitor it's on.
+- **Roam between screens** in the tray menu keeps him on one monitor.
 
 ## Abilities
 
@@ -78,7 +94,7 @@ When it's low, he fades.
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 25 | A ghost hunt: 15 seconds of ghosts drifting across your whole desktop. Click them to catch them; golden ones are worth three. Every ghost caught is bound in the [Crypt](#the-crypt) as a spirit that earns souls. The Crypt's Lantern and Bone bell make it easier. Your best catch is saved. |
+| **Summon** | 25 | Fifteen seconds of ghosts drifting across your whole desktop. Click them to catch them; they don't dodge, and a near miss counts. Golden ones are worth three. Your best catch is saved. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
 | **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
@@ -97,49 +113,78 @@ You earn souls by using him:
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls earn more souls in two ways, all the time: while you work, while you're away, and while the app is shut.
+Souls raise **skeletons**. The first costs 25, and each one after costs 25% more than the last. Every skeleton digs up 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
 
-- **Skeletons** cost 25 souls each, and each digs up 6 souls an hour.
-- **Spirits** come from Summon: every ghost you catch is bound in the Crypt as a spirit (a golden one binds three), and each spirit earns 1 soul an hour for good. The Crypt has room for 25 spirits at first.
-
-The more souls the Crypt has ever gathered, the deeper it goes. Each **depth** adds 10% to everything it earns, from skeletons and spirits alike:
-
-| Depth | Souls ever gathered | Earnings |
-|---|---|---|
-| 1 | 100 | +10% |
-| 2 | 500 | +20% |
-| 3 | 2,000 | +30% |
-| 4 | 8,000 | +40% |
-| 5 | 30,000 | +50% |
-| 6 | 100,000 | +60% |
-
-Souls also buy **upgrades**. Each level costs twice the last:
-
-| Upgrade | Levels | First level | Each level |
-|---|---|---|---|
-| **Shovels** | 5 | 40 | Skeletons dig 50% faster |
-| **Deeper vault** | 3 | 50 | 4 more hours counted while you're away |
-| **Urns** | 4 | 40 | Room for 25 more spirits |
-| **Lantern** | 3 | 30 | Summon lasts 3 seconds longer, and its ghosts drift slower |
-| **Bone bell** | 3 | 30 | More golden ghosts in Summon |
-
-- When you come back to the computer, he tells you what the Crypt took in while you were gone.
-- When the app was shut or the computer asleep, the Crypt is paid for up to 8 hours of it (more with the Deeper vault).
+- When you come back to the computer, he tells you what they dug up while you were gone.
+- When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
 - Up to eight skeletons dig along the bottom of your screen. Clicks pass through them, and each fades almost away while your cursor is over it.
 
-Open the Crypt from his ring to see your souls, spirits and depth, raise skeletons (one, or as many as you can afford), buy upgrades, or start a ghost hunt. Speak can do it too ("raise two skeletons", "buy a lantern", "how's the crypt?"), and so can the plain commands.
+### Upgrades
+
+Souls also buy upgrades, which change the rules instead of adding diggers. Each level costs more than the one before.
+
+| Upgrade | Levels | What each level does | First level costs |
+|---|---|---|---|
+| **Sharper shovels** | 10 | Every skeleton digs 25% faster | 60 |
+| **Deeper graves** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
+| **Finer sand** | 3 | A finished Hourglass is worth 1.5, then 2, then 3 souls a minute | 120 |
+| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in Summon are golden (10% without it) | 80 |
+
+### Milestones
+
+There are 17 milestones, such as raising your first skeleton, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
+
+### Using it
+
+Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
+
+### Tuning the numbers
+
+The rates and prices are at the top of `crypt.js`. `tools/pacing.mjs` plays the game as three kinds of user (casual, typical, heavy) and prints when each purchase and milestone lands, so a change can be judged from what it does:
+
+```bash
+npm run pacing
+```
+
+```bash
+npm run pacing -- typical 60
+```
+
+The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) raises a skeleton in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
 
 ## Speak
 
-Speak can borrow one of three minds. Choose one in the card the first time you open Speak, or any time from **Mind** in the tray menu.
+Speak can borrow one of four minds. Choose one in the card, or any time from **Mind** in the tray menu.
 
 | Mind | Cost | What you need | What he can do |
 |---|---|---|---|
-| **Claude** | A fraction of a cent per reply | An Anthropic API key | Everything below |
-| **Local model** | Free | [Ollama](https://ollama.com/) and a model, on your computer | Everything the model can manage; nothing leaves your computer |
+| **Free, on this computer** (the default) | Free | A one-time download of about 1.2 GB, offered in the card | Everything but Look; nothing leaves your computer |
+| **Claude** | A fraction of a cent per reply | An Anthropic API key | Everything below, and the best answers |
+| **Your own Ollama** | Free | [Ollama](https://ollama.com/) and a model, on your computer | Everything the model can manage |
 | **None** | Free | Nothing | The [plain commands](#plain-commands) only |
 
-The plain commands also step in when the chosen mind can't be reached: no key yet, no network, or Ollama not running.
+The plain commands also step in when the chosen mind can't be reached: before the free mind's download, with no key, no network, or Ollama not running. With the free mind or Ollama, a clear command (a reminder, a timer, the Crypt, memory) is always done by the plain commands, straight away: they get times exactly right, which small models often don't.
+
+### The free mind
+
+The free mind is a small language model, **Qwen3 4B Instruct** (2.3 GB), that runs on your own computer: on the graphics card where it can (Metal on a Mac, Vulkan on Windows and Linux) and on the processor otherwise. The first time you open Speak, the card offers the download. It's kept in the app's data folder, and a download that's cut off carries on where it stopped.
+
+The model runs in **llama-server**, from [llama.cpp](https://github.com/ggml-org/llama.cpp), a small program that comes with the app. It runs as its own process rather than inside the app, because Electron's memory allocator can't give a model this size the memory it needs. The app starts it when you first ask something and stops it after 10 minutes unused, so he costs no memory while he's quiet.
+
+It is slower and less capable than Claude: on a 4-core processor with no graphics card, an answer takes 10 to 30 seconds. It can't see pictures, so Look isn't offered. Before reading your clipboard it tends to ask "may I?" in words; say yes.
+
+#### How the model was chosen
+
+`tools/bench-models.mjs` scores a model on 20 requests a user would make, of which 15 reach the model (the plain commands do the rest). On a 4-core processor with no graphics card:
+
+| Model | Download | Right, of 15 | Seconds per answer | Uses abilities unasked? |
+|---|---|---|---|---|
+| Qwen3.5 2B | 1.3 GB | 12 | 19 | Yes: answered a sum by sending a raven |
+| **Qwen3 4B Instruct** | 2.5 GB | 12 | 11.5 | Never |
+| Granite 4.2 3B | 2.2 GB | 13 | 65 | Never |
+| Qwen3.5 4B | 2.7 GB | 13 | 35 | Yes: answered a sum by glitching the screen |
+
+Qwen3 4B Instruct is the quickest, and never uses an ability when it's only asked a question. Llama 3.2 3B (6 right of 15) and Qwen3.5 0.8B (7 of 15) were dropped early.
 
 ### Claude
 
@@ -153,7 +198,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
 - If there's no keychain, which is common on Linux, the key isn't saved. Set `ANTHROPIC_API_KEY` in the environment before starting the app instead. A profile saved with `ant auth login` also works.
 - **Forget API key** in the tray menu removes the saved key.
 
-### A free local model
+### Your own Ollama
 
 1. Install [Ollama](https://ollama.com/) and start it.
 2. Download a model. This one is about 2 GB and can use his abilities:
@@ -162,7 +207,7 @@ The API is billed separately from a Claude Pro or Max subscription: it runs on p
    ollama pull llama3.2
    ```
 
-3. Open Speak and choose **Free local model** (or **Mind → Local model** in the tray menu).
+3. Choose **Mind → Your own Ollama** in the tray menu.
 
 He picks a model from the ones you have, preferring those that handle tools well. To choose yourself, pick one under **Mind** in the tray menu.
 
@@ -184,7 +229,9 @@ These need no model at all. Type them the way they are written here, or close to
 | `how did today go` | gives today's tally |
 | `crypt` | counts your souls and skeletons |
 | `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
-| `buy shovels`, `buy urns`, `buy a lantern`, `buy a bone bell`, `buy a deeper vault` | buys the next level of that upgrade |
+| `upgrades` | lists the upgrades with their levels and prices |
+| `buy shovels` (or `graves`, `sand`, `lure`) | buys the next level |
+| `milestones` | says how many you have reached and what is next |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
@@ -203,7 +250,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
-| "How's the crypt?" / "Raise two skeletons" / "Buy a lantern" | **Crypt**: counts your souls, skeletons and spirits, raises more skeletons, or buys upgrades |
+| "How's the crypt?" / "Raise two skeletons" / "Buy sharper shovels" | **Crypt**: counts your souls, skeletons, upgrades and milestones, raises skeletons, or buys an upgrade. He spends souls only when you ask. |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
@@ -230,7 +277,7 @@ These need no model at all. Type them the way they are written here, or close to
 `companion.json` in the app's user-data folder keeps:
 
 - Settings, soul and the mind you chose.
-- The Crypt: banked souls and skeletons.
+- The Crypt: banked souls, skeletons, upgrades and milestones reached.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -257,7 +304,7 @@ git push origin reaper-v0.2.0
 
 Running the workflow by hand from the Actions tab only builds the installers, as downloadable artifacts, without making a release.
 
-To build on your own machine instead, run the command for that machine (each writes to `desktop/dist/`):
+To build on your own machine instead, first fetch llama-server for it (`npm run fetch-llama`, or `npm run fetch-llama -- --mac` on a Mac, which builds for both kinds), then run the command for that machine (each writes to `desktop/dist/`):
 
 ```bash
 npm run dist:mac
@@ -277,13 +324,17 @@ npm run dist:linux
 |---|---|
 | `main.js` | The window, tray, shortcuts, idle detection, screen capture, clipboard, the Trash, memory and saved state |
 | `oracle.js` | Speak: the conversation with Claude or a local model, its system prompt and tools |
+| `freemind.js` | The free mind: downloading its model, and running it in llama-server |
+| `tools/fetch-llama-server.mjs` | Fetches llama-server for each platform into `vendor/llama/`; the release workflow runs it before building |
+| `screens.js` | Which edges of a monitor lead to another one |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
-| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons and spirits earn, the depths and upgrades, and how Summon goes |
+| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
+| `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
-| `renderer/crypt.js` | The Crypt's card and the skeletons on screen |
+| `renderer/crypt.js` | The Crypt's card, with its three tabs, and the skeletons on screen |
 | `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
@@ -297,12 +348,30 @@ From this folder:
 npm test
 ```
 
-This runs four files:
+This runs these, with no network and no real model:
 
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
-- `tests/minds.mjs` tests the local model against a fake Ollama, and the plain commands.
+- `tests/minds.mjs` tests the free mind and Ollama against stand-ins, and the plain commands.
+- `tests/engine.mjs` tests how the free mind runs llama-server (starting, streaming, tools, stopping, failing) and downloads its model, against a stand-in server (`tests/fixtures/fake-llama-server.mjs`). Linux and macOS only.
 - `tests/crypt.mjs` tests the Crypt's rules.
-- `tests/launch.mjs` starts the real app and checks the window, the bridge and the main process.
+
+Two more need something extra, so `npm test` leaves them out:
+
+- `tests/roam.mjs` checks roaming between monitors. It needs a desktop of several monitors; `tests/plp-desktop.sh` makes a pretend portrait-landscape-portrait one with X.org's dummy driver (on Debian or Ubuntu: `xserver-xorg-video-dummy` and `x11-xserver-utils`), and CI runs it that way:
+
+  ```bash
+  tests/plp-desktop.sh node tests/roam.mjs
+  ```
+
+- `tests/freemind.mjs` runs the free mind's real model in the real llama-server, in Node and inside the app. Run `npm run fetch-llama` first, then point it at the downloaded model file:
+
+  ```bash
+  REAPER_FREE_MODEL=/path/to/Qwen3-4B-Instruct-2507-Q4_K_M.gguf xvfb-run -a node tests/freemind.mjs
+  ```
+
+`tools/bench-models.mjs` scores models for the free mind on Speak's requests, in llama-server as the app runs them: `node tools/bench-models.mjs model.gguf [more.gguf …]`.
+
+Last, `npm test` runs `tests/launch.mjs`, which starts the real app and checks the window, the bridge and the main process.
 
 On Linux without a display, run it under `xvfb-run -a npm test`.
 

@@ -1,19 +1,19 @@
-// The Crypt on the page: its card, the souls counter, and the skeletons that
-// dig along the bottom of the screen (their dig is a sprite sheet in
-// style.css). The rules and the saved numbers live in the main process
-// (../crypt.js); this draws what it is told.
+// The Crypt on the page: its card (the dig, upgrades, milestones), and the
+// skeletons that dig along the bottom of the screen. The rules and the saved
+// numbers live in the main process (../crypt.js); this draws what it is told.
 import { el, chip } from './dom.js';
 
 // How many skeletons are drawn; the rest dig out of sight.
 const SHOWN = 8;
 
+const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
+
 export function createCrypt(ctx) {
   const { companion, card, say, field, sound } = ctx;
   const owner = {};
-  let now = { souls: 0, skeletons: 0, nextCost: 25, spirits: 0, spiritRoom: 25, digPerHour: 0, spiritsPerHour: 0, perHour: 0, total: 0, awayCapHours: 8, upgrades: [], hunt: null };
+  let now = { souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [] };
   let shown = true;
-  // Whether the crypt has been heard from yet: the first news isn't a change.
-  let seen = false;
+  let tab = 'dig';
   const diggers = [];
 
   // --- The card -------------------------------------------------------------
@@ -24,67 +24,66 @@ export function createCrypt(ctx) {
   close.setAttribute('aria-label', 'Close');
   close.addEventListener('click', () => card.close(owner));
   head.appendChild(close);
-  const souls = el('p', 'crypt-souls');
-  const horde = el('p', 'muted');
-  const haunt = el('p', 'muted');
-  const deep = el('p', 'crypt-depth');
-  const raiseOne = chip('', () => raise(1), 'solid');
-  // As many as the souls cover, when that is more than one.
-  const raiseAll = chip('', () => raise(Math.min(50, Math.floor(now.souls / now.nextCost))));
-  // Summon from here: the hunt that fills the crypt, which the crypt improves.
-  const huntChip = chip('Hunt ghosts', () => {
-    card.close(owner);
-    if (ctx.abilities) ctx.abilities.cast('summon');
+  const count = el('p', 'crypt-souls');
+  const tabs = el('div', 'row crypt-tabs');
+  const TABS = [['dig', 'Dig'], ['upgrades', 'Upgrades'], ['milestones', 'Milestones']];
+  const tabChips = TABS.map(([id, label]) => {
+    const c = chip(label, () => { tab = id; paint(); card.refit(); });
+    c.dataset.tab = id;
+    tabs.appendChild(c);
+    return c;
   });
-  const row = el('div', 'row end');
-  row.append(raiseOne, raiseAll, huntChip);
-  const how = el('p', 'muted', 'A ghost caught banks a soul (golden: 3) and binds a spirit. A file reaped banks 5; a finished hourglass, 1 a minute.');
-  const shop = el('div', 'crypt-shop');
-  const huntNote = el('p', 'muted');
-  box.append(head, souls, deep, horde, haunt, row, how, el('h3', null, 'UPGRADES'), shop, huntNote);
+  const page = el('div', 'crypt-page');
+  box.append(head, count, tabs, page);
 
-  // One line per upgrade: its name and level, what it does, and a buy button.
-  const lines = {};
-  function shopLine(u) {
-    const line = el('div', 'upgrade');
-    const what = el('div', 'what');
-    const name = el('b');
-    what.append(name, el('small', 'muted', u.blurb));
-    const buyChip = chip('', () => buy(u.id));
-    line.append(what, buyChip);
-    shop.appendChild(line);
-    return (lines[u.id] = { name, buyChip });
+  function digPage() {
+    const horde = el('p', 'muted', now.skeletons
+      ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.perHour + ' souls an hour.'
+      : 'No skeletons yet. The first costs ' + now.nextCost + ' souls.');
+    const how = el('p', 'muted', 'Souls come from ghosts caught, files reaped and finished hourglasses. Skeletons dig for more, even while you are away (up to ' +
+      now.awayCapHours + ' hours with the app shut).');
+    const raiseOne = chip('Raise a skeleton · ' + now.nextCost, () => raise(1), 'solid');
+    raiseOne.disabled = now.souls < now.nextCost;
+    const row = el('div', 'row end');
+    row.appendChild(raiseOne);
+    page.append(horde, how, row);
   }
 
-  function paintShop() {
-    for (const u of now.upgrades || []) {
-      const line = lines[u.id] || shopLine(u);
-      line.name.textContent = u.name + ' ' + u.level + '/' + u.max;
-      line.buyChip.textContent = u.cost === null ? 'Best' : 'Buy · ' + u.cost;
-      line.buyChip.disabled = u.cost === null || now.souls < u.cost;
+  function upgradesPage() {
+    for (const u of now.upgrades) {
+      const item = el('div', 'crypt-item');
+      const text = el('div');
+      text.append(el('b', null, u.name + ' ' + u.level + '/' + u.max), el('span', 'muted', u.blurb + ' Now: ' + u.now + (u.next ? ', next: ' + u.next + '.' : '.')));
+      const get = chip(u.cost === null ? 'Done' : String(u.cost), () => buy(u.id), 'solid');
+      get.disabled = u.cost === null || now.souls < u.cost;
+      get.setAttribute('aria-label', u.cost === null ? u.name + ' is complete' : 'Buy ' + u.name + ' for ' + u.cost + ' souls');
+      item.append(text, get);
+      page.appendChild(item);
     }
-    const h = now.hunt;
-    huntNote.textContent = h ? 'Summon: ' + h.seconds + ' seconds, ' + Math.round(h.golden * 100) + '% of ghosts golden.' : '';
+  }
+
+  function milestonesPage() {
+    const done = now.milestones.filter((m) => m.done).length;
+    page.appendChild(el('p', 'muted', done + ' of ' + now.milestones.length + ' reached. Each pays souls once.'));
+    // What is still ahead first; what is done, dimmed, after.
+    for (const m of [...now.milestones.filter((x) => !x.done), ...now.milestones.filter((x) => x.done)]) {
+      const item = el('div', 'crypt-item' + (m.done ? ' is-done' : ''));
+      const text = el('div');
+      text.append(el('b', null, m.name), el('span', 'muted', m.how));
+      item.append(text, el('span', 'crypt-reward', (m.done ? '✓ ' : '+') + m.reward));
+      page.appendChild(item);
+    }
   }
 
   function paint() {
-    souls.textContent = now.souls + (now.souls === 1 ? ' soul' : ' souls');
-    horde.textContent = now.skeletons
-      ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.digPerHour + ' souls an hour.'
-      : 'No skeletons yet. Each costs ' + now.nextCost + ' souls.';
-    const full = now.spirits >= now.spiritRoom ? ' Full: buy urns for more room.' : '';
-    haunt.textContent = now.spirits
-      ? now.spirits + (now.spirits === 1 ? ' spirit haunts' : ' spirits haunt') + ' the crypt, room for ' + now.spiritRoom + ': ' +
-        now.spiritsPerHour + (now.spiritsPerHour === 1 ? ' soul' : ' souls') + ' an hour.' + full
-      : 'No spirits yet. Catch ghosts in Summon to bind them here.';
-    raiseOne.textContent = 'Raise a skeleton · ' + now.nextCost;
-    raiseOne.disabled = now.souls < now.nextCost;
-    const afford = Math.min(50, Math.floor(now.souls / now.nextCost));
-    raiseAll.hidden = afford < 2;
-    raiseAll.textContent = 'Raise ' + afford;
-    deep.textContent = 'Depth ' + (now.depth || 0) + (now.depth ? ': +' + now.depthBonus + '% to all it earns.' : '.') +
-      (now.nextDepthAt ? ' Deeper at ' + now.nextDepthAt.toLocaleString() + ' souls gathered (' + Math.floor(now.total).toLocaleString() + ' so far).' : ' As deep as it goes.');
-    paintShop();
+    count.textContent = souls(now.souls);
+    tabChips.forEach((c) => c.classList.toggle('is-on', c.dataset.tab === tab));
+    const top = page.scrollTop;
+    page.replaceChildren();
+    if (tab === 'upgrades') upgradesPage();
+    else if (tab === 'milestones') milestonesPage();
+    else digPage();
+    page.scrollTop = top;
     crew();
   }
 
@@ -115,8 +114,8 @@ export function createCrypt(ctx) {
     setTimeout(() => pop.remove(), 900);
   }
 
-  async function raise(count = 1) {
-    const out = await companion.crypt({ raise: count });
+  async function raise(n = 1) {
+    const out = await companion.crypt({ raise: n });
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
@@ -132,27 +131,34 @@ export function createCrypt(ctx) {
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
-      const u = (out.crypt.upgrades || []).find((x) => x.id === id);
-      say((u ? u.name : 'It') + ', level ' + out.level + '.', 2500);
+      say(out.name + '.\nLevel ' + out.level + '.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);
     }
     return out;
   }
 
+  // Milestones reached: a bell, and his word for it. Several at once share a bubble.
+  function celebrate(reached) {
+    if (!reached || !reached.length) return;
+    sound.bell();
+    const total = reached.reduce((sum, m) => sum + m.reward, 0);
+    const names = reached.length <= 2 ? reached.map((m) => m.name).join(' and ') : reached.length + ' milestones';
+    // After whatever he is saying about the deed that got there.
+    setTimeout(() => {
+      say('Milestone: ' + names + '.\n+' + souls(total) + '.', 6000);
+      ctx.pop('+' + total, 'is-souls');
+    }, 1200);
+  }
+
   function update(next, event = {}) {
     const before = now;
-    now = next;
+    now = { ...now, ...next };
     paint();
-    // A new depth is worth a word.
-    if (seen && (next.depth || 0) > (before.depth || 0)) {
-      sound.bell();
-      say('The crypt goes deeper.\nDepth ' + next.depth + ': +' + next.depthBonus + '% to all it earns.', 5000);
-    }
-    seen = true;
     // Souls for a deed pop over the reaper; what the skeletons dug, over them.
     if (event.gained) ctx.pop('+' + event.gained, 'is-souls');
     else if (event.dug && next.souls > before.souls) unearthed(next.souls - before.souls);
+    celebrate(event.reached);
   }
 
   companion.onCrypt((event) => { if (event && event.crypt) update(event.crypt, event); });
@@ -170,7 +176,11 @@ export function createCrypt(ctx) {
   });
 
   return {
-    open() { paint(); card.open(box, 'soul', owner); },
+    open(which) {
+      if (which) tab = which;
+      paint();
+      card.open(box, 'soul', owner);
+    },
     close() { card.close(owner); },
     isOpen: () => card.isOpen(owner),
     update,
@@ -178,11 +188,10 @@ export function createCrypt(ctx) {
     buy,
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
-    // "The crypt took in 12 souls." for the away report, or '' for nothing:
-    // what the skeletons dug and the spirits earned meanwhile.
+    // "The skeletons dug up 12 souls." for the away report, or '' for nothing.
     report(dug) {
       if (!(dug >= 1)) return '';
-      return 'The crypt took in ' + dug + (dug === 1 ? ' soul.' : ' souls.');
+      return 'The skeletons dug up ' + souls(dug) + '.';
     }
   };
 }
