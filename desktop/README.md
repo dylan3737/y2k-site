@@ -97,7 +97,7 @@ You earn souls by using him:
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls raise **skeletons**. The first costs 25, and each one after costs 15% more than the last. Every skeleton digs up 6 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+Souls raise **skeletons**, for 25 souls each. Every skeleton digs up 6 souls an hour, all the time: while you work, while you're away, and while the app is shut.
 
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.

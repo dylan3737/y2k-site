@@ -34,7 +34,7 @@ export function createCrypt(ctx) {
     souls.textContent = now.souls + (now.souls === 1 ? ' soul' : ' souls');
     horde.textContent = now.skeletons
       ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.perHour + ' souls an hour.'
-      : 'No skeletons yet. The first costs ' + now.nextCost + ' souls.';
+      : 'No skeletons yet. Each costs ' + now.nextCost + ' souls.';
     raiseOne.textContent = 'Raise a skeleton · ' + now.nextCost;
     raiseOne.disabled = now.souls < now.nextCost;
     crew();

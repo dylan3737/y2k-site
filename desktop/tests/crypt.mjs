@@ -22,9 +22,9 @@ check('an unknown deed is worth nothing', crypt.earn(c, 'cheat', 1e9) === 0 && c
 
 let out = crypt.raise(c);
 check('souls raise a skeleton', out.ok && out.raised === 1 && c.skeletons === 1 && c.souls === 17);
-check('the next one costs more', crypt.view(c).nextCost === 29, String(crypt.view(c).nextCost));
+check('the next one costs the same', crypt.view(c).nextCost === 25 && crypt.cost(100) === 25, String(crypt.view(c).nextCost));
 out = crypt.raise(c);
-check('too few souls raise nothing, and say why', !out.ok && /costs 29/.test(out.error) && c.skeletons === 1 && c.souls === 17, out.error);
+check('too few souls raise nothing, and say why', !out.ok && /costs 25/.test(out.error) && c.skeletons === 1 && c.souls === 17, out.error);
 
 check('a skeleton digs six souls an hour', Math.abs(crypt.settle(c, T0 + HOUR) - 6) < 1e-9 && Math.abs(c.souls - 23) < 1e-9);
 check('nothing is dug twice', crypt.settle(c, T0 + HOUR) === 0);

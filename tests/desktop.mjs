@@ -133,10 +133,12 @@ try {
   // Raven
   await castFromRing(page, 'raven');
   await page.fill('#card input', 'Feed the cat');
-  await page.click('#card .chip:has-text("5 min")');
+  await page.click('#card .chip >> text="1 min"');
+  const sentAt = Date.now();
   await page.click('#card .chip:has-text("Send")');
   const ravens = await page.evaluate(() => window.__companion.read().ravens);
   check('a raven is scheduled and saved', ravens.length === 1 && ravens[0].text === 'Feed the cat');
+  check('a raven can be sent for one minute', Math.abs(ravens[0].at - sentAt - 60000) < 2000, String(ravens[0].at - sentAt));
   page = await open({ wander: false, ravens: [{ id: 'r1', at: Date.now() - 1000, text: 'Stretch' }] });
   await page.waitForTimeout(1300);
   check('a due raven flies in with its note', (await page.textContent('.raven-note')).includes('Stretch'));
@@ -231,11 +233,11 @@ try {
   check('souls raise a skeleton', (await page.textContent('#card .crypt-souls')) === '22 souls' &&
     (await page.textContent('#card')).includes('1 skeleton digs up 6 souls an hour'), await page.textContent('#card'));
   check('the skeleton digs on screen', (await page.$$('.field .digger')).length === 1);
-  check('the next one costs more than he has', (await page.textContent('#card .chip.solid')).includes('29') && await page.isDisabled('#card .chip.solid'));
+  check('the next one costs 25, more than he has', (await page.textContent('#card .chip.solid')).includes('25') && await page.isDisabled('#card .chip.solid'));
   out = await tool('raise_skeleton', {});
   check('Speak cannot raise one without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
   out = await tool('get_crypt', {});
-  check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 29, JSON.stringify(out));
+  check('Speak can count the crypt', out.ok && out.result.souls === 22 && out.result.skeletons === 1 && out.result.nextCost === 25, JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
   // Shut for two hours with one skeleton: twelve souls, told on the way in.

@@ -7,8 +7,7 @@
 // more souls on their own, including while the user is away or the app is shut.
 
 export const RATE_PER_HOUR = 6;   // souls one skeleton digs up in an hour
-export const BASE_COST = 25;      // the first skeleton
-export const GROWTH = 1.15;       // each one costs this much more than the last
+export const COST = 25;           // souls to raise a skeleton, every one alike
 export const MAX_SKELETONS = 200;
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const AWAY_CAP_HOURS = 8;
@@ -32,7 +31,8 @@ export function clean(raw, now = Date.now()) {
   };
 }
 
-export const cost = (owned) => Math.ceil(BASE_COST * GROWTH ** owned);
+// What the next skeleton costs. The same for every one, however many there are.
+export const cost = () => COST;
 export const perHour = (c) => c.skeletons * RATE_PER_HOUR;
 
 // Pay out what the skeletons dug since the last count. Returns the souls added.

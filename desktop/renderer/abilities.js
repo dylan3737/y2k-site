@@ -154,7 +154,7 @@ export function createAbilities(ctx) {
     input.placeholder = 'Remind me to…';
     let minutes = 15;
     const row = el('div', 'row');
-    const chips = [5, 15, 30, 60].map((m) => {
+    const chips = [1, 5, 15, 30, 60].map((m) => {
       const c = chip(m < 60 ? m + ' min' : '1 hour', () => {
         minutes = m;
         chips.forEach((x) => x.classList.toggle('is-on', x === c));

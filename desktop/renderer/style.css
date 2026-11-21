@@ -63,7 +63,8 @@ body.is-capturing * { visibility: hidden !important; }
   height: 114px;
   cursor: grab;
   animation: float 3.8s infinite ease-in-out;
-  filter: drop-shadow(0 0 6px rgba(120, 36, 186, 0.8)) drop-shadow(0 8px 12px rgba(110, 12, 32, 0.45));
+  /* His aura: a red glow around a purple robe. */
+  filter: drop-shadow(0 0 6px rgba(230, 28, 48, 0.85)) drop-shadow(0 8px 14px rgba(150, 8, 24, 0.55));
   transition: filter 0.3s ease;
 }
 
@@ -95,11 +96,11 @@ body.is-capturing * { visibility: hidden !important; }
 
 .reaper.is-moving .body {
   animation-play-state: paused;
-  filter: drop-shadow(0 0 9px rgba(164, 64, 230, 0.95)) drop-shadow(0 0 16px rgba(160, 24, 52, 0.55));
+  filter: drop-shadow(0 0 9px rgba(255, 48, 64, 0.95)) drop-shadow(0 0 18px rgba(170, 10, 30, 0.65));
 }
 
 .reaper.is-resting .body { animation: kneel 0.55s ease forwards; }
-.reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.7) drop-shadow(0 0 4px rgba(120, 36, 186, 0.5)); }
+.reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.7) drop-shadow(0 0 4px rgba(200, 24, 40, 0.5)); }
 .reaper.is-hungry .body { filter: drop-shadow(0 0 14px var(--death)) drop-shadow(0 0 4px #fff); animation: hunger 0.4s ease-in-out infinite; }
 .reaper.is-vanished { opacity: 0.22; }
 .reaper.is-vanished .soul { visibility: hidden; }
@@ -528,8 +529,8 @@ body.is-capturing * { visibility: hidden !important; }
   height: 10px;
   margin: -5px 0 0 -5px;
   border-radius: 50%;
-  background: rgba(190, 140, 255, 0.7);
-  box-shadow: 0 0 10px rgba(164, 64, 230, 0.9);
+  background: rgba(255, 120, 110, 0.75);
+  box-shadow: 0 0 10px rgba(230, 30, 50, 0.9);
   animation: wisp 0.7s ease-out forwards;
 }
 
