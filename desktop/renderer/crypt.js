@@ -1,70 +1,17 @@
 // The Crypt on the page: its card, the souls counter, and the skeletons that
-// dig along the bottom of the screen. The rules and the saved numbers live in
-// the main process (../crypt.js); this draws what it is told.
+// dig along the bottom of the screen (their dig is a sprite sheet in
+// style.css). The rules and the saved numbers live in the main process
+// (../crypt.js); this draws what it is told.
 import { el, chip } from './dom.js';
 
 // How many skeletons are drawn; the rest dig out of sight.
 const SHOWN = 8;
-
-// Two frames of a small skeleton with a shovel, as pixels. w bone, g shade,
-// k dark, s shovel handle, m shovel blade.
-const FRAMES = [
-  [
-    '....wwww........',
-    '...wwwwww.....m.',
-    '...wkwwkw....mm.',
-    '...wwwwww....s..',
-    '....wkkw....s...',
-    '.....ww....s....',
-    '...wwwwwwwws....',
-    '..w.wggw..s.....',
-    '..w.wwww........',
-    '..w.wggw........',
-    '....wwww........',
-    '....w..w........',
-    '....w..w........',
-    '....w..w........',
-    '...ww..ww.......'
-  ],
-  [
-    '................',
-    '....wwww........',
-    '...wwwwww.......',
-    '...wkwwkw.......',
-    '...wwwwww.......',
-    '....wkkw........',
-    '.....ww.........',
-    '...wwwwwww......',
-    '..w.wggw.ws.....',
-    '..w.wwww..s.....',
-    '..w.wggw...s....',
-    '....wwww....s...',
-    '....w..w....mm..',
-    '....w..w....mm..',
-    '...ww..ww.......'
-  ]
-];
-const INK = { w: '#ece7da', g: '#a59f8c', k: '#1a1028', s: '#8a5a3a', m: '#9fb0c0' };
-
-function drawFrame(rows) {
-  const canvas = document.createElement('canvas');
-  canvas.width = rows[0].length;
-  canvas.height = rows.length;
-  const g = canvas.getContext('2d');
-  rows.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (!INK[ch]) return;
-    g.fillStyle = INK[ch];
-    g.fillRect(x, y, 1, 1);
-  }));
-  return canvas.toDataURL();
-}
 
 export function createCrypt(ctx) {
   const { companion, card, say, field, sound } = ctx;
   const owner = {};
   let now = { souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8 };
   let shown = true;
-  let frames = null;
   const diggers = [];
 
   // --- The card -------------------------------------------------------------
@@ -98,11 +45,8 @@ export function createCrypt(ctx) {
     const want = shown ? Math.min(SHOWN, now.skeletons) : 0;
     while (diggers.length > want) diggers.pop().remove();
     while (diggers.length < want) {
-      if (!frames) frames = FRAMES.map(drawFrame);
       const i = diggers.length;
       const node = el('div', 'digger');
-      node.style.setProperty('--a', 'url(' + frames[0] + ')');
-      node.style.setProperty('--b', 'url(' + frames[1] + ')');
       // Spread along the bottom edge, each a little out of step with the next.
       node.style.left = (6 + ((i * 37) % 88)) + '%';
       node.style.animationDelay = (-(i * 0.37) % 1.2) + 's';

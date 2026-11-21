@@ -3,10 +3,10 @@
 import { el, chip } from './dom.js';
 import * as effects from './effects.js';
 
-const GHOST_SVG = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="M4 46 V20 A16 16 0 0 1 36 20 V46 L30 40 L24 46 L20 40 L16 46 L10 40 Z"/>' +
-  '<circle cx="14" cy="20" r="3"/><circle cx="26" cy="20" r="3"/></svg>';
-const RAVEN_SVG = '<svg class="raven" viewBox="0 0 64 40" aria-hidden="true"><path d="M2 21 C12 13 21 13 28 17 L33 6 L38 17 ' +
-  'C46 14 55 16 62 23 C52 21 45 23 39 27 L35 37 L31 27 C21 28 11 26 2 21 Z"/><circle cx="35" cy="20" r="1.4"/></svg>';
+// A ghost's size on screen; its look and swim are a sprite sheet in style.css.
+const GHOST_W = 54;
+const GHOST_H = 48;
+const GHOST_LOOP_S = 1.6;
 
 const HUNT_MS = 10000;
 const VANISH_MS = 30 * 60000;
@@ -128,7 +128,9 @@ export function createAbilities(ctx) {
       field.appendChild(flock);
     }
     const note = el('div', 'raven-note hit');
-    note.innerHTML = RAVEN_SVG;
+    const bird = el('div', 'raven');
+    bird.setAttribute('aria-hidden', 'true');
+    note.appendChild(bird);
     const body = el('div', 'raven-card');
     body.append(el('small', null, 'A RAVEN · ' + clock(raven.at)), el('div', null, raven.text));
     const row = el('div', 'row');
@@ -195,11 +197,12 @@ export function createAbilities(ctx) {
   function spawnGhost() {
     const golden = Math.random() < 0.1;
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
-    g.innerHTML = GHOST_SVG;
+    // Each starts at its own point in the swim, so they don't move in step.
+    g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
     const side = Math.random() < 0.5;
     const ghost = {
       node: g, golden,
-      x: side ? -40 : innerWidth + 10,
+      x: side ? -GHOST_W : innerWidth + 10,
       y: 40 + Math.random() * (innerHeight - 140),
       vx: (side ? 1 : -1) * (0.08 + Math.random() * 0.16),
       vy: (Math.random() - 0.5) * 0.14,
@@ -231,8 +234,8 @@ export function createAbilities(ctx) {
     for (const g of hunt.ghosts) {
       if (g.caught) continue;
       // They shy away from the cursor.
-      const dx = g.x + 21 - cursor.x;
-      const dy = g.y + 25 - cursor.y;
+      const dx = g.x + GHOST_W / 2 - cursor.x;
+      const dy = g.y + GHOST_H / 2 - cursor.y;
       const d = Math.hypot(dx, dy);
       if (d < 120 && d > 0) {
         g.vx += (dx / d) * 0.004 * dt;
@@ -242,8 +245,8 @@ export function createAbilities(ctx) {
       if (speed > 0.35) { g.vx *= 0.35 / speed; g.vy *= 0.35 / speed; }
       g.x += g.vx * dt;
       g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
-      if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - 42 && g.vx > 0)) g.vx = -g.vx;
-      if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - 50 && g.vy > 0)) g.vy = -g.vy;
+      if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - GHOST_W && g.vx > 0)) g.vx = -g.vx;
+      if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - GHOST_H && g.vy > 0)) g.vy = -g.vy;
       const at = `translate(${Math.round(g.x)}px, ${Math.round(g.y)}px)`;
       g.node.style.transform = at;
       g.node.style.setProperty('--at', at);
