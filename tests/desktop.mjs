@@ -175,7 +175,7 @@ try {
   check('Speak opens its card', await visible(page, '#card textarea'));
   await page.waitForTimeout(150);
   check('it offers the free mind\'s download, and asks for no key', await page.isVisible('#card .chip:has-text("Download")') &&
-    !(await visible(page, '#card input[type=password]')) && (await page.textContent('#card')).includes('1.2 GB'), await page.textContent('#card'));
+    !(await visible(page, '#card input[type=password]')) && (await page.textContent('#card')).includes('2.3 GB'), await page.textContent('#card'));
   await page.fill('#card textarea', 'hello');
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);

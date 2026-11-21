@@ -2,10 +2,13 @@
 // sends, and requests a user would make. Run it with node-llama-cpp installed:
 //   node tools/bench-models.mjs <model.gguf> [more.gguf ...]
 // For each model it prints load time, how many requests it handled right, the
-// average time to a finished answer, and generation speed.
+// average time to a finished answer, and generation speed. `forModel` counts
+// only the requests the app gives the model: clear commands never reach it,
+// because the plain-command parser does them (see quick() in oracle.js).
 import path from 'node:path';
 import { getLlama, LlamaChatSession, defineChatSessionFunction } from 'node-llama-cpp';
-import { SYSTEM, TOOL_DEFS } from '../oracle.js';
+import { SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS } from '../oracle.js';
+import { parseCommand } from '../offline.js';
 
 // The local date and time leads every message, as in the app.
 const STAMP = '[Mon, Nov 16, 2026, 02:00 PM] ';
@@ -27,8 +30,14 @@ const CASES = [
   { ask: 'summarize what I copied', tool: 'read_clipboard', ok: () => true },
   { ask: 'what is the capital of France?', tool: null, ok: (text) => /paris/i.test(text) },
   { ask: 'what is 17 times 23?', tool: null, ok: (text) => /391/.test(text) },
-  { ask: 'give me a one-line pep talk', tool: null, ok: (text) => text.trim().length > 10 }
+  { ask: 'give me a one-line pep talk', tool: null, ok: (text) => text.trim().length > 10 },
+  { ask: 'how do I burn a CD?', tool: null, ok: (text) => text.trim().length > 10 },
+  { ask: 'explain what a black hole is, in one sentence', tool: null, ok: (text) => /gravit|light/i.test(text) },
+  { ask: 'what is a good name for a black cat?', tool: null, ok: (text) => text.trim().length > 2 },
+  { ask: 'cut my screen in half', tool: 'cast', ok: (i) => i.ability === 'slash' },
+  { ask: 'what is on my clipboard right now?', tool: 'read_clipboard', ok: () => true }
 ];
+const reachesModel = (c) => !parseCommand(c.ask, new Date(), { withModel: true });
 
 // What the page would answer, so a model that calls a tool can finish its reply.
 const ANSWERS = {
@@ -56,9 +65,10 @@ for (const file of process.argv.slice(2)) {
   const model = await llama.loadModel({ modelPath: file });
   const context = await model.createContext({ contextSize: 4096 });
   const loadMs = performance.now() - t0;
-  const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: SYSTEM });
+  const session = new LlamaChatSession({ contextSequence: context.getSequence(), systemPrompt: SYSTEM + SMALL_MODEL_NOTE });
   const fresh = session.getChatHistory();
   let right = 0;
+  let modelRight = 0;
   let totalMs = 0;
   let tokens = 0;
   let genMs = 0;
@@ -84,11 +94,13 @@ for (const file of process.argv.slice(2)) {
     if (first) { tokens += pieces; genMs += performance.now() - first; }
     const call = calls[0];
     const good = c.tool ? !!call && call.name === c.tool && c.ok(call.input) : !calls.length && c.ok(text);
+    if (good && reachesModel(c)) modelRight += 1;
     if (good) right += 1;
     else misses.push(c.ask + ' -> ' + (call ? call.name + JSON.stringify(call.input) : JSON.stringify(text.slice(0, 80))));
   }
   console.log(JSON.stringify({
-    model: path.basename(file), right: right + '/' + CASES.length, avgSeconds: +(totalMs / CASES.length / 1000).toFixed(1),
+    model: path.basename(file), right: right + '/' + CASES.length,
+    forModel: modelRight + '/' + CASES.filter(reachesModel).length, avgSeconds: +(totalMs / CASES.length / 1000).toFixed(1),
     tokensPerSecond: genMs ? +(tokens / (genMs / 1000)).toFixed(1) : null, loadSeconds: +(loadMs / 1000).toFixed(1),
     ramMB: Math.round(process.memoryUsage().rss / 1048576), misses
   }));

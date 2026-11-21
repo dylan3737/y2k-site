@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { createFreeMind, MODEL } from '../freemind.js';
-import { createOracle, SYSTEM, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from '../oracle.js';
+import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from '../oracle.js';
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -29,7 +29,7 @@ fs.symlinkSync(path.resolve(given), path.join(dir, MODEL.file));
 const calls = [];
 const notes = [];
 const memory = { list: () => notes, add(text) { const n = { id: 'm' + notes.length, text }; notes.push(n); return n; }, remove: () => false };
-const freeMind = createFreeMind({ dir, system: SYSTEM, tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)) });
+const freeMind = createFreeMind({ dir, system: SYSTEM + SMALL_MODEL_NOTE, tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name)) });
 const oracle = createOracle({
   getKey: () => null, getBrain: () => ({ kind: 'free', model: null }), memory, freeMind,
   runTool: async (name, input) => { calls.push({ name, input }); return { ok: true, result: name === 'send_raven' ? { id: 'r1', due: '2:20 PM' } : 'cast' }; }

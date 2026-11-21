@@ -221,7 +221,9 @@ function remembering(text, original) {
       return notes.length ? notes.map((n) => '• ' + n.text).join('\n') : 'Nothing yet. Tell me: remember I like tea.';
     };
   }
-  const keep = /^(please\s+)?remember\s+(that\s+)?(.+)$/i.exec(original.trim());
+  // "remember I like tea", or "my name is Sam, remember that".
+  const keep = /^(please\s+)?remember\s+(that\s+)?(.+)$/i.exec(original.trim()) ||
+    /^()()(.+?)[\s,;.!-]+(please\s+)?remember\s+(that|this|it)[\s.!]*$/i.exec(original.trim());
   if (keep) {
     const note = keep[3].replace(/[\s.]+$/, '');
     return async ({ tool }) => {

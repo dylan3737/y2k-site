@@ -8,7 +8,7 @@ import {
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createOracle, SYSTEM, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
+import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
 import { createFreeMind } from './freemind.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
@@ -148,7 +148,7 @@ const getBrain = () => ({ kind: BRAINS.includes(state.brain) ? state.brain : 'fr
 const freeMind = createFreeMind({
   // REAPER_MODELS_DIR lets the tests point it at a model they already have.
   dir: process.env.REAPER_MODELS_DIR || path.join(app.getPath('userData'), 'models'),
-  system: SYSTEM,
+  system: SYSTEM + SMALL_MODEL_NOTE,
   tools: TOOL_DEFS.filter((t) => !FREE_TOOLS_EXCLUDE.includes(t.name))
 });
 const hasKey = () => !!state.apiKey || !!process.env.ANTHROPIC_API_KEY;

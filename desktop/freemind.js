@@ -7,13 +7,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// The model, picked with tools/bench-models.mjs: the best score on Speak's
-// requests for its size and speed. See the desktop README for the numbers.
+// The model, picked with tools/bench-models.mjs (the desktop README has the
+// numbers). Qwen3 4B Instruct was the quickest to a finished answer and the
+// only fast one that never used an ability when asked a plain question; the
+// Qwen3.5 models answered sums by casting spells.
 export const MODEL = {
-  name: 'Qwen3.5 2B',
-  uri: 'hf:unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf',
-  file: 'Qwen3.5-2B-Q4_K_M.gguf',
-  bytes: 1280835840
+  name: 'Qwen3 4B',
+  uri: 'hf:unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+  file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+  bytes: 2497281120
 };
 
 const CONTEXT = 6144;           // tokens of conversation it keeps in view

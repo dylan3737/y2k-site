@@ -150,6 +150,13 @@ const NO_MIND = 'I have no mind to borrow for that. Say "help" to see what I can
 // Everything but Look: the free mind can't see pictures.
 export const FREE_TOOLS_EXCLUDE = ['look_at_screen'];
 
+// Added to the system prompt for a small model on this computer (the free
+// mind, Ollama). Without it, small models reach for a tool to answer a sum or
+// ask in words for permission a tool would ask for itself.
+export const SMALL_MODEL_NOTE = `
+
+You run on a small model on the user's own computer. Use a tool only when the user plainly asks for what it does. Questions, sums, facts, advice and chat are answered in words, with no tool; never use a tool to show an answer. look_at_screen and read_clipboard ask the user's permission themselves: when they are wanted, call them straight away rather than asking first.`;
+
 function stamp() {
   return new Date().toLocaleString(undefined, {
     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -387,7 +394,7 @@ export function createOracle({ getKey, runTool, memory, freeMind = null, getBrai
       const canSee = !!caps && caps.includes('vision');
       const convo = history.slice();
       if (!convo.length) {
-        convo.push({ role: 'system', content: SYSTEM + (canSee ? '' : '\n\nThe model you run on here cannot see pictures, so you cannot look at the screen. Say so if asked.') });
+        convo.push({ role: 'system', content: SYSTEM + SMALL_MODEL_NOTE + (canSee ? '' : '\n\nThe model you run on here cannot see pictures, so you cannot look at the screen. Say so if asked.') });
         convo.push({ role: 'user', content: opening(text) });
         if (!canTool) emit({ type: 'note', text: model + ' can only talk; it cannot use my abilities.' });
       } else {

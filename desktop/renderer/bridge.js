@@ -17,7 +17,7 @@ function browserStandIn() {
   };
   const emit = (channel, data) => (listeners[channel] || []).forEach((fn) => fn(data));
   const stats = { activeSec: 0, focus: 0, caught: 0, reaped: 0 };
-  const freeStatus = () => window.__companion.free || { name: 'Qwen3.5 2B', bytes: 1280835840, installed: false, downloading: null, loaded: false };
+  const freeStatus = () => window.__companion.free || { name: 'Qwen3 4B', bytes: 2497281120, installed: false, downloading: null, loaded: false };
   // The crypt, kept in localStorage here; the app keeps it in the main process.
   const crypt = rules.clean(read().crypt);
   const saveCrypt = () => write({ crypt });
@@ -90,7 +90,7 @@ function browserStandIn() {
     },
     // The free mind's download, pretended: tests set window.__companion.free.
     async freeFetch() {
-      const total = 1280835840;
+      const total = 2497281120;
       for (const done of [0.25, 0.6, 1]) {
         await new Promise((r) => setTimeout(r, 40));
         emit('free-progress', { done: done * total, total });

@@ -126,6 +126,8 @@ got = await heard('upgrades', { ok: true, result: { upgrades: crypt.view(u).upgr
 check('"upgrades" lists them with prices', got && /Sharper shovels 2\/10: 200 souls for \+75% digging/.test(got.reply) && /Deeper graves 3\/3 \(done\)/.test(got.reply), got && got.reply);
 got = await heard('milestones', { ok: true, result: { milestonesReached: '3 of 17', nextMilestones: ['Feed him a file (+10 souls)'] } });
 check('"milestones" says how many and what is next', got && /3 of 17 milestones reached/.test(got.reply) && /Feed him a file/.test(got.reply), got && got.reply);
+got = await heard('my name is Sam, remember that', { ok: true, result: { id: 'm1' } });
+check('"..., remember that" keeps the note', got && got.name === 'remember' && got.note === 'My name is Sam' && got.reply === 'Kept.', JSON.stringify(got));
 got = await heard('summon', { ok: true, result: 'cast' });
 check('"summon" is still the ghost game', got && got.name === 'cast' && got.ability === 'summon');
 
