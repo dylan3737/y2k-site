@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tools/fetch-llama-server.mjs:*)",
+      "Bash(xvfb-run -a node tests/freemind.mjs:*)"
+    ]
+  }
+}
