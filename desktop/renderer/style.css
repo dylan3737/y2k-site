@@ -63,8 +63,8 @@ body.is-capturing * { visibility: hidden !important; }
   height: 114px;
   cursor: grab;
   animation: float 3.8s infinite ease-in-out;
-  /* His aura: a red glow around a purple robe. */
-  filter: drop-shadow(0 0 6px rgba(230, 28, 48, 0.85)) drop-shadow(0 8px 14px rgba(150, 8, 24, 0.55));
+  /* A soft pastel aura: pale lavender, with a rose glow beneath. */
+  filter: drop-shadow(0 0 6px rgba(200, 170, 255, 0.9)) drop-shadow(0 8px 12px rgba(255, 170, 200, 0.45));
   transition: filter 0.3s ease;
 }
 
@@ -75,7 +75,7 @@ body.is-capturing * { visibility: hidden !important; }
 .sprite {
   width: 92px;
   height: 114px;
-  background: url('../assets/reaper-idle.webp') 0 0 / 2208px 114px no-repeat;
+  background: url('../assets/reaper-idle.png') 0 0 / 2208px 114px no-repeat;
   animation: reaperIdle 2.4s steps(24) infinite;
   transition: transform 0.3s ease;
   pointer-events: none;
@@ -85,22 +85,49 @@ body.is-capturing * { visibility: hidden !important; }
 @keyframes reaperMove { to { background-position: -1472px 0; } }
 
 .reaper.is-moving .sprite {
-  background-image: url('../assets/reaper-move.webp');
+  background-image: url('../assets/reaper-move.png');
   background-size: 1472px 114px;
   animation: reaperMove 1.1s steps(16) infinite;
 }
 
 .reaper.is-sleeping .sprite { animation-duration: 6s; }
 
+/* His cartoon eyes, a separate layer over the hood: bored, half-lidded,
+   blinking now and then and glancing off to the side. Shut while he sleeps. */
+.sprite { position: relative; image-rendering: pixelated; }
+.eyes {
+  position: absolute;
+  left: 41px;
+  top: 19px;
+  width: 17px;
+  height: 6px;
+  background: url('../assets/eyes.png') 0 0 / 51px 6px no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 2px rgba(220, 200, 255, 0.9));
+  animation: glance 11s steps(1, end) infinite;
+}
+
+@keyframes glance {
+  0% { background-position: 0 0; }
+  28% { background-position: -34px 0; }
+  29.5% { background-position: 0 0; }
+  52% { background-position: -17px 0; }
+  74% { background-position: 0 0; }
+  88% { background-position: -34px 0; }
+  89.5% { background-position: 0 0; }
+}
+
+.reaper.is-sleeping .eyes { animation: none; background-position: -34px 0; }
+
 .reaper.is-left .sprite { transform: scaleX(-1); }
 
 .reaper.is-moving .body {
   animation-play-state: paused;
-  filter: drop-shadow(0 0 9px rgba(255, 48, 64, 0.95)) drop-shadow(0 0 18px rgba(170, 10, 30, 0.65));
+  filter: drop-shadow(0 0 9px rgba(214, 186, 255, 1)) drop-shadow(0 0 16px rgba(255, 176, 206, 0.6));
 }
 
 .reaper.is-resting .body { animation: kneel 0.55s ease forwards; }
-.reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.7) drop-shadow(0 0 4px rgba(200, 24, 40, 0.5)); }
+.reaper.is-sleeping .body { animation: breathe 5s ease-in-out infinite; filter: brightness(0.8) drop-shadow(0 0 4px rgba(200, 170, 255, 0.55)); }
 .reaper.is-hungry .body { filter: drop-shadow(0 0 14px var(--death)) drop-shadow(0 0 4px #fff); animation: hunger 0.4s ease-in-out infinite; }
 .reaper.is-vanished { opacity: 0.22; }
 .reaper.is-vanished .soul { visibility: hidden; }
@@ -529,8 +556,8 @@ body.is-capturing * { visibility: hidden !important; }
   height: 10px;
   margin: -5px 0 0 -5px;
   border-radius: 50%;
-  background: rgba(255, 120, 110, 0.75);
-  box-shadow: 0 0 10px rgba(230, 30, 50, 0.9);
+  background: rgba(226, 206, 255, 0.75);
+  box-shadow: 0 0 10px rgba(200, 170, 255, 0.9);
   animation: wisp 0.7s ease-out forwards;
 }
 
@@ -626,7 +653,7 @@ body.is-capturing * { visibility: hidden !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .body, .reaper.is-sleeping .body, .reaper.is-hungry .body, .zzz, .ring::before, .raven,
-  .sprite, .reaper.is-moving .sprite, .ghost:not(.is-caught) { animation: none !important; }
+  .sprite, .reaper.is-moving .sprite, .eyes, .ghost:not(.is-caught) { animation: none !important; }
   .slash-half { animation: none !important; opacity: 0; }
 }
 
