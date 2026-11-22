@@ -229,13 +229,15 @@ export function createAbilities(ctx) {
     scoreEl.textContent = 'SCORE ' + hunt.points + (hunt.combo > 1 ? '  ×' + hunt.combo : '');
   }
 
-  function catchGhost(ghost) {
+  function catchGhost(ghost, { byBat = false } = {}) {
     if (!hunt || hunt.wraith || ghost.caught) return;
     ghost.caught = true;
     const now = performance.now();
-    hunt.combo = now - hunt.lastCatch < COMBO_MS ? Math.min(COMBO_MAX, hunt.combo + 1) : 1;
-    hunt.lastCatch = now;
-    const points = (ghost.golden ? 3 : 1) * 10 * hunt.combo;
+    if (!byBat) {
+      hunt.combo = now - hunt.lastCatch < COMBO_MS ? Math.min(COMBO_MAX, hunt.combo + 1) : 1;
+      hunt.lastCatch = now;
+    }
+    const points = (ghost.golden ? 3 : 1) * 10 * (byBat ? 1 : hunt.combo);
     hunt.points += points;
     hunt.caught += 1;
     if (ghost.golden) hunt.golden += 1;
@@ -270,15 +272,35 @@ export function createAbilities(ctx) {
     if (!hunt || hunt.wraith) return;
     const dt = Math.min(50, now - hunt.last);
     hunt.last = now;
-    for (const g of hunt.ghosts) if (!g.caught) drift(g, dt, now, GHOST_W, GHOST_H);
+    for (const g of hunt.ghosts) if (!g.caught && !g.held) drift(g, dt, now, GHOST_W, GHOST_H);
     // A combo lapses when the next catch is too slow.
     if (hunt.combo > 1 && now - hunt.lastCatch > COMBO_MS) { hunt.combo = 1; paintScore(); }
     const left = hunt.ends - Date.now();
     huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 3000);
-    // Over when time runs out, or when every ghost has been caught.
-    if (left <= 0 || hunt.ghosts.every((g) => g.caught)) return endHunt();
+    // Over when time runs out, or when every ghost has been caught. As time
+    // runs out, the bats swoop on ghosts that would get away.
+    if (hunt.ghosts.every((g) => g.caught)) return endHunt();
+    if (left <= 0) return batsSwoop().then(() => { if (hunt) endHunt(); });
     requestAnimationFrame(moveGhosts);
+  }
+
+  // Each bat catches BAT_CATCHES of the ghosts still loose at the end, at base
+  // points (no combo): it flies from where it hangs, takes one, flies back.
+  const BAT_CATCHES = 2;
+  async function batsSwoop() {
+    const bats = (ctx.crypt && ctx.crypt.bats && ctx.crypt.bats()) || 0;
+    if (!hunt || !bats) return;
+    hunt.swooping = true;
+    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, bats * BAT_CATCHES);
+    for (const g of loose) {
+      // Held still while the bat comes for it.
+      g.held = true;
+      await ctx.crypt.swoop(g.x + GHOST_W / 2, g.y + GHOST_H / 2);
+      catchGhost(g, { byBat: true });
+    }
+    if (loose.length) say(loose.length === 1 ? 'The bat took one.' : 'The bats took ' + loose.length + '.', 2500);
+    await new Promise((r) => setTimeout(r, loose.length ? 350 : 0));
   }
 
   // The hunt for `count` ghosts bursting out at `from`, a point or a list of

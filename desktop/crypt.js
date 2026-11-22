@@ -17,9 +17,10 @@
 // once, for one big hunt; now and then a wraith answers too, which pays well
 // if it is beaten.
 //
-// Besides the plain skeleton there are kinds unlocked by rank: the ghoul digs
-// twice as much but holds no ghosts, and the lantern bearer digs nothing but
-// makes the others ripen faster.
+// Besides the plain skeleton there are workers unlocked by rank: the ghoul
+// digs twice as much but holds no ghosts; the bat digs nothing but saves
+// ghosts that would get away in a hunt; the will-o'-wisp digs nothing but
+// makes the skeletons ripen faster.
 
 export const RATE_PER_HOUR = 1.5; // souls one skeleton digs up in an hour
 export const BASE_COST = 25;      // the first skeleton
@@ -38,6 +39,9 @@ export const MAX_RIPE = 6;
 // A mound of dirt swept away pays this, and no more than this many at once.
 export const SWEEP_SOULS = 1;
 export const MOST_MOUNDS = 16;
+// A reaped skeleton rests this long, a grave where it fell, before it climbs
+// back up: reaping trades its digging for a while for the hunt.
+export const REST_MS = 30 * 60000;
 // The most ghosts one hunt can hold: a Gathering of eight full skeletons.
 export const MAX_LOOSE = 60;
 // A beaten wraith pays this, and this much more for every rank reached.
@@ -59,13 +63,18 @@ export const RANKS = [
 export const KINDS = [
   { id: 'digger', name: 'Skeleton', blurb: 'Digs souls, and ripens with ghosts to reap.', dig: 1, ghosts: true, price: 1, rank: 0, most: Infinity },
   { id: 'ghoul', name: 'Ghoul', blurb: 'Digs twice as much, but holds no ghosts.', dig: 2, ghosts: false, price: 2, rank: 1, most: Infinity },
-  { id: 'lantern', name: 'Lantern bearer', blurb: 'Digs nothing, but every skeleton ripens a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 2, most: 3 }
+  { id: 'bat', name: 'Bat', blurb: 'Hangs about the top of the screen. In a hunt it swoops on two ghosts that would get away.', dig: 0, ghosts: false, price: 2, rank: 2, most: 3 },
+  { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Digs nothing, but every skeleton ripens a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
 ];
+// Each bat saves this many ghosts a hunt.
+export const BAT_CATCHES = 2;
+// Saves from before the wisp: the lantern bearer it replaced.
+const RENAMED = { lantern: 'wisp' };
 const KIND_BY_ID = new Map(KINDS.map((k) => [k.id, k]));
 const kindOf = (c, i) => KIND_BY_ID.get((c.kinds && c.kinds[i]) || 'digger') || KINDS[0];
 const counted = (c, id) => (c.kinds || []).filter((k) => k === id).length;
-// How fast skeletons ripen: a quarter faster for each lantern bearer.
-export const ripenSpeed = (c) => 1 + 0.25 * counted(c, 'lantern');
+// How fast skeletons ripen: a quarter faster for each will-o'-wisp.
+export const ripenSpeed = (c) => 1 + 0.25 * counted(c, 'wisp');
 
 // Upgrades change the rules instead of adding diggers. `costs` has one price
 // per level; `effect` says what a level gives, for the card.
@@ -154,22 +163,23 @@ export function clean(raw, now = Date.now()) {
   // (Ones raised together are a millisecond apart, so the last can be just ahead.)
   const savedKinds = Array.isArray(c.born) && Array.isArray(c.kinds) && c.kinds.length === c.born.length ? c.kinds : [];
   const pairs = Array.isArray(c.born)
-    ? c.born.map((t, i) => [t, savedKinds[i]]).filter(([t]) => Number.isFinite(t) && t <= now + MAX_SKELETONS) : [];
+    ? c.born.map((t, i) => [t, savedKinds[i]]).filter(([t]) => Number.isFinite(t) && t <= now + REST_MS + MAX_SKELETONS) : [];
   out.born = [];
-  for (const [t, kind] of pairs.slice(0, out.skeletons)) birth(out, Math.min(t, now + MAX_SKELETONS), KIND_BY_ID.has(kind) ? kind : 'digger');
+  for (const [t, kind] of pairs.slice(0, out.skeletons)) birth(out, Math.min(t, now + REST_MS + MAX_SKELETONS), KIND_BY_ID.has(RENAMED[kind] || kind) ? RENAMED[kind] || kind : 'digger');
   while (out.born.length < out.skeletons) birth(out, now);
   out.loose = Math.min(out.loose, MAX_LOOSE);
   return out;
 }
 
 export const cost = (owned) => Math.ceil(BASE_COST * GROWTH ** owned);
-// What they dig: each plain skeleton one share, a ghoul two, a lantern none.
-const shares = (c) => {
+// What they dig: each plain skeleton one share, a ghoul two, a bat or a wisp
+// none; a resting one none, until it is back up.
+const shares = (c, now = c.at) => {
   let n = 0;
-  for (let i = 0; i < c.skeletons; i++) n += kindOf(c, i).dig;
+  for (let i = 0; i < c.skeletons; i++) if (!c.born || c.born[i] === undefined || awake(c, i, now)) n += kindOf(c, i).dig;
   return n;
 };
-export const perHour = (c) => shares(c) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels'));
+export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels'));
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
 export const goldenChance = (c) => GOLDEN[level(c, 'lure')];
@@ -179,7 +189,8 @@ const bank = (c, n) => { c.souls += n; c.total += n; };
 // Pay out what the skeletons dug since the last count. Returns the souls added.
 export function settle(c, now = Date.now()) {
   const hours = Math.min(capHours(c), Math.max(0, (now - c.at) / HOUR));
-  const dug = perHour(c) * hours;
+  // (A grave that settled meanwhile counts from now: a little less, never more.)
+  const dug = perHour(c, now) * hours;
   bank(c, dug);
   c.at = now;
   return dug;
@@ -225,21 +236,29 @@ export function raise(c, count = 1, kind = 'digger', now = Date.now()) {
 }
 
 // How many ghosts a skeleton that began digging at `born` holds by `now`.
-// Faster with lantern bearers about (`speed`).
+// Faster with will-o'-wisps about (`speed`).
 export const ripeness = (born, now = Date.now(), speed = 1) => Math.min(MAX_RIPE, 1 + Math.floor(Math.max(0, now - born) * speed / HOUR));
 // What the one at `i` holds: nothing, for a kind that holds no ghosts.
-const holds = (c, i, now) => (kindOf(c, i).ghosts ? ripeness(c.born[i], now, ripenSpeed(c)) : 0);
+const holds = (c, i, now) => (kindOf(c, i).ghosts && awake(c, i, now) ? ripeness(c.born[i], now, ripenSpeed(c)) : 0);
 
 // A new skeleton begins to dig. Its start time is also how it is known, so no
 // two share one.
+// A time in the future is a skeleton still resting after a reaping. They are
+// kept in time order (oldest first), each time its own.
 function birth(c, now, kind = 'digger') {
-  const last = c.born.length ? c.born[c.born.length - 1] : -Infinity;
-  c.born.push(Math.max(now, last + 1));
   if (!c.kinds) c.kinds = [];
-  while (c.kinds.length < c.born.length - 1) c.kinds.push('digger');
-  c.kinds.length = c.born.length - 1;
-  c.kinds.push(kind);
+  while (c.kinds.length < c.born.length) c.kinds.push('digger');
+  c.kinds.length = c.born.length;
+  let t = now;
+  while (c.born.includes(t)) t += 1;
+  let i = c.born.length;
+  while (i > 0 && c.born[i - 1] > t) i--;
+  c.born.splice(i, 0, t);
+  c.kinds.splice(i, 0, kind);
 }
+// Up and digging (not resting after a reaping).
+// (Ones raised together are milliseconds apart, so a second's slack; a rest is minutes.)
+const awake = (c, i, now = Date.now()) => c.born[i] <= now + 1000;
 
 // Keep `born` in step with the count: new ones start now, extra ones go.
 function tally(c, now) {
@@ -251,18 +270,20 @@ function tally(c, now) {
 }
 
 // Reap the skeleton at `index` (as drawn, oldest first): it bursts into its
-// ghosts, which are loose until the hunt is done, and claws back up empty, to
-// ripen again. Its new start time is its new name.
+// ghosts, which are loose until the hunt is done. It rests a while, a grave
+// where it fell, then claws back up empty to ripen again. Its new start time
+// (when it rises) is its new name.
 export function reap(c, index = 0, now = Date.now()) {
   tally(c, now);
   const i = Math.floor(Number(index));
   if (!c.skeletons) return { ok: false, error: 'No skeletons to reap. Raise one first.' };
   if (!(i >= 0 && i < c.skeletons)) return { ok: false, error: 'No such skeleton.' };
   if (!kindOf(c, i).ghosts) return { ok: false, error: 'A ' + kindOf(c, i).name.toLowerCase() + ' holds no ghosts.' };
+  if (!awake(c, i, now)) return { ok: false, error: 'That grave is still settling.' };
   const ghosts = holds(c, i, now);
   c.born.splice(i, 1);
   c.kinds.splice(i, 1);
-  birth(c, now);
+  birth(c, now + REST_MS);
   c.loose = ghosts;
   return { ok: true, ghosts };
 }
@@ -272,19 +293,26 @@ export function reap(c, index = 0, now = Date.now()) {
 // skeletons, the grave answers with a first one instead.
 export function gather(c, now = Date.now()) {
   tally(c, now);
-  const which = c.kinds.map((_, i) => i).filter((i) => kindOf(c, i).ghosts);
+  const which = c.kinds.map((_, i) => i).filter((i) => kindOf(c, i).ghosts && awake(c, i, now));
   if (!which.length) {
+    // All of them resting: say when the first is back, rather than raise another.
+    const resting = c.born.filter((t, i) => kindOf(c, i).ghosts && t > now);
+    if (resting.length) {
+      const minutes = Math.max(1, Math.ceil((Math.min(...resting) - now) / 60000));
+      return { ok: false, error: 'The graves are still settling. The first rises in ' + minutes + (minutes === 1 ? ' minute.' : ' minutes.') };
+    }
     const risen = summon(c, now);
     return { ...risen, ghosts: 0, gathered: 0 };
   }
   const n = which.length;
   const ghosts = Math.min(MAX_LOOSE, which.reduce((sum, i) => sum + holds(c, i, now), 0) + (n - 1));
-  // The rest keep their places; the gathered rise again, empty, after them.
-  const keep = c.kinds.map((k, i) => [c.born[i], k]).filter(([, k]) => !KIND_BY_ID.get(k).ghosts);
+  // The others keep their places; the gathered rest, then rise again, empty.
+  const taken = new Set(which);
+  const keep = c.kinds.map((k, i) => [c.born[i], k]).filter((_, i) => !taken.has(i));
   c.born = [];
   c.kinds = [];
   for (const [t, k] of keep) { c.born.push(t); c.kinds.push(k); }
-  for (let k = 0; k < n; k++) birth(c, now);
+  for (let k = 0; k < n; k++) birth(c, now + REST_MS);
   c.loose = ghosts;
   return { ok: true, ghosts, gathered: n };
 }
@@ -415,7 +443,9 @@ export function view(c) {
     goldenChance: goldenChance(c),
     // The skeletons drawn on screen (the oldest eight): how each is known,
     // how many ghosts it holds, and what kind it is.
-    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, Date.now()) })),
+    // A resting one has `rest`: the minutes until it rises.
+    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, Date.now()),
+      ...(t > Date.now() + 1000 ? { rest: Math.max(1, Math.round((t - Date.now()) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,
       cost: kindCost(c, k.id), open: (c.rank || 0) >= k.rank, rank: RANKS[k.rank].name

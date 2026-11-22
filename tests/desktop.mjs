@@ -113,8 +113,9 @@ try {
   check('the skeleton under him lights up', await page.$eval('.field .digger', (n) => n.classList.contains('is-aimed')));
   await page.mouse.up();
   await page.waitForTimeout(400);
-  check('dropping him on it reaps it: its 4 ghosts burst out, and it rises again empty', (await page.$$('.ghost:not(.is-caught)')).length === 4 &&
-    (await page.$$('.field .digger.is-rising')).length === 1 && (await page.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)) === 1,
+  check('dropping him on it reaps it: its 4 ghosts burst out, and a grave is left where it fell', (await page.$$('.ghost:not(.is-caught)')).length === 4 &&
+    (await page.$$('.field .digger')).length === 0 && (await page.$$('.field .grave')).length === 1 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().bones[0].rest)) === 30,
   String((await page.$$('.ghost')).length));
   check('he says so', (await page.textContent('#bubble')).includes('4 ghosts'), await page.textContent('#bubble'));
   const before = await soul(page);
@@ -152,8 +153,9 @@ try {
   check('Summon gathers every skeleton: 3 ghosts each, and one more for each past the first', (await page.$$('.ghost:not(.is-caught)')).length === 11,
     String((await page.$$('.ghost')).length));
   check('he calls them', (await page.textContent('#bubble')).includes('The dead answer'), await page.textContent('#bubble'));
-  check('and they all rise again empty', (await page.$$('.field .digger')).length === 3 &&
-    (await page.evaluate(() => window.__reaper.crypt.get().bones.every((b) => b.ripe === 1))));
+  check('and they all rest a while, graves where they stood', (await page.$$('.field .grave')).length === 3 && (await page.$$('.field .digger')).length === 0 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().bones.every((b) => b.rest === 30))),
+  JSON.stringify({ graves: (await page.$$('.field .grave')).length, diggers: (await page.$$('.field .digger')).length, bones: await page.evaluate(() => window.__reaper.crypt.get().bones) }));
   await castFromRing(page, 'slash');
   await page.waitForTimeout(2200);
   const feast = await page.evaluate(() => window.__reaper.crypt.get());
@@ -376,8 +378,9 @@ try {
   const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
   check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
   check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
-  check('ghouls and lantern bearers wait for a rank', await page.isDisabled('#card .chip[data-kind="ghoul"]') &&
-    await page.isDisabled('#card .chip[data-kind="lantern"]') && (await page.textContent('#card .crypt-kinds')).includes('Opens at Ghost catcher'));
+  check('ghouls, bats and wisps wait for a rank', await page.isDisabled('#card .chip[data-kind="ghoul"]') &&
+    await page.isDisabled('#card .chip[data-kind="bat"]') && await page.isDisabled('#card .chip[data-kind="wisp"]') &&
+    (await page.textContent('#card .crypt-kinds')).includes('Opens at Ghost catcher'));
 
   // Upgrades
   await page.evaluate(async () => (await import('./bridge.js')).companion.stat('focus', 1, 50));
@@ -431,17 +434,39 @@ try {
 
   // The other kinds, at a rank that opens them
   {
-    page = await open({ wander: false, muted: true, crypt: { souls: 500, skeletons: 1, rank: 2, score: 400, total: 0, at: Date.now() } });
+    page = await open({ wander: false, muted: true, crypt: { souls: 900, skeletons: 1, rank: 3, score: 1200, total: 0, at: Date.now() } });
     await page.evaluate(() => window.__reaper.abilities.cast('crypt'));
     await page.click('#card .chip[data-kind="ghoul"]');
     await page.waitForTimeout(200);
-    await page.click('#card .chip[data-kind="lantern"]');
-    await page.waitForTimeout(300);
-    check('a ghoul and a lantern bearer rise, each its own look', (await page.$$('.field .digger.is-ghoul')).length === 1 &&
-      (await page.$$('.field .digger.is-lantern')).length === 1 && (await page.textContent('#bubble')).includes('light the way'), await page.textContent('#bubble'));
-    check('a ghoul digs twice as much', (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 4.5);
+    await page.click('#card .chip[data-kind="bat"]');
+    await page.waitForTimeout(200);
+    await page.click('#card .chip[data-kind="wisp"]');
+    await page.waitForTimeout(400);
+    const look = await page.evaluate(() => {
+      const bg = (sel) => { const n = document.querySelector(sel); return n ? getComputedStyle(n).backgroundImage : ''; };
+      return { ghoul: bg('.field .digger.is-ghoul'), skeleton: bg('.field .digger:not(.is-ghoul)'), bat: bg('.field .bat'), wisp: bg('.field .wisp-worker') };
+    });
+    check('a ghoul, a bat and a wisp rise, each its own creature', /ghoul\.webp/.test(look.ghoul) && /digger\.webp/.test(look.skeleton) &&
+      /bat\.png/.test(look.bat) && /wisp\.png/.test(look.wisp) && (await page.textContent('#bubble')).includes('A light'), JSON.stringify(look));
+    check('a flying bat shows one of its own frames', await page.evaluate(async () => {
+      const b = document.querySelector('.field .bat');
+      b.classList.add('is-flying');
+      const seen = new Set();
+      for (let i = 0; i < 12; i++) { seen.add(getComputedStyle(b).backgroundPositionX); await new Promise((r) => setTimeout(r, 37)); }
+      return [...seen].every((x) => ['0px', '-64px', '-128px', '-192px'].includes(x));
+    }));
+    check('the ghoul digs across its own whole sheet', (await page.$eval('.field .digger.is-ghoul', (n) => getComputedStyle(n).getPropertyValue('--sheet-w').trim())) === '896px');
+    check('a ghoul digs twice as much (bats and wisps dig nothing)', (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 4.5);
     const g = await page.locator('.field .digger.is-ghoul').boundingBox();
     check('a ghoul cannot be aimed at for reaping', (await page.evaluate((p) => window.__reaper.crypt.diggerAt(p), { x: g.x + g.width / 2, y: g.y + 10 })) === -1);
+    // In a hunt, the bat takes ghosts that would get away.
+    await page.evaluate(() => window.__reaper.crypt.update({ ...window.__reaper.crypt.get() }));
+    const skeletonAt = await page.evaluate(() => window.__reaper.crypt.get().bones.findIndex((b) => b.kind === 'digger'));
+    await page.evaluate((i) => window.__reaper.abilities.reapAt(i), skeletonAt);
+    await page.waitForTimeout(8600);
+    const batted = await page.evaluate(() => window.__reaper.crypt.get());
+    check('when the hunt runs out, the bat catches the ghost getting away', batted.score >= 10 && !(await page.$('.ghost:not(.is-caught)')) &&
+      (await page.textContent('#bubble')).length > 0, JSON.stringify({ score: batted.score, bubble: await page.textContent('#bubble') }));
   }
 
   // Away and back

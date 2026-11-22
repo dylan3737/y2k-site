@@ -236,7 +236,7 @@ export function createCrypt(ctx) {
   // What a skeleton does next, once it is done with what it was doing.
   function next(d) {
     const was = d.mode;
-    if (was === 'dig' && d.kind !== 'lantern') mound(d.x);
+    if (was === 'dig') mound(d.x);
     const roll = Math.random();
     if (was !== 'walk' && roll < 0.6) {
       const to = destination(d);
@@ -268,8 +268,10 @@ export function createCrypt(ctx) {
   }
 
   function tick() {
-    if (!diggers.length || document.hidden) return;
+    if (document.hidden) return;
     const t = performance.now();
+    for (const f of flyers) if (t >= f.until) nextFlight(f);
+    if (!diggers.length) return;
     for (const d of diggers) {
       if (d.mode === 'held') continue;
       if (!still && t >= d.until) next(d);
@@ -297,6 +299,78 @@ export function createCrypt(ctx) {
     }
   }
 
+  // --- Graves, bats and wisps -------------------------------------------------
+  // A reaped skeleton rests a while: a grave where it fell, until it climbs
+  // back up there. Bats flit about the top of the screen and hang from it;
+  // will-o'-wisps drift above the skeletons. Neither takes clicks.
+  const graves = new Map();    // bone id -> { node, x }
+  const flyers = [];           // { id, kind, node, mode, until }
+
+  function grave(bone, x) {
+    let g = graves.get(bone.id);
+    if (!g) {
+      const node = el('div', 'grave');
+      node.style.left = Math.round(Math.max(8, Math.min(span(), x)) + W_BONE / 2 - 9) + 'px';
+      field.appendChild(node);
+      g = { node, x };
+      graves.set(bone.id, g);
+    }
+    g.node.title = 'Resting. It rises in ' + bone.rest + (bone.rest === 1 ? ' minute.' : ' minutes.');
+    return g;
+  }
+
+  function flyer(bone) {
+    let f = flyers.find((x) => x.id === bone.id);
+    if (f) return f;
+    const node = el('div', bone.kind === 'bat' ? 'bat' : 'wisp-worker');
+    node.style.animationDelay = (-Math.random()).toFixed(2) + 's';
+    field.appendChild(node);
+    f = { id: bone.id, kind: bone.kind, node, mode: '', until: 0, x: rand(40, innerWidth - 80), y: 0 };
+    flyers.push(f);
+    node.title = bone.kind === 'bat' ? 'A bat: in a hunt, it catches ghosts that would get away' : "A will-o'-wisp: the skeletons ripen faster";
+    place(f, f.x, bone.kind === 'bat' ? 0 : innerHeight - 140, 0);
+    nextFlight(f);
+    return f;
+  }
+
+  function place(f, x, y, seconds) {
+    f.x = Math.max(4, Math.min(innerWidth - 70, x));
+    f.y = Math.max(0, Math.min(innerHeight - 60, y));
+    f.node.style.transitionDuration = seconds.toFixed(2) + 's';
+    f.node.style.left = Math.round(f.x) + 'px';
+    f.node.style.top = Math.round(f.y) + 'px';
+  }
+
+  // What a bat or a wisp does next.
+  function nextFlight(f) {
+    const t = performance.now();
+    if (f.kind === 'bat') {
+      if (f.mode !== 'fly' && !still) {
+        // Off it flits, somewhere in the top of the screen.
+        const seconds = rand(2.5, 5);
+        f.node.classList.add('is-flying');
+        f.node.classList.toggle('is-left', Math.random() < 0.5);
+        place(f, rand(20, innerWidth - 90), rand(10, innerHeight * 0.35), seconds);
+        f.mode = 'fly';
+        f.until = t + seconds * 1000;
+      } else {
+        // Up to the top edge, to hang there a while.
+        f.node.classList.remove('is-flying');
+        place(f, f.x, 0, still ? 0 : 0.8);
+        f.mode = 'hang';
+        f.until = t + rand(15000, 45000);
+      }
+      return;
+    }
+    // A wisp drifts over to hover above one of the skeletons.
+    const ground = diggers.filter((d) => d.kind === 'digger' && d.mode !== 'held');
+    const over = ground.length ? ground[Math.floor(Math.random() * ground.length)] : null;
+    const x = over ? over.x + W_BONE / 2 - 16 + rand(-10, 10) : rand(40, innerWidth - 80);
+    place(f, x, innerHeight - 62 - 58 + rand(-8, 8), still ? 0 : rand(2.5, 4.5));
+    f.mode = 'drift';
+    f.until = t + rand(12000, 28000);
+  }
+
   function crew() {
     const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
     const ids = new Set(want.map((b) => b.id));
@@ -308,7 +382,21 @@ export function createCrypt(ctx) {
         d.node.remove();
       }
     }
+    for (const [id, g] of graves) {
+      const bone = want.find((b) => b.id === id);
+      if (!bone || !bone.rest) {
+        g.node.remove();
+        graves.delete(id);
+        // Risen: it climbs out where its grave was.
+        if (bone) fallen.unshift(g.x);
+      }
+    }
+    for (let i = flyers.length - 1; i >= 0; i--) {
+      if (!ids.has(flyers[i].id)) flyers.splice(i, 1)[0].node.remove();
+    }
     for (const bone of want) {
+      if (bone.kind === 'bat' || bone.kind === 'wisp') { flyer(bone); continue; }
+      if (bone.rest) { grave(bone, graves.has(bone.id) ? graves.get(bone.id).x : fallen.length ? fallen.shift() : rand(8, span())); continue; }
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
         const node = el('div', 'digger hit');
@@ -333,15 +421,49 @@ export function createCrypt(ctx) {
       d.ripe = bone.ripe;
       d.kind = bone.kind || 'digger';
       d.node.classList.toggle('is-ghoul', d.kind === 'ghoul');
-      d.node.classList.toggle('is-lantern', d.kind === 'lantern');
       d.node.style.setProperty('--ripe', bone.ripe);
       d.node.classList.toggle('is-ripe', bone.ripe >= 6);
       d.node.title = d.kind === 'ghoul' ? 'A ghoul: digs hard, holds no ghosts'
-        : d.kind === 'lantern' ? 'A lantern bearer: the others ripen faster'
-          : bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
+        : bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
     }
     fallen.length = 0;
   }
+
+  // Graves settle on their own time: look again each minute while there are any.
+  setInterval(async () => {
+    if (!graves.size || document.hidden) return;
+    const out = await companion.crypt({});
+    if (out && out.crypt) update(out.crypt);
+  }, 60000);
+
+  // A bat swoops from wherever it is to a point (a ghost getting away) and
+  // back. Resolves when it gets there. One flies in from the top if none is drawn.
+  function swoop(x, y) {
+    return new Promise((resolve) => {
+      const bats = flyers.filter((f) => f.kind === 'bat');
+      const from = bats.length ? bats[Math.floor(Math.random() * bats.length)] : null;
+      const node = el('div', 'bat is-flying is-swooping');
+      const start = from ? { x: from.x, y: from.y } : { x: x < innerWidth / 2 ? -60 : innerWidth, y: 0 };
+      if (from) from.node.style.visibility = 'hidden';
+      node.style.left = Math.round(start.x) + 'px';
+      node.style.top = Math.round(start.y) + 'px';
+      node.classList.toggle('is-left', x < start.x);
+      field.appendChild(node);
+      requestAnimationFrame(() => {
+        node.style.transitionDuration = '0.42s';
+        node.style.left = Math.round(x - 32) + 'px';
+        node.style.top = Math.round(y - 20) + 'px';
+      });
+      setTimeout(() => {
+        resolve();
+        node.style.transitionDuration = '0.5s';
+        node.style.left = Math.round(start.x) + 'px';
+        node.style.top = Math.round(start.y) + 'px';
+        setTimeout(() => { node.remove(); if (from) from.node.style.visibility = ''; }, 520);
+      }, 440);
+    });
+  }
+
 
   // Which drawn skeleton is under a point (the reaper's feet), as its place
   // among the crypt's skeletons, or -1.
@@ -373,8 +495,9 @@ export function createCrypt(ctx) {
   }
 
   // Where every drawn skeleton is on screen.
+  // (The Gathering's ghosts come out of the skeletons, not the ghouls.)
   function diggerBoxes() {
-    return diggers.map((d) => d.node.getBoundingClientRect());
+    return diggers.filter((d) => d.kind === 'digger').map((d) => d.node.getBoundingClientRect());
   }
 
   // A small "+n" over one of the diggers when they bring something up.
@@ -393,7 +516,7 @@ export function createCrypt(ctx) {
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
-      const what = { ghoul: 'Ghoul, rise.', lantern: 'Bearer, light the way.' }[out.kind];
+      const what = { ghoul: 'Ghoul, rise.', bat: 'Wings in the dark.', wisp: 'A light that is not yours to follow.' }[out.kind];
       say(what && out.raised === 1 ? what : out.raised === 1 ? 'Rise.' : out.raised + ' rise.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);
@@ -466,6 +589,9 @@ export function createCrypt(ctx) {
     diggerBox,
     diggerBoxes,
     near,
+    swoop,
+    // How many bats the crypt has (each saves two ghosts a hunt).
+    bats: () => ((now.kinds || []).find((k) => k.id === 'bat') || { count: 0 }).count,
     // One is in the hand: the window keeps taking the mouse until it is let go.
     holding: () => !!held,
     // Every skeleton moves on to whatever it does next (for the tests).

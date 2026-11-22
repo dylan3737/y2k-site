@@ -144,8 +144,9 @@ const second = r.born[1];
 const t2 = r.born[0] + 2 * HOUR;
 out = crypt.act(r, { reap: 0 }, t2);
 check('reaping a skeleton lets its ghosts loose', out.ok && out.ghosts === 3 && r.loose === 3, JSON.stringify(out));
-check('and it rises again empty, to ripen anew', r.skeletons === 3 && r.born[0] === second && r.born[2] === t2 &&
-  crypt.ripeness(r.born[2], t2) === 1, JSON.stringify(r.born));
+check('and it rests a while, a grave where it fell, then rises empty', r.skeletons === 3 && r.born[0] === second && r.born[2] === t2 + crypt.REST_MS &&
+  crypt.perHour(r, t2) === 2 * crypt.RATE_PER_HOUR && crypt.perHour(r, t2 + crypt.REST_MS) === 3 * crypt.RATE_PER_HOUR, JSON.stringify(r.born));
+check('a resting one cannot be reaped again', !crypt.act(r, { reap: 2 }, t2).ok);
 check('reaping one that is not there is refused', !crypt.act(r, { reap: 7 }, t2).ok && r.skeletons === 3);
 const before = r.souls;
 out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, t2);
@@ -186,13 +187,13 @@ check('a beaten wraith pays by rank, and a skeleton rises', out.won && out.gaine
 const souls1 = r.souls;
 out = crypt.act(r, { wraith: { won: false } }, t3);
 check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 5);
-// Kinds: the ghoul and the lantern bearer, unlocked by rank.
+// Workers: the ghoul, the bat and the will-o'-wisp, unlocked by rank.
 const k = crypt.fresh(T0);
 k.souls = 1e5;
 crypt.act(k, { raise: 2 }, T0);
 out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
 check('a ghoul waits for a rank', !out.ok && /Ghost catcher/.test(out.error), out.error);
-k.rank = 2;
+k.rank = 3;
 const plainNext = crypt.kindCost(k, 'digger');
 out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
 check('a ghoul costs twice the next skeleton', out.ok && out.kind === 'ghoul' && crypt.view(k).bones[2].kind === 'ghoul' &&
@@ -201,11 +202,11 @@ check('a ghoul digs twice as much', crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR
 out = crypt.act(k, { reap: 2 }, T0 + 5 * HOUR);
 check('a ghoul cannot be reaped', !out.ok && /holds no ghosts/.test(out.error) && crypt.view(k).bones[2].ripe === 0);
 const twoHours = T0 + 2 * HOUR;
-check('without a lantern, two hours ripen to three', crypt.view({ ...k }).bones && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 3);
-out = crypt.act(k, { raise: 1, kind: 'lantern' }, T0);
-check('a lantern bearer digs nothing', out.ok && crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR);
-crypt.act(k, { raise: 2, kind: 'lantern' }, T0);
-check('three lanterns at most', !crypt.act(k, { raise: 1, kind: 'lantern' }, T0).ok && crypt.view(k).kinds.find((x) => x.id === 'lantern').count === 3);
+check('without a wisp, two hours ripen to three', crypt.view({ ...k }).bones && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 3);
+out = crypt.act(k, { raise: 1, kind: 'wisp' }, T0);
+check('a will-o\'-wisp digs nothing', out.ok && crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR);
+crypt.act(k, { raise: 2, kind: 'wisp' }, T0);
+check('three wisps at most', !crypt.act(k, { raise: 1, kind: 'wisp' }, T0).ok && crypt.view(k).kinds.find((x) => x.id === 'wisp').count === 3);
 check('and with three, they ripen three-quarters faster', crypt.ripenSpeed(k) === 1.75 && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 4);
 out = crypt.act(k, { gather: true }, twoHours);
 check('a Gathering takes only the ones that hold ghosts', out.gathered === 2 && out.ghosts === 4 + 4 + 1 && k.skeletons === 6 &&
@@ -216,6 +217,17 @@ crypt.act(ghoulsOnly, { raise: 1, kind: 'ghoul' }, T0);
 out = crypt.act(ghoulsOnly, { gather: true }, T0);
 check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.gathered === 0 && ghoulsOnly.kinds.join() === 'ghoul,digger');
 check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
+const batty = crypt.fresh(T0);
+batty.souls = 1e5;
+crypt.act(batty, { raise: 1 }, T0);
+check('a bat waits for Soul warden', /Soul warden/.test(crypt.act(batty, { raise: 1, kind: 'bat' }, T0).error || ''));
+batty.rank = 2;
+out = crypt.act(batty, { raise: 3, kind: 'bat' }, T0);
+check('bats dig nothing, and three at most', out.raised === 3 && crypt.perHour(batty) === crypt.RATE_PER_HOUR && !crypt.act(batty, { raise: 1, kind: 'bat' }, T0).ok &&
+  crypt.view(batty).kinds.find((x) => x.id === 'bat').count === 3 && crypt.BAT_CATCHES === 2);
+check('a wisp waits for Shade hunter', /Shade hunter/.test(crypt.act(batty, { raise: 1, kind: 'wisp' }, T0).error || ''));
+const oldSave = crypt.clean({ skeletons: 2, born: [T0, T0 + 1], kinds: ['digger', 'lantern'], at: T0 }, T0 + 5);
+check('a lantern bearer from an old save becomes a wisp', oldSave.kinds.join() === 'digger,wisp' && crypt.ripenSpeed(oldSave) === 1.25);
 check('an unknown kind is refused', !crypt.act(k, { raise: 1, kind: 'dragon' }).ok);
 
 // Sweeping their dirt.

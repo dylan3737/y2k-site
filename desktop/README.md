@@ -120,21 +120,22 @@ Souls raise **skeletons**. The first costs 25, and each one after costs 25% more
 - Up to eight skeletons live along the bottom of your screen. Each digs a while, leaves a mound of dirt, and wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and digs there. Each half fades while your cursor is over it.
 - Skeletons leave **mounds of dirt** where they dig. Click one to sweep it away, for a soul. Up to 16 pile up; past that the oldest wears away.
 
-#### Kinds
+#### Workers
 
-Higher ranks open other kinds. Each counts as a skeleton for the price of the next one, times its own price:
+Higher ranks open other workers, each its own creature. Each counts toward the crypt for the price of the next skeleton, times its own price:
 
-| Kind | Opens at | Price | What it does |
+| Worker | Opens at | Price | What it does |
 |---|---|---|---|
 | **Skeleton** | | ×1 | Digs 1.5 souls an hour, and ripens with ghosts to reap. |
-| **Ghoul** | Ghost catcher | ×2 | Green, hunched, digging hard: twice as many souls, but it holds no ghosts and can't be reaped or gathered. |
-| **Lantern bearer** | Soul warden | ×3 | Holds up a lantern and digs nothing, but every skeleton ripens a quarter faster for each one. Three at most. |
+| **Ghoul** | Ghost catcher | ×2 | A hunched green ghoul with a shovel: digs twice as many souls, but holds no ghosts, so it can't be reaped or gathered. |
+| **Bat** | Soul warden | ×2 | Flits about the top of your screen and hangs from it. Digs nothing, but when a hunt runs out it swoops on ghosts about to get away and catches two (at base points, no combo). Three at most. |
+| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the skeletons. Digs nothing, but every skeleton ripens a quarter faster for each one. Three at most. (It replaces the lantern bearer; any you had became wisps.) |
 
 ### Reaping and the hunt
 
 Skeletons **ripen** as they dig: each holds one ghost, and one more for every hour it has dug, up to six. The riper one glows brighter, and a full one rattles and leaks wisps.
 
-**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and claws back up empty, to ripen again, and a short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click the ghosts to catch them:
+**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **grave** where it fell; after 30 minutes it claws back out of it, empty, to ripen again. Meanwhile it digs nothing. And a short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click the ghosts to catch them:
 
 - Each caught banks 10 souls (30 for a golden one) and scores 10 points (30 golden), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
 - Ghosts that get away are lost.
@@ -151,7 +152,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Wraith lord | 3,000 | 500 |
 | The Reaper's hand | 8,000 | 1,200 |
 
-**Summon is the Gathering**: he calls every skeleton at once. All of them burst into their ghosts, with one more ghost for each skeleton past the first, for one big hunt, and all rise again empty. So the choice is a snack or a feast: reap one now, for free, or let them ripen and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises too. With no skeletons yet, Summon raises the first one.
+**Summon is the Gathering**: he calls every skeleton at once. All of them burst into their ghosts, with one more ghost for each skeleton past the first, for one big hunt, and all rest in their graves for 30 minutes before rising again, empty. So the choice is a snack or a feast: reap one now, for free, or let them ripen and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises too. With no skeletons yet, Summon raises the first one.
 
 ### Upgrades
 
