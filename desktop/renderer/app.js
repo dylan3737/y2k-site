@@ -708,6 +708,8 @@ function frame(now) {
   const dt = Math.min(50, now - lastFrame);
   lastFrame = now;
   step(dt, now);
+  // The skeletons by his feet hop out of his way (they look a few times a second).
+  crypt.near(feet());
   requestAnimationFrame(frame);
 }
 

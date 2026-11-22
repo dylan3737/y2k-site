@@ -109,8 +109,9 @@ try {
   check('the skeleton under him lights up', await page.$eval('.field .digger', (n) => n.classList.contains('is-aimed')));
   await page.mouse.up();
   await page.waitForTimeout(400);
-  check('dropping him on it reaps it: its 4 ghosts burst out', (await page.$$('.ghost:not(.is-caught)')).length === 4 &&
-    (await page.$$('.field .digger')).length === 0, String((await page.$$('.ghost')).length));
+  check('dropping him on it reaps it: its 4 ghosts burst out, and it rises again empty', (await page.$$('.ghost:not(.is-caught)')).length === 4 &&
+    (await page.$$('.field .digger.is-rising')).length === 1 && (await page.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)) === 1,
+  String((await page.$$('.ghost')).length));
   check('he says so', (await page.textContent('#bubble')).includes('4 ghosts'), await page.textContent('#bubble'));
   const before = await soul(page);
   await page.waitForTimeout(600);
@@ -132,22 +133,39 @@ try {
     !(await page.evaluate(() => window.__reaper.abilities.hunting)));
   await page.waitForTimeout(400);
   const after = await page.evaluate(() => window.__reaper.crypt.get());
-  check('the crypt pays for the catch and keeps the score', after.souls >= 40 && after.score >= 40 && after.skeletons === 0,
+  check('the crypt pays for the catch and keeps the score', after.souls >= 40 && after.score >= 40 && after.skeletons === 1,
     JSON.stringify({ souls: after.souls, score: after.score }));
   const best = await page.evaluate(() => window.__companion.read().best);
   check('best score is saved', best >= 40, String(best));
 
-  // Summon raises the dead, and sometimes a wraith
+  // Summon: the Gathering. Every skeleton bursts at once, for one big hunt.
+  const ripeFor = (h) => Date.now() - h * 3600000;
+  page = await open({ wander: false, muted: true, soul: 100,
+    crypt: { souls: 0, skeletons: 3, born: [ripeFor(2.5), ripeFor(2.4), ripeFor(2.3)], total: 0, at: Date.now() } });
   await page.evaluate(() => { Math.random = () => 0.9; });
   await castFromRing(page, 'summon');
   await page.waitForTimeout(400);
-  check('Summon raises a skeleton for his own soul', (await page.evaluate(() => window.__reaper.crypt.get().skeletons)) === 1 &&
-    (await page.$$('.field .digger')).length === 1 && (await page.textContent('#bubble')).includes('Rise'), await page.textContent('#bubble'));
+  check('Summon gathers every skeleton: 3 ghosts each, and one more for each past the first', (await page.$$('.ghost:not(.is-caught)')).length === 11,
+    String((await page.$$('.ghost')).length));
+  check('he calls them', (await page.textContent('#bubble')).includes('The dead answer'), await page.textContent('#bubble'));
+  check('and they all rise again empty', (await page.$$('.field .digger')).length === 3 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().bones.every((b) => b.ripe === 1))));
+  await castFromRing(page, 'slash');
+  await page.waitForTimeout(2200);
+  const feast = await page.evaluate(() => window.__reaper.crypt.get());
+  check('the big hunt pays for every ghost', feast.souls >= 110 && !(await page.evaluate(() => window.__reaper.abilities.hunting)), String(feast.souls));
+  await page.waitForTimeout(2000);
+  check('no wraith when the dice say not', !(await page.$('.wraith')));
+
+  // Sometimes something else answers the call: a wraith, after the hunt.
   page = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 1, total: 0, at: Date.now() } });
   await page.evaluate(() => { Math.random = () => 0.1; });
   await castFromRing(page, 'summon');
   await page.waitForTimeout(300);
-  check('sometimes a wraith rises instead', !!(await page.$('.wraith')) && (await page.textContent('.score')).startsWith('WRAITH'));
+  await castFromRing(page, 'slash');
+  await page.waitForTimeout(3600);
+  check('sometimes a wraith answers too, once the hunt is over', !!(await page.$('.wraith')) && (await page.textContent('.score')).startsWith('WRAITH'),
+    await page.textContent('#bubble'));
   const soulsBefore = await page.evaluate(() => window.__reaper.crypt.get().souls);
   for (let i = 0; i < 12; i++) {
     const w = await page.$eval('.wraith', (n) => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
@@ -159,6 +177,28 @@ try {
   const won = await page.evaluate(() => window.__reaper.crypt.get());
   check('struck 12 times, it is banished: souls, and a skeleton rises', (await page.textContent('#bubble')).includes('Banished') &&
     won.souls >= soulsBefore + 60 && won.skeletons === 2, await page.textContent('#bubble'));
+
+  // With no skeletons, Summon is never for nothing: the grave gives a first one.
+  page = await open({ wander: false, muted: true, soul: 100 });
+  await castFromRing(page, 'summon');
+  await page.waitForTimeout(400);
+  check('with no skeletons, Summon raises the first', (await page.evaluate(() => window.__reaper.crypt.get().skeletons)) === 1 &&
+    (await page.$$('.field .digger')).length === 1 && (await page.textContent('#bubble')).includes('Rise'), await page.textContent('#bubble'));
+
+  // The skeletons live: they dig, leave a mound and wander off; a full one leaks wisps; they hop when he comes near.
+  page = await open({ wander: false, muted: true,
+    crypt: { souls: 0, skeletons: 2, born: [ripeFor(7), ripeFor(0.2)], total: 0, at: Date.now() } });
+  await page.waitForTimeout(1000);
+  const startX = await page.$$eval('.field .digger', (ns) => ns.map((n) => n.getBoundingClientRect().left));
+  await page.evaluate(() => { Math.random = () => 0.3; window.__reaper.crypt.stir(); });
+  await page.waitForTimeout(1200);
+  check('done digging, a skeleton leaves a mound and walks somewhere new', (await page.$$('.mound')).length === 2 &&
+    (await page.$$('.field .digger.is-walking')).length === 2 &&
+    (await page.$$eval('.field .digger', (ns) => ns.map((n) => n.getBoundingClientRect().left))).some((x, i) => Math.abs(x - startX[i]) > 10));
+  check('a full one rattles and leaks wisps', (await page.$$('.field .digger.is-ripe')).length === 1 && (await page.$$('.wisp')).length > 0);
+  const nearOne = await page.locator('.field .digger').first().boundingBox();
+  await page.evaluate((p) => { window.__reaper.crypt.stir(); window.__reaper.crypt.near(p, true); }, { x: nearOne.x + nearOne.width / 2, y: nearOne.y });
+  check('one hops when he comes near', (await page.$$('.field .digger.is-startled')).length >= 1);
 
   // Hourglass
   page = await open({ wander: false });
@@ -305,6 +345,8 @@ try {
   const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
   check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
   check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
+  check('ghouls and lantern bearers wait for a rank', await page.isDisabled('#card .chip[data-kind="ghoul"]') &&
+    await page.isDisabled('#card .chip[data-kind="lantern"]') && (await page.textContent('#card .crypt-kinds')).includes('Opens at Ghost catcher'));
 
   // Upgrades
   await page.evaluate(async () => (await import('./bridge.js')).companion.stat('focus', 1, 50));
@@ -355,6 +397,21 @@ try {
   await page.waitForTimeout(100);
   const back = await page.textContent('#bubble');
   check('coming back reports the dig', back.includes('Gone') && back.includes('The skeletons dug up 9 souls'), back);
+
+  // The other kinds, at a rank that opens them
+  {
+    page = await open({ wander: false, muted: true, crypt: { souls: 500, skeletons: 1, rank: 2, score: 400, total: 0, at: Date.now() } });
+    await page.evaluate(() => window.__reaper.abilities.cast('crypt'));
+    await page.click('#card .chip[data-kind="ghoul"]');
+    await page.waitForTimeout(200);
+    await page.click('#card .chip[data-kind="lantern"]');
+    await page.waitForTimeout(300);
+    check('a ghoul and a lantern bearer rise, each its own look', (await page.$$('.field .digger.is-ghoul')).length === 1 &&
+      (await page.$$('.field .digger.is-lantern')).length === 1 && (await page.textContent('#bubble')).includes('light the way'), await page.textContent('#bubble'));
+    check('a ghoul digs twice as much', (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 4.5);
+    const g = await page.locator('.field .digger.is-ghoul').boundingBox();
+    check('a ghoul cannot be aimed at for reaping', (await page.evaluate((p) => window.__reaper.crypt.diggerAt(p), { x: g.x + g.width / 2, y: g.y + 10 })) === -1);
+  }
 
   // Away and back
   page = await open({ wander: false, soul: 50 });

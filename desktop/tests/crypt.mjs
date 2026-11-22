@@ -141,33 +141,83 @@ check('a new skeleton holds one ghost', crypt.ripeness(r.born[0], r.born[0]) ===
 check('and one more for every hour it digs', crypt.ripeness(r.born[0], r.born[0] + 3.5 * HOUR) === 4);
 check('six at most', crypt.ripeness(r.born[0], r.born[0] + 100 * HOUR) === crypt.MAX_RIPE);
 const second = r.born[1];
-out = crypt.act(r, { reap: 0 }, r.born[0] + 2 * HOUR);
-check('reaping a skeleton lets its ghosts loose', out.ok && out.ghosts === 3 && r.loose === 3 && r.skeletons === 2, JSON.stringify(out));
-check('and only that one stops digging', r.born[0] === second && crypt.view(r).bones.length === 2);
-check('reaping one that is not there is refused', !crypt.act(r, { reap: 7 }).ok && r.skeletons === 2);
+const t2 = r.born[0] + 2 * HOUR;
+out = crypt.act(r, { reap: 0 }, t2);
+check('reaping a skeleton lets its ghosts loose', out.ok && out.ghosts === 3 && r.loose === 3, JSON.stringify(out));
+check('and it rises again empty, to ripen anew', r.skeletons === 3 && r.born[0] === second && r.born[2] === t2 &&
+  crypt.ripeness(r.born[2], t2) === 1, JSON.stringify(r.born));
+check('reaping one that is not there is refused', !crypt.act(r, { reap: 7 }, t2).ok && r.skeletons === 3);
 const before = r.souls;
-out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, r.born[0] + 2 * HOUR);
+out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, t2);
 check('ghosts caught bank souls, golden ones three times as much', out.caught === 2 && out.gained === 40 && Math.round(r.souls - before) >= 40, JSON.stringify(out));
 check('the rest are lost', r.loose === 0);
 check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Gravekeeper' && crypt.view(r).nextRank.at === 100);
-out = crypt.act(r, { hunt: { caught: 5, points: 999 } });
+out = crypt.act(r, { hunt: { caught: 5, points: 999 } }, t2);
 check('a hunt cannot claim ghosts that were never loose', out.caught === 0 && out.points === 0 && r.score === 60, JSON.stringify(out));
-crypt.act(r, { reap: 0 });
-out = crypt.act(r, { hunt: { caught: 1, points: 50 } });
+crypt.act(r, { reap: 0 }, t2);
+out = crypt.act(r, { hunt: { caught: 1, points: 50 } }, t2);
 check('a new rank pays once', out.ranked.length === 1 && out.ranked[0].name === 'Ghost catcher' && out.ranked[0].reward === 30 && crypt.view(r).rank === 'Ghost catcher', JSON.stringify(out));
-crypt.act(r, { reap: 0 });
-crypt.act(r, { hunt: { caught: 0 } });
-check('reaping with none left says to raise one', r.skeletons === 0 && !crypt.act(r, { reap: 0 }).ok && /No skeletons/.test(crypt.reap(crypt.fresh(T0)).error));
+check('reaping with none says to raise one', /No skeletons/.test(crypt.reap(crypt.fresh(T0)).error));
 
-// Summon: a skeleton for his own soul, and the wraith.
+// Summon's Gathering: every skeleton at once, one more ghost for each past the first.
+const t3 = t2 + 3 * HOUR;
+const holds = r.born.map((t) => crypt.ripeness(t, t3));
+out = crypt.act(r, { gather: true }, t3);
+check('a Gathering takes every skeleton\'s ghosts, and one more for each past the first',
+  out.ok && out.gathered === 3 && out.ghosts === holds.reduce((a, b) => a + b, 0) + 2 && r.loose === out.ghosts, JSON.stringify([out, holds]));
+check('and they all rise again empty', r.skeletons === 3 && r.born.every((t) => crypt.ripeness(t, t3) === 1) && new Set(r.born).size === 3);
+out = crypt.act(r, { hunt: { caught: out.ghosts, points: 10 } }, t3);
+check('a big hunt can bank every ghost it let loose', out.caught === holds.reduce((a, b) => a + b, 0) + 2, JSON.stringify(out));
+const full = crypt.fresh(T0);
+full.souls = 1e6;
+crypt.act(full, { raise: 8 }, T0);
+out = crypt.act(full, { gather: true }, T0 + 100 * HOUR);
+check('eight full skeletons make the most a hunt can hold', out.ghosts === 8 * crypt.MAX_RIPE + 7 && out.ghosts <= crypt.MAX_LOOSE, String(out.ghosts));
+const empty = crypt.fresh(T0);
+out = crypt.act(empty, { gather: true }, T0);
+check('with no skeletons the grave gives a first one instead', out.ok && out.gathered === 0 && out.ghosts === 0 && empty.skeletons === 1 && empty.loose === 0, JSON.stringify(out));
+
+// A skeleton for his own soul, and the wraith.
 const souls0 = r.souls;
-out = crypt.act(r, { summon: true });
-check('Summon raises a skeleton without banked souls', out.ok && r.skeletons === 1 && r.souls === souls0);
-out = crypt.act(r, { wraith: { won: true } });
-check('a beaten wraith pays by rank, and a skeleton rises', out.won && out.gained === crypt.WRAITH_SOULS + crypt.WRAITH_PER_RANK && out.raised === 1 && r.skeletons === 2, JSON.stringify(out));
+out = crypt.act(r, { summon: true }, t3);
+check('a skeleton can be raised without banked souls', out.ok && r.skeletons === 4 && r.souls === souls0);
+out = crypt.act(r, { wraith: { won: true } }, t3);
+check('a beaten wraith pays by rank, and a skeleton rises', out.won && out.gained === crypt.WRAITH_SOULS + crypt.WRAITH_PER_RANK && out.raised === 1 && r.skeletons === 5, JSON.stringify(out));
 const souls1 = r.souls;
-out = crypt.act(r, { wraith: { won: false } });
-check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 2);
+out = crypt.act(r, { wraith: { won: false } }, t3);
+check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 5);
+// Kinds: the ghoul and the lantern bearer, unlocked by rank.
+const k = crypt.fresh(T0);
+k.souls = 1e5;
+crypt.act(k, { raise: 2 }, T0);
+out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
+check('a ghoul waits for a rank', !out.ok && /Ghost catcher/.test(out.error), out.error);
+k.rank = 2;
+const plainNext = crypt.kindCost(k, 'digger');
+out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
+check('a ghoul costs twice the next skeleton', out.ok && out.kind === 'ghoul' && crypt.view(k).bones[2].kind === 'ghoul' &&
+  crypt.kindCost(crypt.clean({ ...k, kinds: k.kinds.slice(0, 2), born: k.born.slice(0, 2), skeletons: 2 }, T0), 'ghoul') === plainNext * 2);
+check('a ghoul digs twice as much', crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR, String(crypt.perHour(k)));
+out = crypt.act(k, { reap: 2 }, T0 + 5 * HOUR);
+check('a ghoul cannot be reaped', !out.ok && /holds no ghosts/.test(out.error) && crypt.view(k).bones[2].ripe === 0);
+const twoHours = T0 + 2 * HOUR;
+check('without a lantern, two hours ripen to three', crypt.view({ ...k }).bones && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 3);
+out = crypt.act(k, { raise: 1, kind: 'lantern' }, T0);
+check('a lantern bearer digs nothing', out.ok && crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR);
+crypt.act(k, { raise: 2, kind: 'lantern' }, T0);
+check('three lanterns at most', !crypt.act(k, { raise: 1, kind: 'lantern' }, T0).ok && crypt.view(k).kinds.find((x) => x.id === 'lantern').count === 3);
+check('and with three, they ripen three-quarters faster', crypt.ripenSpeed(k) === 1.75 && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 4);
+out = crypt.act(k, { gather: true }, twoHours);
+check('a Gathering takes only the ones that hold ghosts', out.gathered === 2 && out.ghosts === 4 + 4 + 1 && k.skeletons === 6 &&
+  k.kinds.filter((x) => x === 'digger').length === 2 && k.kinds[0] === 'ghoul', JSON.stringify([out, k.kinds]));
+const ghoulsOnly = crypt.fresh(T0);
+ghoulsOnly.souls = 1e4; ghoulsOnly.rank = 1;
+crypt.act(ghoulsOnly, { raise: 1, kind: 'ghoul' }, T0);
+out = crypt.act(ghoulsOnly, { gather: true }, T0);
+check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.gathered === 0 && ghoulsOnly.kinds.join() === 'ghoul,digger');
+check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
+check('an unknown kind is refused', !crypt.act(k, { raise: 1, kind: 'dragon' }).ok);
+
 check('every skeleton is known by its own start time', new Set(r.born).size === r.born.length);
 const legacy = crypt.clean({ skeletons: 3, souls: 5 }, T0);
 check('skeletons from before ripening start ripening on load', legacy.born.length === 3 && legacy.born[0] === T0 && legacy.loose === 0);

@@ -217,6 +217,8 @@ body.is-capturing * { visibility: hidden !important; }
 .crypt-item .muted { display: block; }
 .crypt-item .chip { flex: none; min-width: 52px; }
 .crypt-item.is-done { opacity: 0.5; }
+.crypt-item.is-locked { opacity: 0.55; }
+.crypt-kinds { display: grid; gap: 8px; margin: 8px 0; }
 .crypt-reward { flex: none; font-size: 9px; color: var(--gold); }
 .digger {
   position: fixed;
@@ -224,11 +226,14 @@ body.is-capturing * { visibility: hidden !important; }
   width: 36px;
   height: 62px;
   background: url('../assets/digger.webp') 0 0 / 576px 62px no-repeat;
-  filter: drop-shadow(0 0 4px rgba(190, 150, 255, 0.55));
   animation: dig 1.2s steps(16) infinite;
+  /* left moves it when it walks (the page sets how long); opacity fades it. */
+  transition-property: left, opacity;
+  transition-timing-function: linear, ease;
+  transition-duration: 0s, 0.2s;
 }
-.digger.is-flipped { transform: scaleX(-1); }
-.digger { transition: opacity 0.2s ease; }
+/* Flipped with `scale`, so `translate` is free for hops and walking. */
+.digger.is-flipped { scale: -1 1; }
 .digger.is-faded { opacity: 0.15; }
 /* Riper skeletons glow brighter: --ripe is how many ghosts one holds (1-6). */
 .digger { filter: drop-shadow(0 0 calc(2px + var(--ripe, 1) * 1.2px) rgba(190, 150, 255, calc(0.3 + var(--ripe, 1) * 0.1))); }
@@ -236,8 +241,77 @@ body.is-capturing * { visibility: hidden !important; }
 /* The one the dragged reaper would reap, lit and never faded. */
 .digger.is-aimed { opacity: 1; filter: brightness(1.4) drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px rgba(255, 170, 220, 0.95)); }
 @keyframes dig { to { background-position: -576px 0; } }
+
+/* Walking: the shovel stops and he bobs along. */
+.digger.is-walking { animation: dig 1.2s steps(16) infinite paused, walk 0.5s steps(2) infinite; }
+@keyframes walk { 50% { translate: 0 -2px; } }
+.digger.is-hopping { animation: dig 1.2s steps(16) infinite paused, hop 0.65s ease-out 2; }
+@keyframes hop { 40% { translate: 0 -12px; } 70% { translate: 0 -2px; } }
+.digger.is-startled { animation: dig 1.2s steps(16) infinite paused, hop 0.5s ease-out 1; }
+.digger.is-napping { animation: dig 1.2s steps(16) infinite paused; filter: brightness(0.8) drop-shadow(0 0 3px rgba(190, 150, 255, 0.4)); }
+/* A full one rattles now and then. */
+.digger.is-ripe:not(.is-walking):not(.is-hopping):not(.is-napping):not(.is-startled) { animation: dig 1.2s steps(16) infinite, rattle 3s steps(1) infinite; }
+@keyframes rattle { 0%, 84%, 100% { translate: 0 0; } 86% { translate: -1px 0; } 88% { translate: 1px 0; } 90% { translate: -1px -1px; } 92% { translate: 1px 0; } }
+/* Out of the ground: a new one, or a reaped one coming back. */
+.digger.is-rising { animation: dig 1.2s steps(16) infinite, rise 0.8s ease-out; }
+@keyframes rise { from { translate: 0 62px; } }
+
+/* A ghoul: sickly green, hunched and digging hard. */
+.digger.is-ghoul {
+  filter: hue-rotate(95deg) saturate(1.6) brightness(0.92) drop-shadow(0 0 4px rgba(120, 230, 150, 0.7));
+  animation-duration: 0.7s;
+  height: 56px;
+  background-size: 518px 56px;
+  width: 32px;
+}
+.digger.is-ghoul:not(.is-walking):not(.is-hopping):not(.is-napping):not(.is-startled):not(.is-rising) { animation: ghoul-dig 0.7s steps(16) infinite; }
+@keyframes ghoul-dig { to { background-position: -518px 0; } }
+/* A lantern bearer: holds up a warm light and digs nothing. */
+.digger.is-lantern {
+  animation-play-state: paused;
+  filter: brightness(1.05) drop-shadow(0 0 3px rgba(255, 214, 150, 0.6));
+}
+.digger.is-lantern::before,
+.digger.is-lantern::after { content: ''; position: absolute; image-rendering: pixelated; }
+/* The cord from his hand, and the lantern: a dark cap, a warm glass, a glow. */
+.digger.is-lantern::before { left: 3px; top: 37px; width: 1px; height: 4px; background: #2a1a24; }
+.digger.is-lantern::after {
+  left: 0;
+  top: 41px;
+  width: 7px;
+  height: 9px;
+  border: 1px solid #2a1a24;
+  border-top-width: 2px;
+  background: radial-gradient(circle at 50% 55%, #fffbe8 0 1.5px, #ffd27a 2.5px, #f29a4a 100%);
+  box-shadow: 0 0 8px 3px rgba(255, 196, 110, 0.85), 0 0 24px 10px rgba(255, 160, 80, 0.3);
+  animation: flicker 2.2s steps(1) infinite;
+}
+@keyframes flicker { 0%, 100% { opacity: 1; } 40% { opacity: 0.85; } 55% { opacity: 1; } 78% { opacity: 0.9; } }
+
+/* What a full one leaks, and what a sleeping one says. */
+.wisp, .snore { position: fixed; pointer-events: none; animation: drift-up 2.4s ease-out forwards; }
+.wisp { width: 4px; height: 4px; background: #e6d2ff; box-shadow: 0 0 6px 2px rgba(190, 140, 255, 0.8); }
+.snore { font: 9px/1 var(--pixel); color: #d8c8ff; text-shadow: 0 0 4px rgba(150, 110, 230, 0.9); }
+@keyframes drift-up { from { opacity: 0.95; translate: 0 0; } to { opacity: 0; translate: 6px -38px; } }
+
+/* A mound of dirt where one dug; it settles away after a few minutes. */
+.mound {
+  position: fixed;
+  bottom: 0;
+  width: 18px;
+  height: 4px;
+  background: #4a3550;
+  box-shadow: 4px -2px 0 -0px #5c4363, 8px -2px 0 -1px #5c4363, 0 0 0 1px rgba(24, 8, 20, 0.6);
+  border-radius: 1px;
+  pointer-events: none;
+  animation: settle 480s linear forwards;
+}
+@keyframes settle { 0% { opacity: 0.9; } 80% { opacity: 0.7; } 100% { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .digger { animation: none; }
+  .digger, .digger.is-ripe, .digger.is-walking, .digger.is-hopping, .digger.is-rising, .digger.is-startled { animation: none !important; }
+  .wisp, .snore { display: none; }
+  .digger.is-lantern::after { animation: none; }
 }
 
 @keyframes popUp {

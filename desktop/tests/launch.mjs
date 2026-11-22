@@ -75,13 +75,6 @@ try {
   const saved = await page.evaluate(() => window.companion.state());
   check('a raven is saved by the main process', saved.ravens.some((r) => r.text === 'Test raven'));
 
-  // Tray abilities reach the page.
-  // Summon, with the dice set so a wraith rises: that leaves the crypt as it was.
-  await page.evaluate(() => { Math.random = () => 0.1; });
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('command', 'cast:summon'));
-  await page.waitForTimeout(200);
-  check('a tray command casts an ability', (await page.$$('.wraith')).length > 0);
-
   // Speak with nothing downloaded offers the free mind rather than failing silently.
   const reply = await page.evaluate(() => new Promise((resolve) => {
     const off = window.companion.onSpeech((e) => {
@@ -133,6 +126,11 @@ try {
   const kept = await page.evaluate(() => window.companion.state());
   check('the crypt is part of the saved state', kept.crypt.skeletons === 1 && kept.crypt.upgrades[0].level === 1 &&
     kept.crypt.milestones.filter((m) => m.done).length === 4 && kept.minions === true, JSON.stringify(kept.crypt.milestones.filter((m) => m.done)));
+
+  // Tray abilities reach the page: Summon gathers the skeleton just raised.
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('command', 'cast:summon'));
+  await page.waitForTimeout(400);
+  check('a tray command casts an ability', (await page.$$('.ghost')).length > 0);
 
   // Trash refuses anything that is not a real absolute path.
   const trash = await page.evaluate(() => window.companion.trash(['relative/file.txt', '/no/such/file']));

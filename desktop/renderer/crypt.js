@@ -11,7 +11,7 @@ const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
 export function createCrypt(ctx) {
   const { companion, card, say, field, sound } = ctx;
   const owner = {};
-  let now = { souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [], bones: [], score: 0, rank: 'Gravekeeper', nextRank: null };
+  let now = { kinds: [], souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [], bones: [], score: 0, rank: 'Gravekeeper', nextRank: null };
   let shown = true;
   let tab = 'dig';
   const diggers = [];
@@ -41,15 +41,27 @@ export function createCrypt(ctx) {
       ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.perHour + ' souls an hour.'
       : 'No skeletons yet. The first costs ' + now.nextCost + ' souls.');
     const how = el('p', 'muted', 'Skeletons dig souls, even while you are away (up to ' + now.awayCapHours +
-      ' hours with the app shut), and ripen as they dig: a ghost, and one more each hour, up to six. Drop him on a skeleton to reap it and hunt its ghosts. Summon raises one for his own soul.');
-    const raiseOne = chip('Raise a skeleton · ' + now.nextCost, () => raise(1), 'solid');
-    raiseOne.disabled = now.souls < now.nextCost;
-    const row = el('div', 'row end');
-    row.appendChild(raiseOne);
+      ' hours with the app shut), and ripen as they dig: a ghost, and one more each hour, up to six. Drop him on a skeleton to reap it and hunt its ghosts; it rises again empty. Summon reaps them all at once, for one big hunt. Higher ranks open other kinds.');
+    // A raise button for each kind; the ones a rank has not opened say which.
+    const kinds = el('div', 'crypt-kinds');
+    for (const k of now.kinds || []) {
+      const item = el('div', 'crypt-item' + (k.open ? '' : ' is-locked'));
+      const text = el('div');
+      text.append(el('b', null, k.name + (k.count ? ' · ' + k.count : '')),
+        el('span', 'muted', k.open ? k.blurb : k.blurb + ' Opens at ' + k.rank + '.'));
+      const full = k.most !== null && k.count >= k.most;
+      const get = chip(!k.open ? '🔒' : full ? 'Full' : String(k.cost), () => raise(1, k.id), 'solid');
+      get.dataset.kind = k.id;
+      get.disabled = !k.open || full || now.souls < k.cost;
+      get.setAttribute('aria-label', 'Raise a ' + k.name.toLowerCase() + (k.open ? ' for ' + k.cost + ' souls' : ''));
+      item.append(text, get);
+      kinds.appendChild(item);
+    }
+    const row = el('div');
     const next = now.nextRank;
     const rank = el('p', 'crypt-rank', 'Rank: ' + (now.rank || 'Gravekeeper') + ' · ' + (now.score || 0) + ' points' +
       (next ? '. ' + next.name + ' at ' + next.at + ' (+' + next.reward + ' souls).' : '. The highest rank.'));
-    page.append(horde, rank, how, row);
+    page.append(horde, rank, how, kinds, row);
   }
 
   function upgradesPage() {
@@ -91,33 +103,157 @@ export function createCrypt(ctx) {
   }
 
   // --- The skeletons ----------------------------------------------------------
-  // Each drawn skeleton keeps its own spot along the bottom while it lives, so
-  // reaping one leaves the others where they are. They glow brighter the riper
-  // they are (the more ghosts they hold).
+  // They live along the bottom of the screen: each digs a while, leaves a
+  // mound, and wanders somewhere new; now and then one hops, looks about or
+  // naps. The riper one glows brighter (--ripe is how many ghosts it holds),
+  // and a full one rattles and leaks wisps. They hop when he comes near. A
+  // reaped one falls and claws back up where it stood.
+  const W_BONE = 36;
+  const WALK_PX_S = 24;
   const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90];
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fallen = [];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const span = () => Math.max(W_BONE, innerWidth - W_BONE - 8);
+
+  function setX(d, x, seconds = 0) {
+    d.x = Math.max(8, Math.min(span(), x));
+    d.node.style.transitionDuration = seconds ? seconds.toFixed(2) + 's, 0.2s' : '0s, 0.2s';
+    d.node.style.left = Math.round(d.x) + 'px';
+  }
+
+  function face(d, left) {
+    d.left = left;
+    d.node.classList.toggle('is-flipped', left);
+  }
+
+  function setMode(d, mode, ms) {
+    d.mode = mode;
+    d.until = performance.now() + ms;
+    d.node.classList.toggle('is-walking', mode === 'walk');
+    d.node.classList.toggle('is-napping', mode === 'nap');
+    d.node.classList.toggle('is-hopping', mode === 'hop');
+  }
+
+  // Somewhere to go: not too near the others, nor where they are headed.
+  function destination(d) {
+    for (let tries = 0; tries < 12; tries++) {
+      const x = Math.max(8, Math.min(span(), d.x + (Math.random() < 0.5 ? -1 : 1) * rand(80, 380)));
+      if (diggers.every((o) => o === d || Math.abs((o.to ?? o.x) - x) > 46)) return x;
+    }
+    return rand(8, span());
+  }
+
+  function mound(x) {
+    const m = el('div', 'mound');
+    m.style.left = Math.round(x + W_BONE / 2 - 9) + 'px';
+    field.appendChild(m);
+    const all = field.querySelectorAll('.mound');
+    if (all.length > 12) all[0].remove();
+    setTimeout(() => m.remove(), 8 * 60000);
+  }
+
+  // What a skeleton does next, once it is done with what it was doing.
+  function next(d) {
+    const was = d.mode;
+    if (was === 'dig' && d.kind !== 'lantern') mound(d.x);
+    const roll = Math.random();
+    if (was !== 'walk' && roll < 0.6) {
+      const to = destination(d);
+      const seconds = Math.abs(to - d.x) / WALK_PX_S;
+      face(d, to < d.x);
+      d.to = to;
+      setMode(d, 'walk', seconds * 1000);
+      setX(d, to, seconds);
+      return;
+    }
+    d.to = null;
+    if (roll < 0.72) return setMode(d, 'hop', 1300);
+    if (roll < 0.8) {
+      setMode(d, 'look', 2600);
+      [500, 1200, 1900].forEach((t) => setTimeout(() => { if (d.mode === 'look') face(d, !d.left); }, t));
+      return;
+    }
+    if (roll < 0.86 && d.ripe < 6) return setMode(d, 'nap', rand(12000, 30000));
+    setMode(d, 'dig', rand(15000, 50000));
+  }
+
+  function puffOf(d, kind, text = '') {
+    const r = d.node.getBoundingClientRect();
+    const p = el('div', kind, text);
+    p.style.left = Math.round(r.left + r.width / 2 + rand(-6, 6)) + 'px';
+    p.style.top = Math.round(r.top + rand(0, 10)) + 'px';
+    field.appendChild(p);
+    setTimeout(() => p.remove(), 2600);
+  }
+
+  function tick() {
+    if (!diggers.length || document.hidden) return;
+    const t = performance.now();
+    for (const d of diggers) {
+      if (!still && t >= d.until) next(d);
+      if (d.ripe >= 6 && Math.random() < 0.35) puffOf(d, 'wisp');
+      if (d.mode === 'nap' && Math.random() < 0.25) puffOf(d, 'snore', 'z');
+    }
+  }
+  setInterval(tick, 500);
+
+  // He came near: the skeletons by his feet hop out of the way.
+  let lastNear = 0;
+  function near(p, now = false) {
+    const t = performance.now();
+    if (!p || (!now && t - lastNear < 250)) return;
+    lastNear = t;
+    for (const d of diggers) {
+      if (d.mode === 'walk' || t - (d.startled ?? -Infinity) < 4000) continue;
+      const r = d.node.getBoundingClientRect();
+      if (Math.abs(p.x - (r.left + r.width / 2)) < 70 && p.y > r.top - 90 && p.y < r.bottom + 20) {
+        d.startled = t;
+        d.node.classList.remove('is-startled');
+        void d.node.offsetWidth;
+        d.node.classList.add('is-startled');
+      }
+    }
+  }
+
   function crew() {
     const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
     const ids = new Set(want.map((b) => b.id));
     for (let i = diggers.length - 1; i >= 0; i--) {
-      if (!ids.has(diggers[i].id)) diggers.splice(i, 1)[0].node.remove();
+      if (!ids.has(diggers[i].id)) {
+        const [d] = diggers.splice(i, 1);
+        fallen.push(d.x);
+        d.node.remove();
+      }
     }
     for (const bone of want) {
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
-        const taken = new Set(diggers.map((x) => x.spot));
-        const spot = SPOTS.findIndex((_, k) => !taken.has(k));
         const node = el('div', 'digger');
-        node.style.left = SPOTS[spot] + '%';
-        node.style.animationDelay = (-(spot * 0.37) % 1.2) + 's';
-        if (spot % 2) node.classList.add('is-flipped');
+        node.style.animationDelay = (-Math.random() * 1.2).toFixed(2) + 's';
         field.appendChild(node);
-        d = { id: bone.id, node, spot };
+        d = { id: bone.id, node, x: 0, to: null, mode: 'dig', until: 0, left: false };
         diggers.push(d);
+        // A reaped one rises where it fell; a new one at a free spot.
+        const x = fallen.length ? fallen.shift()
+          : SPOTS.map((f) => f / 100 * span()).find((sx) => diggers.every((o) => o === d || Math.abs(o.x - sx) > 46)) ?? rand(8, span());
+        setX(d, x);
+        face(d, Math.random() < 0.5);
+        setMode(d, 'dig', rand(8000, 40000));
+        node.classList.add('is-rising');
+        setTimeout(() => node.classList.remove('is-rising'), 900);
       }
+      d.ripe = bone.ripe;
+      d.kind = bone.kind || 'digger';
+      d.node.classList.toggle('is-ghoul', d.kind === 'ghoul');
+      d.node.classList.toggle('is-lantern', d.kind === 'lantern');
       d.node.style.setProperty('--ripe', bone.ripe);
       d.node.classList.toggle('is-ripe', bone.ripe >= 6);
-      d.node.title = bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
+      d.node.title = d.kind === 'ghoul' ? 'A ghoul: digs hard, holds no ghosts'
+        : d.kind === 'lantern' ? 'A lantern bearer: the others ripen faster'
+          : bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
     }
+    fallen.length = 0;
   }
 
   // Which drawn skeleton is under a point (the reaper's feet), as its place
@@ -125,7 +261,9 @@ export function createCrypt(ctx) {
   function diggerAt(p) {
     if (!p) return -1;
     const PAD = 18;
-    const hit = diggers.find(({ node }) => {
+    // Only the ones that hold ghosts can be reaped.
+    const hit = diggers.find(({ node, kind }) => {
+      if (kind && kind !== 'digger') return false;
       const r = node.getBoundingClientRect();
       return p.x >= r.left - PAD && p.x <= r.right + PAD && p.y >= r.top - PAD && p.y <= r.bottom + PAD;
     });
@@ -147,6 +285,11 @@ export function createCrypt(ctx) {
     return d ? d.node.getBoundingClientRect() : null;
   }
 
+  // Where every drawn skeleton is on screen.
+  function diggerBoxes() {
+    return diggers.map((d) => d.node.getBoundingClientRect());
+  }
+
   // A small "+n" over one of the diggers when they bring something up.
   function unearthed(n) {
     if (!diggers.length || n < 1) return;
@@ -158,12 +301,13 @@ export function createCrypt(ctx) {
     setTimeout(() => pop.remove(), 900);
   }
 
-  async function raise(n = 1) {
-    const out = await companion.crypt({ raise: n });
+  async function raise(n = 1, kind = 'digger') {
+    const out = await companion.crypt({ raise: n, kind });
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
-      say(out.raised === 1 ? 'Rise.' : out.raised + ' rise.', 2500);
+      const what = { ghoul: 'Ghoul, rise.', lantern: 'Bearer, light the way.' }[out.kind];
+      say(what && out.raised === 1 ? what : out.raised === 1 ? 'Rise.' : out.raised + ' rise.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);
     }
@@ -233,6 +377,10 @@ export function createCrypt(ctx) {
     diggerAt,
     aim,
     diggerBox,
+    diggerBoxes,
+    near,
+    // Every skeleton moves on to whatever it does next (for the tests).
+    stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
     // "The skeletons dug up 12 souls." for the away report, or '' for nothing.

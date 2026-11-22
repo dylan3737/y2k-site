@@ -36,7 +36,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - focus or pomodoro timers -> set_hourglass / stop_hourglass
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
-- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Skeletons ripen as they dig; the user drops the reaper on one to reap it, and hunts the ghosts that burst out for souls and points, which climb ranks. Summon raises a skeleton from his own soul, and sometimes a wraith to fight. Souls also buy upgrades, and milestones pay a bonus once. How many souls or skeletons they have, their upgrades or milestones -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade. Never spend souls unless asked
+- the Crypt, an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise skeletons, which dig up more souls on their own, even while the user is away. Skeletons ripen as they dig; the user drops the reaper on one to reap it, and hunts the ghosts that burst out for souls and points, which climb ranks; a reaped one rises again empty. Summon is the Gathering: every skeleton bursts at once for one big hunt, and sometimes a wraith answers too. Ranks open other kinds: ghouls and lantern bearers. Souls also buy upgrades, and milestones pay a bonus once. How many souls or skeletons they have, their upgrades or milestones -> get_crypt. Raising skeletons -> raise_skeleton. Buying an upgrade -> buy_upgrade. Never spend souls unless asked
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, raising the dead, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
 - anything about what they copied ("summarize what I copied", "fix the text on my clipboard") -> read_clipboard
@@ -89,7 +89,7 @@ export const TOOL_DEFS = [
       ability: {
         type: 'string',
         enum: ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'hum', 'vanish'],
-        description: 'slash: the scythe cuts the screen in two for a moment (visual only, nothing is changed). shatter: the screen breaks like glass from the cursor, falls away and mends (visual only). glitch: a second of Y2K digital corruption over the screen (visual only). vortex: a black hole at the cursor swallows the screen and spits it back (visual only). burn: the screen burns away from the edges and un-burns (visual only). melt: the screen drips down like wax and snaps back (visual only). soulrip: the patch of screen at the cursor tears off as a ghost and the reaper swallows it (visual only). summon: raises a skeleton for the Crypt from his own soul; now and then a wraith rises instead, to be fought. hum: starts or stops a dark music-box tune. vanish: the reaper fades into a corner for 30 minutes.'
+        description: 'slash: the scythe cuts the screen in two for a moment (visual only, nothing is changed). shatter: the screen breaks like glass from the cursor, falls away and mends (visual only). glitch: a second of Y2K digital corruption over the screen (visual only). vortex: a black hole at the cursor swallows the screen and spits it back (visual only). burn: the screen burns away from the edges and un-burns (visual only). melt: the screen drips down like wax and snaps back (visual only). soulrip: the patch of screen at the cursor tears off as a ghost and the reaper swallows it (visual only). summon: the Gathering, every skeleton in the Crypt bursts into its ghosts at once for one big hunt; now and then a wraith answers too, to be fought. hum: starts or stops a dark music-box tune. vanish: the reaper fades into a corner for 30 minutes.'
       }
     }, ['ability'])
   },
@@ -105,8 +105,11 @@ export const TOOL_DEFS = [
   },
   {
     name: 'raise_skeleton',
-    description: 'Spend banked souls to raise skeletons, which dig up more souls on their own. Raises as many of `count` as the souls allow.',
-    input_schema: object({ count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' } })
+    description: 'Spend banked souls to raise skeletons, which dig up more souls on their own. Raises as many of `count` as the souls allow. kind: digger (the plain skeleton, the default), ghoul (digs twice as much, holds no ghosts; opens at the rank Ghost catcher) or lantern (digs nothing, the others ripen faster; opens at Soul warden, three at most).',
+    input_schema: object({
+      count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' },
+      kind: { type: 'string', enum: ['digger', 'ghoul', 'lantern'], description: 'Which kind. Defaults to digger.' }
+    })
   },
   {
     name: 'buy_upgrade',

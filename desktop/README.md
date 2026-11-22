@@ -87,14 +87,14 @@ When it's low, he fades.
 | Ability | Soul | What it does |
 |---|---|---|
 | **Speak** | free | A chat card. Ask him anything. See [Speak](#speak). |
-| **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During Summon, it reaps every ghost. |
-| **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During Summon, it reaps every ghost. |
+| **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During a hunt, it catches every ghost. |
+| **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During a hunt, it catches every ghost. |
 | **Glitch** | 15 | A second and a half of Y2K corruption: the colours split, the screen tears into slices, blocks smear and scanlines roll, then the signal comes back. |
 | **Vortex** | 25 | A black hole opens at your cursor and the whole screen spirals into it, then it spits everything back out. Loose ghosts get pulled in. |
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 40 | He raises a skeleton for the [Crypt](#the-crypt) from his own soul. About one time in four a **wraith** rises instead: strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises anyway. If it escapes, nothing. |
+| **Summon** | 40 | The Gathering: every skeleton in the [Crypt](#the-crypt) bursts into its ghosts at once, for one big hunt. Sometimes a **wraith** answers too. See [Reaping and the hunt](#reaping-and-the-hunt). |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
 | **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
@@ -117,13 +117,23 @@ Souls raise **skeletons**. The first costs 25, and each one after costs 25% more
 
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight skeletons dig along the bottom of your screen. Clicks pass through them, and each fades almost away while your cursor is over it.
+- Up to eight skeletons live along the bottom of your screen. Each digs a while, leaves a mound of dirt, and wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. Clicks pass through them, and each fades almost away while your cursor is over it.
+
+#### Kinds
+
+Higher ranks open other kinds. Each counts as a skeleton for the price of the next one, times its own price:
+
+| Kind | Opens at | Price | What it does |
+|---|---|---|---|
+| **Skeleton** | | ×1 | Digs 1.5 souls an hour, and ripens with ghosts to reap. |
+| **Ghoul** | Ghost catcher | ×2 | Green, hunched, digging hard: twice as many souls, but it holds no ghosts and can't be reaped or gathered. |
+| **Lantern bearer** | Soul warden | ×3 | Holds up a lantern and digs nothing, but every skeleton ripens a quarter faster for each one. Three at most. |
 
 ### Reaping and the hunt
 
-Skeletons **ripen** as they dig: each holds one ghost, and one more for every hour it has dug, up to six. The riper one glows brighter.
+Skeletons **ripen** as they dig: each holds one ghost, and one more for every hour it has dug, up to six. The riper one glows brighter, and a full one rattles and leaks wisps.
 
-**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It stops digging and bursts into its ghosts, and a short hunt begins (6 seconds, and 1.5 more for each ghost). Click the ghosts to catch them:
+**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and claws back up empty, to ripen again, and a short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click the ghosts to catch them:
 
 - Each caught banks 10 souls (30 for a golden one) and scores 10 points (30 golden), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
 - Ghosts that get away are lost.
@@ -140,7 +150,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Wraith lord | 3,000 | 500 |
 | The Reaper's hand | 8,000 | 1,200 |
 
-Reaping trades a skeleton's digging for a hunt: a ripe one is worth more, but it has to be raised again. **Summon** raises skeletons from his own soul, so the two feed each other.
+**Summon is the Gathering**: he calls every skeleton at once. All of them burst into their ghosts, with one more ghost for each skeleton past the first, for one big hunt, and all rise again empty. So the choice is a snack or a feast: reap one now, for free, or let them ripen and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises too. With no skeletons yet, Summon raises the first one.
 
 ### Upgrades
 

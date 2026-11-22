@@ -281,11 +281,15 @@ export function createAbilities(ctx) {
     requestAnimationFrame(moveGhosts);
   }
 
-  // The hunt for `count` ghosts bursting out at `from`.
-  function startHunt(count, from) {
-    // Six seconds, and a second and a half for each ghost.
-    const length = 6000 + 1500 * count;
+  // The hunt for `count` ghosts bursting out at `from`, a point or a list of
+  // them (a Gathering: out of every skeleton). `after` runs when it is over.
+  function startHunt(count, from, after) {
+    // Six seconds, a second and a half for each of the first six ghosts, half
+    // a second for each after; never more than half a minute.
+    const length = Math.min(30000, 6000 + 1500 * Math.min(count, 6) + 500 * Math.max(0, count - 6));
+    const froms = Array.isArray(from) && from.length ? from : [from];
     hunt = {
+      after,
       ends: Date.now() + length, length,
       // One in ten golden, or more with the Crypt's ghost lure.
       goldenChance: (ctx.crypt && ctx.crypt.get().goldenChance) || 0.1,
@@ -295,13 +299,13 @@ export function createAbilities(ctx) {
     scoreEl = el('div', 'score', '');
     field.appendChild(scoreEl);
     huntRing.hidden = false;
-    for (let i = 0; i < count; i++) spawnGhost(from);
+    for (let i = 0; i < count; i++) spawnGhost(froms[i % froms.length]);
     paintScore();
     requestAnimationFrame(moveGhosts);
   }
 
   async function endHunt() {
-    const { caught, golden, points } = hunt;
+    const { caught, golden, points, after } = hunt;
     const lost = hunt.ghosts.filter((g) => !g.caught).length;
     hunt.ghosts.forEach((g) => { if (!g.caught) g.node.remove(); });
     hunt = null;
@@ -323,6 +327,7 @@ export function createAbilities(ctx) {
     for (const r of (out && out.ranked) || []) lines.push('Rank: ' + r.name + '. +' + r.reward + ' souls.');
     if (out && out.ranked && out.ranked.length) sound.bell();
     say(lines.join('\n'), 6000);
+    if (after) after();
   }
 
   // Dropped on the skeleton at `index` (among the crypt's): reap it.
@@ -353,11 +358,13 @@ export function createAbilities(ctx) {
     return loose.length;
   }
 
-  // --- Summon: raise the dead, and sometimes a wraith ---------------------------------------
-  // Summon raises a skeleton for his own soul instead of banked souls. About one
-  // time in four the grave holds a wraith instead: hit it 12 times in 20
-  // seconds and it pays souls, and a skeleton rises anyway. Never more than four
-  // summons in a row without one.
+  // --- Summon: the Gathering ------------------------------------------------------------------
+  // He calls every skeleton at once: all of them burst into their ghosts (and
+  // one more for each past the first) for one big hunt, then claw back up
+  // empty. Reaping one is the snack; this is the feast. About one Gathering in
+  // four, something else answers the call as well: a wraith, once the hunt is
+  // over. Never more than four in a row without one. With no skeletons yet,
+  // the grave gives him a first one.
   const WRAITH_CHANCE = 0.25;
   const WRAITH_HP = 12;
   const WRAITH_MS = 20000;
@@ -365,18 +372,34 @@ export function createAbilities(ctx) {
   const WRAITH_H = 106;
   let sinceWraith = 0;
 
-  async function summonDead() {
-    const c = ctx.center();
-    ctx.puff(c.x, c.y + 40);
-    if (Math.random() < WRAITH_CHANCE || sinceWraith >= 4) {
-      sinceWraith = 0;
-      return startWraith();
-    }
-    sinceWraith += 1;
-    const out = await companion.crypt({ summon: true });
+  async function gathering() {
+    // Where each skeleton stands, before they fall.
+    const froms = ctx.crypt.diggerBoxes().map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+    const out = await companion.crypt({ gather: true });
     if (out.crypt) ctx.crypt.update(out.crypt);
-    say(out.ok ? 'Rise.' : out.error, 2500);
-    if (out.ok) sound.bell();
+    if (!out.ok) {
+      say(out.error, 3000);
+      return out;
+    }
+    if (!out.gathered) {
+      sound.bell();
+      say('The grave answers.\nRise.', 3000);
+      return out;
+    }
+    const c = ctx.center();
+    const points = froms.length ? froms : [{ x: c.x, y: c.y + 40 }];
+    ctx.swing();
+    points.forEach((p, i) => setTimeout(() => ctx.puff(p.x, p.y), i * 90));
+    sound.caught();
+    say(out.gathered === 1 ? 'Come.\n' + out.ghosts + (out.ghosts === 1 ? ' ghost.' : ' ghosts.')
+      : 'The dead answer.\n' + out.ghosts + ' ghosts!', 3000);
+    const wraith = Math.random() < WRAITH_CHANCE || sinceWraith >= 4;
+    sinceWraith = wraith ? 0 : sinceWraith + 1;
+    startHunt(out.ghosts, points, wraith ? () => setTimeout(() => {
+      if (hunt) return;
+      startWraith();
+      say('Something else answered the call.\nStrike it ' + WRAITH_HP + ' times.', 3500);
+    }, 1800) : null);
     return out;
   }
 
@@ -396,7 +419,6 @@ export function createAbilities(ctx) {
     paintWraith();
     huntRing.hidden = false;
     sound.caught();
-    say('A wraith!\nStrike it ' + WRAITH_HP + ' times.', 3000);
     requestAnimationFrame(moveWraith);
     return { ok: true, wraith: true };
   }
@@ -634,9 +656,9 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'He raises a skeleton for his own soul. Sometimes the grave holds a wraith.',
+      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'The Gathering: every skeleton bursts into its ghosts at once, for one big hunt. Sometimes a wraith answers too.',
       ready: () => (hunt ? 'Already hunting.' : null),
-      cast: () => { summonDead(); }
+      cast: () => { gathering(); }
     },
     {
       id: 'hourglass', name: 'Hourglass', cost: 10, school: 'time', blurb: 'A focus timer. He rings when the sand runs out.',
@@ -759,9 +781,10 @@ export function createAbilities(ctx) {
       case 'raise_skeleton': {
         const count = input.count === undefined ? 1 : input.count;
         if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
-        const out = await ctx.crypt.raise(count);
+        const kind = input.kind === undefined ? 'digger' : input.kind;
+        const out = await ctx.crypt.raise(count, kind);
         return out.ok
-          ? { ok: true, result: { raised: out.raised, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
+          ? { ok: true, result: { raised: out.raised, kind: out.kind, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
           : { ok: false, error: out.error };
       }
       case 'look_at_screen': {
