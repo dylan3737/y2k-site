@@ -85,6 +85,16 @@ check('PRs only from his own repository', !out.ok);
 out = await g.act({ action: 'delete_repo' });
 check('nothing destructive exists', !out.ok);
 
+g = createGithub({ repoDir, run: fake() });
+calls.length = 0;
+out = await g.read({ what: 'runs', repo: 'user/repo' });
+check('a placeholder repository means his own', out.ok && !last().args.includes('-R'));
+g = createGithub({ repoDir, run: fake({ fail: 'GraphQL: Could not resolve to a Repository with the name \'octo/nope\'. (repository)' }) });
+out = await g.read({ what: 'runs', repo: 'octo/nope' });
+check('a repository that is not there is said so, not that gh is missing', !out.ok && /No such repository/.test(out.error) && !/not installed/.test(out.error), out.error);
+g = createGithub({ repoDir, run: async () => ({ ok: false, missing: true, error: 'gh is missing' }) });
+out = await g.read({ what: 'prs' });
+check('gh missing is said so', !out.ok && /not installed/.test(out.error));
 g = createGithub({ repoDir, run: fake({ fail: 'To get started with GitHub CLI, please run:  gh auth login' }) });
 out = await g.read({ what: 'prs' });
 check('not logged in, it says how to', !out.ok && /gh auth login/.test(out.error), out.error);

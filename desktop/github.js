@@ -26,16 +26,26 @@ const clip = (s, n = BODY) => (s && s.length > n ? s.slice(0, n) + '…' : s || 
 function exec(cmd, args, { cwd, ms = 30000 } = {}) {
   return new Promise((resolve) => {
     execFile(cmd, args, { cwd, timeout: ms, maxBuffer: 8_000_000, env: { ...process.env, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' } },
-      (err, stdout, stderr) => resolve(err ? { ok: false, error: String(stderr || err.message).trim().split('\n').slice(-3).join(' ') } : { ok: true, out: String(stdout) }));
+      (err, stdout, stderr) => {
+        if (!err) return resolve({ ok: true, out: String(stdout) });
+        // The program itself is missing: said apart from anything it reports.
+        if (err.code === 'ENOENT') return resolve({ ok: false, missing: true, error: cmd + ' is missing' });
+        resolve({ ok: false, error: String(stderr || err.message).trim().split('\n').slice(-3).join(' ') });
+      });
   });
 }
 
 // What went wrong, as the user can act on it.
-function trouble(error) {
-  if (/ENOENT|not found|command not found/i.test(error)) return 'The GitHub tool (gh) is not installed. Install it from cli.github.com, then run: gh auth login';
-  if (/auth login|not logged|authentication/i.test(error)) return 'gh is not logged in to GitHub. In a terminal, run: gh auth login';
+function trouble(out) {
+  const error = typeof out === 'string' ? out : out.error;
+  if (out.missing) return 'The GitHub tool (gh) is not installed. Install it from cli.github.com, then run: gh auth login';
+  if (/gh auth login|not logged in|authentication required/i.test(error)) return 'gh is not logged in to GitHub. In a terminal, run: gh auth login';
+  if (/could not resolve to a repository|not found \(http 404\)|repository not found/i.test(error)) return 'No such repository on GitHub, or this login cannot see it. Leave the repository out to use my own.';
   return error.slice(0, 300);
 }
+
+// What small models put in when they mean "the user's own".
+const PLACEHOLDER = /^(user|owner|username|your-?username|me|my|example|you)\/(repo|name|repository|my-?repo|project)$/i;
 
 // `run` and `git` are for the tests.
 export function createGithub({ repoDir = null, run = exec } = {}) {
@@ -43,7 +53,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   const git = found(GIT_PLACES, 'git');
 
   function where(input) {
-    if (input.repo !== undefined && input.repo !== null && input.repo !== '') {
+    if (input.repo !== undefined && input.repo !== null && input.repo !== '' && !PLACEHOLDER.test(String(input.repo))) {
       if (!REPO.test(String(input.repo))) return { error: 'repo must look like owner/name' };
       return { args: ['-R', String(input.repo)], cwd: repoDir || undefined, name: String(input.repo) };
     }
@@ -54,7 +64,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
 
   async function ghJson(args, cwd) {
     const out = await run(gh, args, { cwd });
-    if (!out.ok) return { ok: false, error: trouble(out.error) };
+    if (!out.ok) return { ok: false, error: trouble(out) };
     try { return { ok: true, data: JSON.parse(out.out || 'null') }; } catch { return { ok: true, data: out.out.trim() }; }
   }
 
@@ -134,7 +144,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
         // The branches he made working on himself, newest first.
         if (!repoDir) return { ok: false, error: "I don't know where my source is." };
         const out = await run(git, ['for-each-ref', '--sort=-committerdate', '--format=%(refname:short)|%(committerdate:relative)|%(contents:subject)', 'refs/heads/reaper/'], { cwd: repoDir });
-        if (!out.ok) return { ok: false, error: trouble(out.error) };
+        if (!out.ok) return { ok: false, error: trouble(out) };
         return { ok: true, result: { branches: out.out.trim().split('\n').filter(Boolean).slice(0, 15).map((l) => { const [branch, when, subject] = l.split('|'); return { branch, when, subject }; }) } };
       }
     }
@@ -167,7 +177,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
     const text = (s, most) => (typeof s === 'string' && s.trim() ? s.trim().slice(0, most) : null);
     const done = async (args, result) => {
       const out = await run(gh, args, { cwd });
-      return out.ok ? { ok: true, result: { ...result, said: out.out.trim().split('\n').pop() } } : { ok: false, error: trouble(out.error) };
+      return out.ok ? { ok: true, result: { ...result, said: out.out.trim().split('\n').pop() } } : { ok: false, error: trouble(out) };
     };
     switch (action) {
       case 'create_issue': {
@@ -202,7 +212,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
         const exists = await run(git, ['rev-parse', '--verify', '--quiet', 'refs/heads/' + branch], { cwd: repoDir });
         if (!exists.ok) return { ok: false, error: 'There is no branch called ' + branch + '.' };
         const pushed = await run(git, ['push', '--set-upstream', 'origin', branch], { cwd: repoDir, ms: 120000 });
-        if (!pushed.ok) return { ok: false, error: 'The push failed: ' + trouble(pushed.error) };
+        if (!pushed.ok) return { ok: false, error: 'The push failed: ' + trouble(pushed) };
         const title = text(input.title, 200);
         return done(['pr', 'create', '--head', branch, ...(title ? ['--title', title, '--body', text(input.body, 10000) || 'Made by the reaper, working on himself.'] : ['--fill'])],
           { pushed: branch });
