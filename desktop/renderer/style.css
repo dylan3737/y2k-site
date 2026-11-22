@@ -98,7 +98,7 @@ body.is-capturing * { visibility: hidden !important; }
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
-  left: 50px;
+  left: 45px;
   top: 21px;
   width: 9px;
   height: 4px;
