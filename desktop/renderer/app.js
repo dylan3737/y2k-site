@@ -395,15 +395,17 @@ body.addEventListener('pointermove', (e) => {
   keepOnScreen();
   place();
   // Light up the skeleton he would reap if let go here.
-  crypt.aim(feet());
+  crypt.aim(feet(), figure());
 });
 
 // Where his feet are: what touches a skeleton when he is dropped on one.
 const feet = () => ({ x: pos.x + W / 2, y: pos.y + H });
+// All of him: what a moth up high touches when he is dropped on it.
+const figure = () => ({ left: pos.x, top: pos.y, right: pos.x + W, bottom: pos.y + H });
 
 // Dropped on a skeleton: he reaps it, and its ghosts burst out to be hunted.
 function reapHere() {
-  const index = crypt.diggerAt(feet());
+  const index = crypt.diggerAt(feet(), figure());
   crypt.aim(null);
   if (index < 0 || abilities.hunting) return false;
   setMode('wander');

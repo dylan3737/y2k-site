@@ -268,25 +268,35 @@ export function createCrypt(ctx) {
 
   function grave(bone, x) {
     let g = graves.get(bone.id);
+    const moth = bone.kind === 'moth';
     if (!g) {
-      const node = el('div', 'seed');
-      node.style.left = Math.round(Math.max(8, Math.min(span(), x)) + W_BONE / 2 - 9) + 'px';
+      // A moth rests as a cocoon hanging from the top; the others as a seed.
+      const node = el('div', moth ? 'cocoon' : 'seed');
+      node.style.left = Math.round(Math.max(8, Math.min(innerWidth - 40, x)) + (moth ? 0 : W_BONE / 2 - 9)) + 'px';
       field.appendChild(node);
       g = { node, x };
       graves.set(bone.id, g);
     }
-    g.node.title = 'A seed. It sprouts in ' + bone.rest + (bone.rest === 1 ? ' minute.' : ' minutes.');
+    g.node.title = (moth ? 'A cocoon. It opens in ' : 'A seed. It sprouts in ') + bone.rest + (bone.rest === 1 ? ' minute.' : ' minutes.');
     return g;
   }
 
   function flyer(bone) {
     let f = flyers.find((x) => x.id === bone.id);
     if (f) return f;
-    const node = el('div', bone.kind === 'moth' ? 'moth' : 'wisp-worker');
+    const node = el('div', bone.kind === 'moth' ? 'moth hit' : 'wisp-worker');
     node.style.animationDelay = (-Math.random()).toFixed(2) + 's';
     field.appendChild(node);
     f = { id: bone.id, kind: bone.kind, node, mode: '', until: 0, x: rand(40, innerWidth - 80), y: 0 };
     flyers.push(f);
+    if (bone.kind === 'moth') {
+      // Picked up, it flutters in the hand; let go, it flies on from there.
+      const me = f;
+      node.addEventListener('pointerdown', (e) => grabMoth(me, e));
+      node.addEventListener('pointermove', (e) => carryMoth(me, e));
+      node.addEventListener('pointerup', (e) => dropMoth(me, e));
+      node.addEventListener('pointercancel', (e) => dropMoth(me, e));
+    }
     node.title = bone.kind === 'moth' ? 'A moth: in a hunt, it catches ghosts that would get away' : "A will-o'-wisp: the sprouts grow faster";
     place(f, f.x, bone.kind === 'moth' ? 0 : innerHeight - 140, 0);
     nextFlight(f);
@@ -331,6 +341,36 @@ export function createCrypt(ctx) {
     f.until = t + rand(12000, 28000);
   }
 
+  // A moth in the hand: it follows the cursor, wings going; let go, it flies on.
+  let heldMoth = null;
+  function grabMoth(f, e) {
+    if (e.button !== 0 || heldMoth || held) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const r = f.node.getBoundingClientRect();
+    heldMoth = { f, offX: e.clientX - r.left, offY: e.clientY - r.top, moved: 0, x0: e.clientX, y0: e.clientY };
+    try { f.node.setPointerCapture(e.pointerId); } catch {}
+  }
+  function carryMoth(f, e) {
+    if (!heldMoth || heldMoth.f !== f) return;
+    heldMoth.moved = Math.max(heldMoth.moved, Math.hypot(e.clientX - heldMoth.x0, e.clientY - heldMoth.y0));
+    if (heldMoth.moved < 5) return;
+    f.mode = 'held';
+    f.until = Infinity;
+    f.node.classList.add('is-flying', 'is-held');
+    if (e.movementX) f.node.classList.toggle('is-left', e.movementX < 0);
+    place(f, e.clientX - heldMoth.offX, e.clientY - heldMoth.offY, 0);
+  }
+  function dropMoth(f, e) {
+    if (!heldMoth || heldMoth.f !== f) return;
+    heldMoth = null;
+    try { f.node.releasePointerCapture(e.pointerId); } catch {}
+    f.node.classList.remove('is-held');
+    // Off it goes again, from where it was let go.
+    f.mode = 'hang';
+    nextFlight(f);
+  }
+
   function crew() {
     const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
     const ids = new Set(want.map((b) => b.id));
@@ -352,11 +392,18 @@ export function createCrypt(ctx) {
       }
     }
     for (let i = flyers.length - 1; i >= 0; i--) {
-      if (!ids.has(flyers[i].id)) flyers.splice(i, 1)[0].node.remove();
+      if (!ids.has(flyers[i].id)) {
+        const [f] = flyers.splice(i, 1);
+        if (heldMoth && heldMoth.f === f) heldMoth = null;
+        // A reaped moth's cocoon hangs where it was.
+        if (f.kind === 'moth') fallen.push(f.x);
+        f.node.remove();
+      }
     }
     for (const bone of want) {
-      if (bone.kind === 'moth' || bone.kind === 'wisp') { flyer(bone); continue; }
+      // Resting first: a seed, or a moth's cocoon.
       if (bone.rest) { grave(bone, graves.has(bone.id) ? graves.get(bone.id).x : fallen.length ? fallen.shift() : rand(8, span())); continue; }
+      if (bone.kind === 'moth' || bone.kind === 'wisp') { flyer(bone); continue; }
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
         const node = el('div', 'digger hit');
@@ -430,30 +477,37 @@ export function createCrypt(ctx) {
 
   // Which drawn sprite is under a point (the reaper's feet), as its place
   // among the garden's sprites, or -1.
-  function diggerAt(p) {
+  // What he would reap: a worker on the ground under his feet `p`, or a moth
+  // anywhere he touches (`box`, his whole figure: moths keep to the top of the
+  // screen, out of reach of his feet). As its place among the garden's, or -1.
+  function diggerAt(p, box) {
     if (!p) return -1;
     const PAD = 18;
-    // Only the ones that hold ghosts can be reaped.
-    const hit = diggers.find(({ node, kind, mode }) => {
-      if ((kind && kind !== 'digger') || mode === 'held') return false;
+    const hit = diggers.find(({ node, mode }) => {
+      if (mode === 'held') return false;
       const r = node.getBoundingClientRect();
       return p.x >= r.left - PAD && p.x <= r.right + PAD && p.y >= r.top - PAD && p.y <= r.bottom + PAD;
-    });
+    }) || (box && flyers.find(({ node, kind, mode }) => {
+      if (kind !== 'moth' || mode === 'held') return false;
+      const r = node.getBoundingClientRect();
+      return box.left < r.right - 8 && box.right > r.left + 8 && box.top < r.bottom - 6 && box.bottom > r.top + 6;
+    }));
     return hit ? (now.bones || []).findIndex((b) => b.id === hit.id) : -1;
   }
 
   // Light up the sprite under a point; null puts the light out.
-  function aim(p) {
-    const i = diggerAt(p);
+  function aim(p, box) {
+    const i = diggerAt(p, box);
     const id = i >= 0 ? now.bones[i].id : null;
     for (const d of diggers) d.node.classList.toggle('is-aimed', d.id === id);
+    for (const f of flyers) f.node.classList.toggle('is-aimed', f.id === id);
     return i;
   }
 
   // Where a drawn sprite is on screen, by its place among the garden's.
   function diggerBox(index) {
     const bone = (now.bones || [])[index];
-    const d = bone && diggers.find((x) => x.id === bone.id);
+    const d = bone && (diggers.find((x) => x.id === bone.id) || flyers.find((x) => x.id === bone.id));
     return d ? d.node.getBoundingClientRect() : null;
   }
 
@@ -553,10 +607,10 @@ export function createCrypt(ctx) {
     diggerBoxes,
     near,
     swoop,
-    // How many moths the garden has (each saves two ghosts a hunt).
-    moths: () => ((now.kinds || []).find((k) => k.id === 'moth') || { count: 0 }).count,
+    // How many moths are about, not cocoons (each saves two ghosts a hunt).
+    moths: () => now.moths || 0,
     // One is in the hand: the window keeps taking the mouse until it is let go.
-    holding: () => !!held,
+    holding: () => !!held || !!heldMoth,
     // Every sprite moves on to whatever it does next (for the tests).
     stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,

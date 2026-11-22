@@ -111,7 +111,7 @@ export const TOOL_DEFS = [
   },
   {
     name: 'raise_worker',
-    description: 'Spend banked souls to raise workers for the Garden, which gather more souls on their own. Raises as many of `count` as the souls allow. kind: digger (a moss sprite, the plain worker, the default), toadstool (gathers twice as much, grows no ghosts; opens at the rank Ghost catcher), moth (catches ghosts that would get away in a hunt; opens at Soul warden, three at most) or wisp (a will-o\'-wisp: the sprouts grow faster; opens at Shade hunter, three at most).',
+    description: 'Spend banked souls to raise workers for the Garden, which gather more souls on their own. Raises as many of `count` as the souls allow. kind: digger (a moss sprite, the plain worker, the default), toadstool (gathers twice as much, grows ghosts slowly, three at most; opens at the rank Ghost catcher), moth (catches ghosts that would get away in a hunt, and gives two spirit-lights when reaped; opens at Soul warden, three at most) or wisp (a will-o\'-wisp: the sprouts grow faster; opens at Shade hunter, three at most).',
     input_schema: object({
       count: { type: 'integer', description: 'How many to raise, 1 to 50. Defaults to 1.' },
       kind: { type: 'string', enum: ['digger', 'toadstool', 'moth', 'wisp'], description: 'Which worker. Defaults to digger (a moss sprite).' }

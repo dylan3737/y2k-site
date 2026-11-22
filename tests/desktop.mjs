@@ -465,15 +465,43 @@ try {
     check('the toadstool works across its own whole sheet', (await page.$eval('.field .digger.is-toadstool', (n) => getComputedStyle(n).getPropertyValue('--sheet-w').trim())) === '192px');
     check('a toadstool gathers twice as much (moths and wisps gather nothing)', (await page.evaluate(() => window.__reaper.crypt.get().perHour)) === 4.5);
     const g = await page.locator('.field .digger.is-toadstool').boundingBox();
-    check('a toadstool cannot be aimed at for reaping', (await page.evaluate((p) => window.__reaper.crypt.diggerAt(p), { x: g.x + g.width / 2, y: g.y + 10 })) === -1);
-    // In a hunt, the bat takes ghosts that would get away.
-    await page.evaluate(() => window.__reaper.crypt.update({ ...window.__reaper.crypt.get() }));
+    check('a toadstool can be aimed at for reaping', (await page.evaluate((p) => {
+      const i = window.__reaper.crypt.diggerAt(p);
+      return i >= 0 ? window.__reaper.crypt.get().bones[i].kind : null;
+    }, { x: g.x + g.width / 2, y: g.y + 10 })) === 'toadstool');
+
+    // A moth can be picked up and put somewhere else.
+    await page.evaluate(() => { const m = document.querySelector('.field .moth'); m.style.transitionDuration = '0s'; m.style.left = '600px'; m.style.top = '200px'; });
+    await page.waitForTimeout(50);
+    const mb = await page.locator('.field .moth').boundingBox();
+    await page.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++) { await page.mouse.move(mb.x + mb.width / 2 - i * 40, mb.y + mb.height / 2 + i * 30); await page.waitForTimeout(20); }
+    const held = await page.locator('.field .moth').boundingBox();
+    check('a moth can be picked up and carried', !!(await page.$('.field .moth.is-held')) && held.x < mb.x - 150 && held.y > mb.y + 120, JSON.stringify([mb, held]));
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+    check('let go, it flies on', !(await page.$('.field .moth.is-held')) && !!(await page.$('.field .moth.is-flying')));
+
+    // In a hunt, a moth takes ghosts that would get away (one that is about, not a cocoon).
     const skeletonAt = await page.evaluate(() => window.__reaper.crypt.get().bones.findIndex((b) => b.kind === 'digger'));
     await page.evaluate((i) => window.__reaper.abilities.reapAt(i), skeletonAt);
     await page.waitForTimeout(8600);
     const batted = await page.evaluate(() => window.__reaper.crypt.get());
     check('when the hunt runs out, the moth catches the ghost getting away', batted.score >= 10 && !(await page.$('.ghost:not(.is-caught)')) &&
-      (await page.textContent('#bubble')).length > 0, JSON.stringify({ score: batted.score, bubble: await page.textContent('#bubble') }));
+      !(await page.textContent('#bubble')).includes('got away'), JSON.stringify({ score: batted.score, bubble: await page.textContent('#bubble') }));
+    // Dropped on a moth, he reaps it: two spirit-lights, and a cocoon at the top.
+    await page.evaluate(() => { const m = document.querySelector('.field .moth'); m.style.transitionDuration = '0s'; m.style.left = '300px'; m.style.top = '6px'; });
+    await page.waitForTimeout(50);
+    const mothAt = await page.evaluate(() => window.__reaper.crypt.diggerAt({ x: -999, y: -999 }, { left: 290, top: 0, right: 382, bottom: 114 }));
+    check('his figure touching a moth aims at it', mothAt >= 0 && (await page.evaluate((i) => window.__reaper.crypt.get().bones[i].kind, mothAt)) === 'moth');
+    await page.evaluate((i) => window.__reaper.abilities.reapAt(i), mothAt);
+    await page.waitForTimeout(400);
+    check('a reaped moth gives two spirit-lights', (await page.$$('.ghost.is-golden:not(.is-caught)')).length === 2 && (await page.$$('.ghost:not(.is-caught)')).length === 2,
+      String((await page.$$('.ghost')).length));
+    check('and rests as a cocoon at the top', (await page.$$('.field .cocoon')).length === 1 && !(await page.$('.field .moth')));
+    await castFromRing(page, 'slash');
+    await page.waitForTimeout(1800);
   }
 
   // Away and back

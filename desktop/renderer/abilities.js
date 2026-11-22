@@ -203,8 +203,9 @@ export function createAbilities(ctx) {
   let best = 0;
   let scoreEl = null;
 
-  function spawnGhost(from) {
-    const golden = Math.random() < hunt.goldenChance;
+  // `light` makes it a spirit-light for certain (a reaped moth's).
+  function spawnGhost(from, light = false) {
+    const golden = light || Math.random() < hunt.goldenChance;
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
     // Each starts at its own point in the swim, so they don't move in step.
     g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
@@ -305,7 +306,7 @@ export function createAbilities(ctx) {
 
   // The hunt for `count` ghosts bursting out at `from`, a point or a list of
   // them (a Gathering: out of every sprite). `after` runs when it is over.
-  function startHunt(count, from, after) {
+  function startHunt(count, from, after, lights = 0) {
     // Six seconds, a second and a half for each of the first six ghosts, half
     // a second for each after; never more than half a minute.
     const length = Math.min(30000, 6000 + 1500 * Math.min(count, 6) + 500 * Math.max(0, count - 6));
@@ -321,7 +322,7 @@ export function createAbilities(ctx) {
     scoreEl = el('div', 'score', '');
     field.appendChild(scoreEl);
     huntRing.hidden = false;
-    for (let i = 0; i < count; i++) spawnGhost(froms[i % froms.length]);
+    for (let i = 0; i < count; i++) spawnGhost(froms[i % froms.length], i < lights);
     paintScore();
     requestAnimationFrame(moveGhosts);
   }
@@ -366,8 +367,8 @@ export function createAbilities(ctx) {
     ctx.swing();
     ctx.puff(from.x, from.y);
     sound.caught();
-    say(out.ghosts === 1 ? 'One ghost. Catch it.' : out.ghosts + ' ghosts. Catch them.', 2500);
-    startHunt(out.ghosts, from);
+    say(out.lights ? 'Spirit-lights. Catch them.' : out.ghosts === 1 ? 'One ghost. Catch it.' : out.ghosts + ' ghosts. Catch them.', 2500);
+    startHunt(out.ghosts, from, null, out.lights || 0);
     return out;
   }
 

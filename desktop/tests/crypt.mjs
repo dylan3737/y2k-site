@@ -199,23 +199,41 @@ out = crypt.act(k, { raise: 1, kind: 'toadstool' }, T0);
 check('a ghoul costs twice the next skeleton', out.ok && out.kind === 'toadstool' && crypt.view(k).bones[2].kind === 'toadstool' &&
   crypt.kindCost(crypt.clean({ ...k, kinds: k.kinds.slice(0, 2), born: k.born.slice(0, 2), skeletons: 2 }, T0), 'toadstool') === plainNext * 2);
 check('a ghoul digs twice as much', crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR, String(crypt.perHour(k)));
-out = crypt.act(k, { reap: 2 }, T0 + 5 * HOUR);
-check('a ghoul cannot be reaped', !out.ok && /holds no ghosts/.test(out.error) && crypt.view(k).bones[2].ripe === 0);
 const twoHours = T0 + 2 * HOUR;
 check('without a wisp, two hours ripen to three', crypt.view({ ...k }).bones && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 3);
 out = crypt.act(k, { raise: 1, kind: 'wisp' }, T0);
-check('a will-o\'-wisp digs nothing', out.ok && crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR);
+check('a will-o\'-wisp gathers nothing', out.ok && crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR);
 crypt.act(k, { raise: 2, kind: 'wisp' }, T0);
 check('three wisps at most', !crypt.act(k, { raise: 1, kind: 'wisp' }, T0).ok && crypt.view(k).kinds.find((x) => x.id === 'wisp').count === 3);
 check('and with three, they ripen three-quarters faster', crypt.ripenSpeed(k) === 1.75 && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 4);
+check('a wisp cannot be reaped', /cannot be reaped/.test(crypt.act(k, { reap: k.kinds.indexOf('wisp') }, twoHours).error || ''));
 out = crypt.act(k, { gather: true }, twoHours);
-check('a Gathering takes only the ones that hold ghosts', out.gathered === 2 && out.ghosts === 4 + 4 + 1 && k.skeletons === 6 &&
-  k.kinds.filter((x) => x === 'digger').length === 2 && k.kinds[0] === 'toadstool', JSON.stringify([out, k.kinds]));
-const ghoulsOnly = crypt.fresh(T0);
-ghoulsOnly.souls = 1e4; ghoulsOnly.rank = 1;
-crypt.act(ghoulsOnly, { raise: 1, kind: 'toadstool' }, T0);
-out = crypt.act(ghoulsOnly, { gather: true }, T0);
-check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.gathered === 0 && ghoulsOnly.kinds.join() === 'toadstool,digger');
+// Two sprites at four ghosts, the toadstool at two (half as fast), and one more for each past the first.
+check('a Gathering takes the sprites and the toadstools, and each comes back as itself', out.gathered === 3 && out.ghosts === 4 + 4 + 2 + 2 &&
+  k.kinds.join() === 'wisp,wisp,wisp,digger,digger,toadstool', JSON.stringify([out, k.kinds]));
+
+// The toadstool grows its ghosts slowly, three at most, and comes back a toadstool.
+const ts = crypt.fresh(T0);
+ts.souls = 1e4; ts.rank = 2;
+crypt.act(ts, { raise: 1, kind: 'toadstool' }, T0);
+crypt.act(ts, { raise: 1, kind: 'moth' }, T0);
+out = crypt.act(ts, { reap: 0 }, T0 + 9 * HOUR);
+check('a toadstool can be reaped: three ghosts at most, however long it grew', out.ok && out.ghosts === 3 && out.kind === 'toadstool', JSON.stringify(out));
+check('and it comes back a toadstool, after resting', ts.kinds[ts.born.indexOf(T0 + 9 * HOUR + crypt.REST_MS)] === 'toadstool', JSON.stringify([ts.born, ts.kinds]));
+crypt.act(ts, { hunt: { caught: 0 } }, T0 + 9 * HOUR);
+const mothAt = ts.kinds.indexOf('moth');
+out = crypt.act(ts, { reap: mothAt }, T0 + 9 * HOUR);
+check('a moth can be reaped: two spirit-lights', out.ok && out.ghosts === 2 && out.lights === 2 && ts.loose === 2, JSON.stringify(out));
+check('and rests as a cocoon, then comes back a moth', ts.kinds.filter((x) => x === 'moth').length === 1 &&
+  /cocoon/.test(crypt.act(ts, { reap: ts.kinds.indexOf('moth') }, T0 + 9 * HOUR).error || ''));
+const toadOnly = crypt.fresh(T0);
+toadOnly.souls = 1e4; toadOnly.rank = 1;
+crypt.act(toadOnly, { raise: 1, kind: 'toadstool' }, T0);
+out = crypt.act(toadOnly, { gather: true }, T0);
+check('with only a toadstool, a Gathering gathers it', out.ok && out.gathered === 1 && out.ghosts === 1 && toadOnly.kinds.join() === 'toadstool');
+const gnone = crypt.fresh(T0);
+out = crypt.act(gnone, { gather: true }, T0);
+check('with nothing at all, a Gathering plants a moss sprite', out.ok && out.gathered === 0 && gnone.kinds.join() === 'digger');
 check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
 const batty = crypt.fresh(T0);
 batty.souls = 1e5;

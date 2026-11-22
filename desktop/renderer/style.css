@@ -318,6 +318,25 @@ body.is-capturing * { visibility: hidden !important; }
 .moth.is-left { scale: -1 1; }
 .moth.is-swooping { transition-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
 @keyframes moth-flap { from { background-position: 0 0; } to { background-position: -224px 0; } }
+/* It can be picked up: it flutters faster in the hand. */
+.moth.hit { cursor: grab; }
+.moth.is-held { cursor: grabbing; transition-duration: 0s !important; animation-duration: 0.22s; }
+/* The one the dragged reaper would reap. */
+.moth.is-aimed { filter: brightness(1.3) drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px rgba(255, 170, 220, 0.95)); }
+
+/* A moth resting after a reaping: a cocoon hanging from the top of the screen. */
+.cocoon {
+  position: fixed;
+  top: 0;
+  width: 24px;
+  height: 40px;
+  pointer-events: none;
+  background: url('../assets/cocoon.png') 0 0 / 24px 40px no-repeat;
+  image-rendering: pixelated;
+  transform-origin: 50% 0;
+  animation: cocoon-sway 4s ease-in-out infinite;
+}
+@keyframes cocoon-sway { 0%, 100% { rotate: -4deg; } 50% { rotate: 4deg; } }
 
 /* A will-o'-wisp: 16x24 pixel frames at twice the size, drifting and glowing. */
 .wisp-worker {
@@ -371,7 +390,7 @@ body.is-capturing * { visibility: hidden !important; }
 @media (prefers-reduced-motion: reduce) {
   .digger, .digger.is-ripe, .digger.is-walking, .digger.is-hopping, .digger.is-rising, .digger.is-startled { animation: none !important; }
   .wisp, .snore { display: none; }
-  .moth.is-flying, .wisp-worker, .ghost.is-golden::before { animation: none; }
+  .moth.is-flying, .wisp-worker, .ghost.is-golden::before, .cocoon { animation: none; }
   .digger.is-held, .digger.is-landing { animation: none !important; }
 }
 

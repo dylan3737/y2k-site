@@ -59,9 +59,9 @@ export const RANKS = [
 // `ghosts` whether it ripens, `price` its cost against the next plain one,
 // `rank` the rank that unlocks it, `most` how many can be raised.
 export const KINDS = [
-  { id: 'digger', name: 'Moss sprite', blurb: 'Gathers souls while its sprout grows; reap it at full bloom for the most ghosts.', dig: 1, ghosts: true, price: 1, rank: 0, most: Infinity },
-  { id: 'toadstool', name: 'Toadstool', blurb: 'Gathers twice as much, but grows no ghosts.', dig: 2, ghosts: false, price: 2, rank: 1, most: Infinity },
-  { id: 'moth', name: 'Moth', blurb: 'Drawn to the light: when a hunt runs out it catches two ghosts that would get away.', dig: 0, ghosts: false, price: 2, rank: 2, most: 3 },
+  { id: 'digger', name: 'Moss sprite', blurb: 'Gathers souls while its sprout grows; reap it at full bloom for the most ghosts.', dig: 1, ghosts: true, ripest: 6, every: 1, price: 1, rank: 0, most: Infinity },
+  { id: 'toadstool', name: 'Toadstool', blurb: 'Gathers twice as much; grows ghosts slowly, one every two hours, three at most.', dig: 2, ghosts: true, ripest: 3, every: 2, price: 2, rank: 1, most: Infinity },
+  { id: 'moth', name: 'Moth', blurb: 'Drawn to the light: when a hunt runs out it catches two ghosts that would get away. Reaped, it gives two spirit-lights and rests as a cocoon.', dig: 0, ghosts: false, lights: 2, price: 2, rank: 2, most: 3 },
   { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
 ];
 // Each moth saves this many ghosts a hunt.
@@ -237,7 +237,12 @@ export function raise(c, count = 1, kind = 'digger', now = Date.now()) {
 // Faster with will-o'-wisps about (`speed`).
 export const ripeness = (born, now = Date.now(), speed = 1) => Math.min(MAX_RIPE, 1 + Math.floor(Math.max(0, now - born) * speed / HOUR));
 // What the one at `i` holds: nothing, for a kind that holds no ghosts.
-const holds = (c, i, now) => (kindOf(c, i).ghosts && awake(c, i, now) ? ripeness(c.born[i], now, ripenSpeed(c)) : 0);
+// (A toadstool grows its ghosts more slowly, and fewer.)
+const holds = (c, i, now) => {
+  const k = kindOf(c, i);
+  if (!k.ghosts || !awake(c, i, now)) return 0;
+  return Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every));
+};
 
 // A new skeleton begins to dig. Its start time is also how it is known, so no
 // two share one.
@@ -276,14 +281,17 @@ export function reap(c, index = 0, now = Date.now()) {
   const i = Math.floor(Number(index));
   if (!c.skeletons) return { ok: false, error: 'No moss sprites to reap. Raise one first.' };
   if (!(i >= 0 && i < c.skeletons)) return { ok: false, error: 'No such worker.' };
-  if (!kindOf(c, i).ghosts) return { ok: false, error: 'A ' + kindOf(c, i).name.toLowerCase() + ' holds no ghosts.' };
-  if (!awake(c, i, now)) return { ok: false, error: 'That one is still a seed.' };
-  const ghosts = holds(c, i, now);
+  const k = kindOf(c, i);
+  if (!k.ghosts && !k.lights) return { ok: false, error: 'A ' + k.name.toLowerCase() + ' cannot be reaped.' };
+  if (!awake(c, i, now)) return { ok: false, error: k.id === 'moth' ? 'That one is still a cocoon.' : 'That one is still a seed.' };
+  // A moth gives spirit-lights, always; the others the ghosts they have grown.
+  const ghosts = k.lights || holds(c, i, now);
   c.born.splice(i, 1);
   c.kinds.splice(i, 1);
-  birth(c, now + REST_MS);
+  // It rests (a seed, or a cocoon), then comes back as what it was.
+  birth(c, now + REST_MS, k.id);
   c.loose = ghosts;
-  return { ok: true, ghosts };
+  return { ok: true, ghosts, lights: k.lights || 0, kind: k.id };
 }
 
 // Summon's Gathering: every skeleton at once bursts into its ghosts, and each
@@ -307,10 +315,11 @@ export function gather(c, now = Date.now()) {
   // The others keep their places; the gathered rest, then rise again, empty.
   const taken = new Set(which);
   const keep = c.kinds.map((k, i) => [c.born[i], k]).filter((_, i) => !taken.has(i));
+  const back = which.map((i) => c.kinds[i]);
   c.born = [];
   c.kinds = [];
   for (const [t, k] of keep) { c.born.push(t); c.kinds.push(k); }
-  for (let k = 0; k < n; k++) birth(c, now + REST_MS);
+  for (const kind of back) birth(c, now + REST_MS, kind);
   c.loose = ghosts;
   return { ok: true, ghosts, gathered: n };
 }
@@ -449,6 +458,8 @@ export function view(c) {
       cost: kindCost(c, k.id), open: (c.rank || 0) >= k.rank, rank: RANKS[k.rank].name
     })),
     loose: c.loose,
+    // Moths up and about (not cocoons): each saves ghosts at a hunt's end.
+    moths: (c.born || []).filter((t, i) => kindOf(c, i).id === 'moth' && awake(c, i, Date.now())).length,
     score: c.score,
     rank: RANKS[c.rank].name,
     nextRank: c.rank + 1 < RANKS.length ? { name: RANKS[c.rank + 1].name, at: RANKS[c.rank + 1].at, reward: RANKS[c.rank + 1].reward } : null,
