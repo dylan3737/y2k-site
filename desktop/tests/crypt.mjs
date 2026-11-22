@@ -71,7 +71,7 @@ out = crypt.buy(u, 'graves');
 check('an upgrade stops at its last level', !out.ok && /no further/.test(out.error) && u.upgrades.graves === 3 && crypt.upgradeCost(u, 'graves') === null, out.error);
 const shop = crypt.view(u).upgrades;
 check('the card is told each upgrade\'s level, price and effect', shop.length === 4 && shop[0].level === 2 && shop[0].cost === 200 &&
-  shop[0].now === '+50% digging' && shop[1].cost === null && shop[1].next === null, JSON.stringify(shop.slice(0, 2)));
+  shop[0].now === '+50% gathering' && shop[1].cost === null && shop[1].next === null, JSON.stringify(shop.slice(0, 2)));
 
 // --- Milestones ----------------------------------------------------------------------
 const m = crypt.fresh(T0);
@@ -80,7 +80,7 @@ check('the first hourglass is a milestone, paid at once', did.gained === 25 && d
 did = crypt.deed(m, 'focus', 25, T0);
 check('a milestone pays only once', did.reached.length === 0 && m.souls === 65);
 let acted = crypt.act(m, { raise: 1 }, T0);
-check('raising the first skeleton reaches one', acted.ok && acted.reached.some((r) => r.name === 'It moves') && m.souls === 65 - 25 + 10, JSON.stringify(acted));
+check('raising the first skeleton reaches one', acted.ok && acted.reached.some((r) => r.name === 'It stirs') && m.souls === 65 - 25 + 10, JSON.stringify(acted));
 acted = crypt.act(m, { buy: 'lure' }, T0);
 check('a failed purchase reaches nothing', !acted.ok && acted.reached.length === 0);
 m.total = 249;
@@ -89,7 +89,7 @@ did = crypt.deed(m, 'caught', 1, T0);
 check('souls ever held reach one too', did.reached.some((r) => r.name === 'A full urn') && m.souls === 31, JSON.stringify(did));
 const chain = crypt.fresh(T0);
 chain.total = 2499 - 15;
-check('one reward can reach the next milestone', crypt.deed(chain, 'focus', 1, T0).reached.map((r) => r.name).join() === 'First sand,A full urn,An ossuary');
+check('one reward can reach the next milestone', crypt.deed(chain, 'focus', 1, T0).reached.map((r) => r.name).join() === 'First sand,A full urn,A full meadow');
 const list = crypt.view(m).milestones;
 check('the card is told which are done', list.length === crypt.MILESTONES.length && list.filter((x) => x.done).length === 3 && list.every((x) => x.how && x.reward > 0));
 check('every milestone and upgrade has its own id', new Set(crypt.MILESTONES.map((x) => x.id)).size === crypt.MILESTONES.length &&
@@ -101,7 +101,7 @@ check('a damaged save is made safe', bad.souls === 0 && bad.skeletons === crypt.
   bad.upgrades.shovels === 10 && bad.upgrades.graves === 0 && !('cheat' in bad.upgrades) && bad.done.join() === 'bones1' && bad.deeds.caught === 0, JSON.stringify(bad));
 const old = crypt.clean({ souls: 40, skeletons: 2, total: 90, at: T0 }, T0);
 check('a save from before upgrades still loads', old.souls === 40 && old.skeletons === 2 && old.upgrades.shovels === 0 && old.done.length === 0);
-check('and is paid for milestones it already met', crypt.reach(old).some((r) => r.name === 'It moves'));
+check('and is paid for milestones it already met', crypt.reach(old).some((r) => r.name === 'It stirs'));
 // The count was set by hand above; any action gives each skeleton its start time.
 crypt.act(u, {}, u.at);
 check('a round trip through JSON changes nothing', JSON.stringify(crypt.clean(JSON.parse(JSON.stringify(u)), u.at)) === JSON.stringify(u));
@@ -115,17 +115,17 @@ const heard = async (text, result) => {
   return { ...got, reply };
 };
 let got = await heard('raise 3 skeletons', { ok: true, result: { raised: 3, souls: 12 } });
-check('"raise 3 skeletons" raises three', got && got.name === 'raise_skeleton' && got.count === 3 && /3 skeletons risen/.test(got.reply), JSON.stringify(got));
+check('"raise 3 skeletons" raises three', got && got.name === 'raise_worker' && got.count === 3 && /3 moss sprites planted/.test(got.reply), JSON.stringify(got));
 got = await heard('Raise a skeleton', { ok: false, error: 'Not enough souls.' });
 check('"raise a skeleton" says why it could not', got && got.count === 1 && got.reply === 'Not enough souls.', JSON.stringify(got));
 got = await heard('crypt', { ok: true, result: { souls: 40, skeletons: 2, perHour: 3, nextCost: 40 } });
-check('"crypt" reports the horde', got && got.name === 'get_crypt' && /40 souls/.test(got.reply) && /2 skeletons digging: 3/.test(got.reply), JSON.stringify(got));
-got = await heard('buy shovels', { ok: true, result: { bought: 'Sharper shovels', level: 2, souls: 5 } });
-check('"buy shovels" buys the upgrade', got && got.name === 'buy_upgrade' && got.upgrade === 'shovels' && /Sharper shovels, level 2\. 5 souls left/.test(got.reply), JSON.stringify(got));
+check('"crypt" reports the garden', got && got.name === 'get_crypt' && /40 souls/.test(got.reply) && /2 workers gathering: 3/.test(got.reply), JSON.stringify(got));
+got = await heard('buy shovels', { ok: true, result: { bought: 'Green thumbs', level: 2, souls: 5 } });
+check('"buy shovels" buys the upgrade', got && got.name === 'buy_upgrade' && got.upgrade === 'shovels' && /Green thumbs, level 2\. 5 souls left/.test(got.reply), JSON.stringify(got));
 got = await heard('upgrade the ghost lure', { ok: false, error: 'Not enough souls.' });
 check('"upgrade the ghost lure" finds the lure', got && got.upgrade === 'lure' && got.reply === 'Not enough souls.', JSON.stringify(got));
 got = await heard('upgrades', { ok: true, result: { upgrades: crypt.view(u).upgrades } });
-check('"upgrades" lists them with prices', got && /Sharper shovels 2\/10: 200 souls for \+75% digging/.test(got.reply) && /Deeper graves 3\/3 \(done\)/.test(got.reply), got && got.reply);
+check('"upgrades" lists them with prices', got && /Green thumbs 2\/10: 200 souls for \+75% gathering/.test(got.reply) && /Deeper roots 3\/3 \(done\)/.test(got.reply), got && got.reply);
 got = await heard('milestones', { ok: true, result: { milestonesReached: '3 of 17', nextMilestones: ['Feed him a file (+10 souls)'] } });
 check('"milestones" says how many and what is next', got && /3 of 17 milestones reached/.test(got.reply) && /Feed him a file/.test(got.reply), got && got.reply);
 got = await heard('my name is Sam, remember that', { ok: true, result: { id: 'm1' } });
@@ -152,13 +152,13 @@ const before = r.souls;
 out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, t2);
 check('ghosts caught bank souls, golden ones three times as much', out.caught === 2 && out.gained === 40 && Math.round(r.souls - before) >= 40, JSON.stringify(out));
 check('the rest are lost', r.loose === 0);
-check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Gravekeeper' && crypt.view(r).nextRank.at === 100);
+check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Groundskeeper' && crypt.view(r).nextRank.at === 100);
 out = crypt.act(r, { hunt: { caught: 5, points: 999 } }, t2);
 check('a hunt cannot claim ghosts that were never loose', out.caught === 0 && out.points === 0 && r.score === 60, JSON.stringify(out));
 crypt.act(r, { reap: 0 }, t2);
 out = crypt.act(r, { hunt: { caught: 1, points: 50 } }, t2);
 check('a new rank pays once', out.ranked.length === 1 && out.ranked[0].name === 'Ghost catcher' && out.ranked[0].reward === 30 && crypt.view(r).rank === 'Ghost catcher', JSON.stringify(out));
-check('reaping with none says to raise one', /No skeletons/.test(crypt.reap(crypt.fresh(T0)).error));
+check('reaping with none says to raise one', /No moss sprites/.test(crypt.reap(crypt.fresh(T0)).error));
 
 // Summon's Gathering: every skeleton at once, one more ghost for each past the first.
 const t3 = t2 + 3 * HOUR;
@@ -191,13 +191,13 @@ check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skel
 const k = crypt.fresh(T0);
 k.souls = 1e5;
 crypt.act(k, { raise: 2 }, T0);
-out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
+out = crypt.act(k, { raise: 1, kind: 'toadstool' }, T0);
 check('a ghoul waits for a rank', !out.ok && /Ghost catcher/.test(out.error), out.error);
 k.rank = 3;
 const plainNext = crypt.kindCost(k, 'digger');
-out = crypt.act(k, { raise: 1, kind: 'ghoul' }, T0);
-check('a ghoul costs twice the next skeleton', out.ok && out.kind === 'ghoul' && crypt.view(k).bones[2].kind === 'ghoul' &&
-  crypt.kindCost(crypt.clean({ ...k, kinds: k.kinds.slice(0, 2), born: k.born.slice(0, 2), skeletons: 2 }, T0), 'ghoul') === plainNext * 2);
+out = crypt.act(k, { raise: 1, kind: 'toadstool' }, T0);
+check('a ghoul costs twice the next skeleton', out.ok && out.kind === 'toadstool' && crypt.view(k).bones[2].kind === 'toadstool' &&
+  crypt.kindCost(crypt.clean({ ...k, kinds: k.kinds.slice(0, 2), born: k.born.slice(0, 2), skeletons: 2 }, T0), 'toadstool') === plainNext * 2);
 check('a ghoul digs twice as much', crypt.perHour(k) === 4 * crypt.RATE_PER_HOUR, String(crypt.perHour(k)));
 out = crypt.act(k, { reap: 2 }, T0 + 5 * HOUR);
 check('a ghoul cannot be reaped', !out.ok && /holds no ghosts/.test(out.error) && crypt.view(k).bones[2].ripe === 0);
@@ -210,24 +210,26 @@ check('three wisps at most', !crypt.act(k, { raise: 1, kind: 'wisp' }, T0).ok &&
 check('and with three, they ripen three-quarters faster', crypt.ripenSpeed(k) === 1.75 && crypt.ripeness(k.born[0], twoHours, crypt.ripenSpeed(k)) === 4);
 out = crypt.act(k, { gather: true }, twoHours);
 check('a Gathering takes only the ones that hold ghosts', out.gathered === 2 && out.ghosts === 4 + 4 + 1 && k.skeletons === 6 &&
-  k.kinds.filter((x) => x === 'digger').length === 2 && k.kinds[0] === 'ghoul', JSON.stringify([out, k.kinds]));
+  k.kinds.filter((x) => x === 'digger').length === 2 && k.kinds[0] === 'toadstool', JSON.stringify([out, k.kinds]));
 const ghoulsOnly = crypt.fresh(T0);
 ghoulsOnly.souls = 1e4; ghoulsOnly.rank = 1;
-crypt.act(ghoulsOnly, { raise: 1, kind: 'ghoul' }, T0);
+crypt.act(ghoulsOnly, { raise: 1, kind: 'toadstool' }, T0);
 out = crypt.act(ghoulsOnly, { gather: true }, T0);
-check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.gathered === 0 && ghoulsOnly.kinds.join() === 'ghoul,digger');
+check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.gathered === 0 && ghoulsOnly.kinds.join() === 'toadstool,digger');
 check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
 const batty = crypt.fresh(T0);
 batty.souls = 1e5;
 crypt.act(batty, { raise: 1 }, T0);
-check('a bat waits for Soul warden', /Soul warden/.test(crypt.act(batty, { raise: 1, kind: 'bat' }, T0).error || ''));
+check('a bat waits for Soul warden', /Soul warden/.test(crypt.act(batty, { raise: 1, kind: 'moth' }, T0).error || ''));
 batty.rank = 2;
-out = crypt.act(batty, { raise: 3, kind: 'bat' }, T0);
-check('bats dig nothing, and three at most', out.raised === 3 && crypt.perHour(batty) === crypt.RATE_PER_HOUR && !crypt.act(batty, { raise: 1, kind: 'bat' }, T0).ok &&
-  crypt.view(batty).kinds.find((x) => x.id === 'bat').count === 3 && crypt.BAT_CATCHES === 2);
+out = crypt.act(batty, { raise: 3, kind: 'moth' }, T0);
+check('bats dig nothing, and three at most', out.raised === 3 && crypt.perHour(batty) === crypt.RATE_PER_HOUR && !crypt.act(batty, { raise: 1, kind: 'moth' }, T0).ok &&
+  crypt.view(batty).kinds.find((x) => x.id === 'moth').count === 3 && crypt.MOTH_CATCHES === 2);
 check('a wisp waits for Shade hunter', /Shade hunter/.test(crypt.act(batty, { raise: 1, kind: 'wisp' }, T0).error || ''));
 const oldSave = crypt.clean({ skeletons: 2, born: [T0, T0 + 1], kinds: ['digger', 'lantern'], at: T0 }, T0 + 5);
 check('a lantern bearer from an old save becomes a wisp', oldSave.kinds.join() === 'digger,wisp' && crypt.ripenSpeed(oldSave) === 1.25);
+const older = crypt.clean({ skeletons: 3, born: [T0, T0 + 1, T0 + 2], kinds: ['ghoul', 'bat', 'digger'], at: T0 }, T0 + 5);
+check('a ghoul and a bat from an old save become a toadstool and a moth', older.kinds.join() === 'toadstool,moth,digger');
 check('an unknown kind is refused', !crypt.act(k, { raise: 1, kind: 'dragon' }).ok);
 
 // Sweeping their dirt.

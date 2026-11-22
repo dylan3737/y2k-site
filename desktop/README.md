@@ -1,6 +1,6 @@
 # Reaper: a desktop companion
 
-The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. There is an idle game in him too: the souls you earn raise skeletons, and they dig up more while you're away. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
+The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. There is an idle game in him too, a little garden: the souls you earn grow moss sprites, which gather more while you're away, and which he reaps into ghosts to hunt. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
 
 He lives in a transparent window that stays on top of everything. Clicks pass through to your apps everywhere except on the reaper himself and on his effects.
 
@@ -43,7 +43,7 @@ npm start
 | Drag him past the edge of a monitor and let go | lands on the monitor next to it |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
-| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
+| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the garden gathered, when you're back |
 | Start the day | greets you with how many reminders are due today |
 | Press **Ctrl+Alt+R** (**⌘⌥R** on a Mac) | vanishes and reappears at your cursor, even on another monitor |
 | Press **Ctrl+Alt+Space** (**⌘⌥Space**) | appears at your cursor with Speak open |
@@ -54,7 +54,7 @@ The tray icon has the same commands, plus:
 - **Wander:** on or off.
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
-- **Skeletons on screen:** show or hide the skeletons. Hidden ones still dig.
+- **Garden on screen:** show or hide the garden's workers. Hidden ones still gather.
 - **Roam between screens:** on or off. Only offered with more than one monitor. See [More than one monitor](#more-than-one-monitor).
 - **Hide**
 - **Open at login:** macOS and Windows only.
@@ -68,7 +68,7 @@ With several monitors, he roams across all of them. Wherever the edge of one mon
 
 - He comes out at the same place on your desktop, so with monitors of different heights (portrait, landscape, portrait, say) he only crosses where they actually meet.
 - Monitors with a gap between them, or that only touch at a corner, have no doorway.
-- His cards, his ring, his skeletons and his reminders go with him.
+- His cards, his ring and his reminders go with him.
 - He doesn't wander off in the middle of something: while Summon or a screen effect is running, he stays put.
 - **Ctrl+Alt+R** (**⌘⌥R**) still brings him to the cursor, whichever monitor it's on.
 - **Roam between screens** in the tray menu keeps him on one monitor.
@@ -94,50 +94,52 @@ When it's low, he fades.
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 40 | The Gathering: every skeleton in the [Crypt](#the-crypt) bursts into its ghosts at once, for one big hunt. Sometimes a **wraith** answers too. See [Reaping and the hunt](#reaping-and-the-hunt). |
+| **Summon** | 40 | The Gathering: every moss sprite in the [Garden](#the-garden) bursts into its ghosts at once, for one big hunt. Sometimes a **wraith** answers too. See [Reaping and the hunt](#reaping-and-the-hunt). |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
-| **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
+| **Garden** | free | Your banked souls and your workers. See [The Garden](#the-garden). |
 | **Hum** | 5 | A slow minor music-box tune over a drone. Cast again to stop it. |
 | **Vanish** | free | He fades into the corner and stays quiet for 30 minutes. Click him to bring him back. |
 
-## The Crypt
+## The Garden
 
-The Crypt is an idle game. It banks **souls**, which are yours to keep. (The meter under him is his own soul: his energy, which drains and refills. The two are separate.)
+The Garden is an idle game. It banks **souls**, which are yours to keep. (The meter under him is his own soul: his energy, which drains and refills. The two are separate.) In the code and in older versions it's called the Crypt.
 
 You earn souls by using him:
 
 | Deed | Souls |
 |---|---|
-| A ghost caught in a hunt | 10 (30 for a golden one) |
+| A ghost caught in a hunt | 10 (30 for a spirit-light) |
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls raise **skeletons**. The first costs 25, and each one after costs 25% more than the last. Every skeleton digs up 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+Souls raise **moss sprites**: small round moss creatures, each tending a sprout. The first costs 25, and each one after costs 25% more than the last. Every sprite gathers 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
 
-- When you come back to the computer, he tells you what they dug up while you were gone.
+- When you come back to the computer, he tells you what the garden gathered while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight skeletons live along the bottom of your screen. Each digs a while, leaves a mound of dirt, and wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and digs there. Each half fades while your cursor is over it.
-- Skeletons leave **mounds of dirt** where they dig. Click one to sweep it away, for a soul. Up to 16 pile up; past that the oldest wears away.
+- Up to eight workers live along the bottom of your screen. Each works a while, then wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and works there. Each half fades while your cursor is over it.
 
 #### Workers
 
-Higher ranks open other workers, each its own creature. Each counts toward the crypt for the price of the next skeleton, times its own price:
+Higher ranks open other workers, each its own creature (all pixel art, like him). Each counts toward the garden for the price of the next moss sprite, times its own price:
 
 | Worker | Opens at | Price | What it does |
 |---|---|---|---|
-| **Skeleton** | | ×1 | Digs 1.5 souls an hour, and ripens with ghosts to reap. |
-| **Ghoul** | Ghost catcher | ×2 | A hunched green ghoul with a shovel: digs twice as many souls, but holds no ghosts, so it can't be reaped or gathered. |
-| **Bat** | Soul warden | ×2 | Flits about the top of your screen and hangs from it. Digs nothing, but when a hunt runs out it swoops on ghosts about to get away and catches two (at base points, no combo). Three at most. |
-| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the skeletons. Digs nothing, but every skeleton ripens a quarter faster for each one. Three at most. (It replaces the lantern bearer; any you had became wisps.) |
+| **Moss sprite** | | ×1 | Gathers 1.5 souls an hour, and grows ghosts to reap. |
+| **Toadstool** | Ghost catcher | ×2 | A little mushroom-folk with a basket: gathers twice as many souls, but grows no ghosts, so it can't be reaped or gathered. |
+| **Moth** | Soul warden | ×2 | Flutters about the top of your screen and rests against it. Gathers nothing, but when a hunt runs out, it is drawn to the ghosts about to get away and catches two (at base points, no combo). Three at most. |
+| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the sprites. Gathers nothing, but every sprout grows a quarter faster for each one. Three at most. |
+
+(Older saves carry over: skeletons became moss sprites, ghouls toadstools, bats moths, lantern bearers wisps.)
 
 ### Reaping and the hunt
 
-Skeletons **ripen** as they dig: each holds one ghost, and one more for every hour it has dug, up to six. The riper one glows brighter, and a full one rattles and leaks wisps.
+A moss sprite's **sprout grows** as it works, so you can see how ripe it is: a seedling holds one ghost, and it grows one more for every hour, up to six, when it is in full bloom and glows.
 
-**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **grave** where it fell; after 30 minutes it claws back out of it, empty, to ripen again. Meanwhile it digs nothing. And a short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click the ghosts to catch them:
+**Drag him onto a sprite** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **seed** where it was; after 30 minutes it sprouts back, a new sprite with a new seedling. Meanwhile it gathers nothing. A short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click them to catch them:
 
-- Each caught banks 10 souls (30 for a golden one) and scores 10 points (30 golden), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
+- Most are ghosts; now and then one is a **spirit-light**, a glowing orb worth three.
+- Each caught banks 10 souls (30 for a spirit-light) and scores 10 points (30 for a spirit-light), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
 - Ghosts that get away are lost.
 - Slash during a hunt catches every ghost still loose.
 
@@ -145,14 +147,14 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 
 | Rank | Score | Pays |
 |---|---|---|
-| Gravekeeper | 0 | |
+| Groundskeeper | 0 | |
 | Ghost catcher | 100 | 30 |
 | Soul warden | 400 | 80 |
 | Shade hunter | 1,200 | 200 |
 | Wraith lord | 3,000 | 500 |
 | The Reaper's hand | 8,000 | 1,200 |
 
-**Summon is the Gathering**: he calls every skeleton at once. All of them burst into their ghosts, with one more ghost for each skeleton past the first, for one big hunt, and all rest in their graves for 30 minutes before rising again, empty. So the choice is a snack or a feast: reap one now, for free, or let them ripen and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises too. With no skeletons yet, Summon raises the first one.
+**Summon is the Gathering**: he calls every moss sprite at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
 ### Upgrades
 
@@ -160,18 +162,18 @@ Souls also buy upgrades, which change the rules instead of adding diggers. Each 
 
 | Upgrade | Levels | What each level does | First level costs |
 |---|---|---|---|
-| **Sharper shovels** | 10 | Every skeleton digs 25% faster | 60 |
-| **Deeper graves** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
+| **Green thumbs** | 10 | Every worker gathers 25% faster | 60 |
+| **Deeper roots** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
 | **Finer sand** | 3 | A finished Hourglass is worth 1.5, then 2, then 3 souls a minute | 120 |
-| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in a hunt are golden (10% without it) | 80 |
+| **Ghost lure** | 3 | 16%, then 22%, then 30% of a hunt's catches are spirit-lights (10% without it) | 80 |
 
 ### Milestones
 
-There are 17 milestones, such as raising your first skeleton, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
+There are 17 milestones, such as planting your first moss sprite, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
 
 ### Using it
 
-Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
+Open the **Garden** from his ring. It has three tabs: **Garden** (your workers, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("plant two moss sprites", "buy green thumbs", "how's the garden?"), and so can the plain commands.
 
 ### Tuning the numbers
 
@@ -185,7 +187,7 @@ npm run pacing
 npm run pacing -- typical 60
 ```
 
-The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) raises a skeleton in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
+The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) plants a moss sprite in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
 
 ## Speak
 
@@ -262,10 +264,10 @@ These need no model at all. Type them the way they are written here, or close to
 | `25 minute timer`, `pomodoro` | turns the hourglass |
 | `stop timer` | stops it |
 | `how did today go` | gives today's tally |
-| `crypt` | counts your souls and skeletons |
-| `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
+| `garden` | counts your souls and workers |
+| `raise a sprite`, `raise 3 sprites` | plants moss sprites, if the souls allow |
 | `upgrades` | lists the upgrades with their levels and prices |
-| `buy shovels` (or `graves`, `sand`, `lure`) | buys the next level |
+| `buy green thumbs` (or `deeper roots`, `sand`, `lure`) | buys the next level |
 | `milestones` | says how many you have reached and what is next |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
@@ -292,7 +294,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
-| "How's the crypt?" / "Raise two skeletons" / "Buy sharper shovels" | **Crypt**: counts your souls, skeletons, upgrades and milestones, raises skeletons, or buys an upgrade. He spends souls only when you ask. |
+| "How's the garden?" / "Plant two moss sprites" / "Buy green thumbs" | **Garden**: counts your souls, workers, upgrades and milestones, raises workers, or buys an upgrade. He spends souls only when you ask. |
 | "What's the latest on…" / "Look up…" | **Web**: searches the web (DuckDuckGo, or Bing when DuckDuckGo turns him away; no key) and reads the pages it finds, then says where the answer came from |
 | "Open youtube.com" | **Browser**: opens a page in your browser, after asking |
 | "Open Spotify" / "Launch Notes" | **Apps**: opens an app by name, after asking (macOS) |
@@ -342,7 +344,7 @@ Needs: macOS, the repository this app was built from (the build records where it
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
 - With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
 - He can't read what is inside your files, move them, or click or type in other apps.
-- Skeletons and mounds of dirt take clicks: pick a skeleton up and drop it somewhere else, or click a mound to sweep it away (a soul each).
+- The garden's workers take clicks: pick one up and put it down somewhere else.
 
 ### Other details
 
@@ -362,7 +364,7 @@ Needs: macOS, the repository this app was built from (the build records where it
 `companion.json` in the app's user-data folder keeps:
 
 - Settings, soul and the mind you chose.
-- The Crypt: banked souls, skeletons, upgrades and milestones reached.
+- The Garden: banked souls, workers, upgrades and milestones reached.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -419,12 +421,12 @@ npm run dist:linux
 | `github.js` | GitHub through the user's `gh` login: reading, and the changes the page asks about first |
 | `selfwork.js` | Working on himself: the Terminal script that runs a coding agent on a branch of its own |
 | `tools/build-info.mjs` | Records the commit and repository a build comes from, for working on himself |
-| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
-| `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
+| `crypt.js` | The Garden's rules (the Crypt, in the code): what deeds are worth, what workers cost and gather, upgrades and milestones |
+| `tools/pacing.mjs` | Plays the Garden for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
-| `renderer/crypt.js` | The Crypt's card, with its three tabs, and the skeletons on screen |
+| `renderer/crypt.js` | The Garden's card, with its three tabs, and its workers, seeds, moths and wisps on screen |
 | `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
@@ -443,7 +445,7 @@ This runs these, with no network and no real model:
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
 - `tests/minds.mjs` tests the free mind and Ollama against stand-ins, and the plain commands.
 - `tests/engine.mjs` tests how the free mind runs llama-server (starting, streaming, tools, stopping, failing) and downloads its model, against a stand-in server (`tests/fixtures/fake-llama-server.mjs`). Linux and macOS only.
-- `tests/crypt.mjs` tests the Crypt's rules.
+- `tests/crypt.mjs` tests the Garden's rules.
 
 Two more need something extra, so `npm test` leaves them out:
 

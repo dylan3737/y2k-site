@@ -191,7 +191,7 @@ export function createAbilities(ctx) {
   const ravenOwner = {};
 
   // --- Reaping and the hunt ---------------------------------------------------------------
-  // Dropped on a skeleton, he reaps it: its ghosts (one, plus one for every hour
+  // Dropped on a sprite, he reaps it: its ghosts (one, plus one for every hour
   // it dug, up to six) burst out and scatter. Each caught scores points, more in
   // a quick run (the combo), and banks souls; those that get away are lost.
   const COMBO_MS = 1200;
@@ -208,7 +208,7 @@ export function createAbilities(ctx) {
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
     // Each starts at its own point in the swim, so they don't move in step.
     g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
-    // Out of the skeleton, upward and away, each its own way.
+    // Out of the sprite, upward and away, each its own way.
     const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
     const speed = (0.09 + Math.random() * 0.08) * HUNT.pace;
     const ghost = {
@@ -229,15 +229,15 @@ export function createAbilities(ctx) {
     scoreEl.textContent = 'SCORE ' + hunt.points + (hunt.combo > 1 ? '  ×' + hunt.combo : '');
   }
 
-  function catchGhost(ghost, { byBat = false } = {}) {
+  function catchGhost(ghost, { byMoth = false } = {}) {
     if (!hunt || hunt.wraith || ghost.caught) return;
     ghost.caught = true;
     const now = performance.now();
-    if (!byBat) {
+    if (!byMoth) {
       hunt.combo = now - hunt.lastCatch < COMBO_MS ? Math.min(COMBO_MAX, hunt.combo + 1) : 1;
       hunt.lastCatch = now;
     }
-    const points = (ghost.golden ? 3 : 1) * 10 * (byBat ? 1 : hunt.combo);
+    const points = (ghost.golden ? 3 : 1) * 10 * (byMoth ? 1 : hunt.combo);
     hunt.points += points;
     hunt.caught += 1;
     if (ghost.golden) hunt.golden += 1;
@@ -279,32 +279,32 @@ export function createAbilities(ctx) {
     huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 3000);
     // Over when time runs out, or when every ghost has been caught. As time
-    // runs out, the bats swoop on ghosts that would get away.
+    // runs out, the moths swoop on ghosts that would get away.
     if (hunt.ghosts.every((g) => g.caught)) return endHunt();
-    if (left <= 0) return batsSwoop().then(() => { if (hunt) endHunt(); });
+    if (left <= 0) return mothsSwoop().then(() => { if (hunt) endHunt(); });
     requestAnimationFrame(moveGhosts);
   }
 
-  // Each bat catches BAT_CATCHES of the ghosts still loose at the end, at base
-  // points (no combo): it flies from where it hangs, takes one, flies back.
-  const BAT_CATCHES = 2;
-  async function batsSwoop() {
-    const bats = (ctx.crypt && ctx.crypt.bats && ctx.crypt.bats()) || 0;
-    if (!hunt || !bats) return;
+  // Each moth catches MOTH_CATCHES of the ghosts still loose at the end, at
+  // base points (no combo): it flies from where it rests, takes one, flies back.
+  const MOTH_CATCHES = 2;
+  async function mothsSwoop() {
+    const moths = (ctx.crypt && ctx.crypt.moths && ctx.crypt.moths()) || 0;
+    if (!hunt || !moths) return;
     hunt.swooping = true;
-    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, bats * BAT_CATCHES);
+    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, moths * MOTH_CATCHES);
     for (const g of loose) {
-      // Held still while the bat comes for it.
+      // Held still while the moth comes for it.
       g.held = true;
       await ctx.crypt.swoop(g.x + GHOST_W / 2, g.y + GHOST_H / 2);
-      catchGhost(g, { byBat: true });
+      catchGhost(g, { byMoth: true });
     }
-    if (loose.length) say(loose.length === 1 ? 'The bat took one.' : 'The bats took ' + loose.length + '.', 2500);
+    if (loose.length) say(loose.length === 1 ? 'The moth took one.' : 'The moths took ' + loose.length + '.', 2500);
     await new Promise((r) => setTimeout(r, loose.length ? 350 : 0));
   }
 
   // The hunt for `count` ghosts bursting out at `from`, a point or a list of
-  // them (a Gathering: out of every skeleton). `after` runs when it is over.
+  // them (a Gathering: out of every sprite). `after` runs when it is over.
   function startHunt(count, from, after) {
     // Six seconds, a second and a half for each of the first six ghosts, half
     // a second for each after; never more than half a minute.
@@ -352,7 +352,7 @@ export function createAbilities(ctx) {
     if (after) after();
   }
 
-  // Dropped on the skeleton at `index` (among the crypt's): reap it.
+  // Dropped on the sprite at `index` (among the garden's): reap it.
   async function reapAt(index) {
     if (hunt) return { ok: false, error: 'Already hunting.' };
     const box = ctx.crypt.diggerBox(index);
@@ -381,12 +381,12 @@ export function createAbilities(ctx) {
   }
 
   // --- Summon: the Gathering ------------------------------------------------------------------
-  // He calls every skeleton at once: all of them burst into their ghosts (and
+  // He calls every sprite at once: all of them burst into their ghosts (and
   // one more for each past the first) for one big hunt, then claw back up
   // empty. Reaping one is the snack; this is the feast. About one Gathering in
   // four, something else answers the call as well: a wraith, once the hunt is
-  // over. Never more than four in a row without one. With no skeletons yet,
-  // the grave gives him a first one.
+  // over. Never more than four in a row without one. With no sprites yet,
+  // the soil gives him a first one.
   const WRAITH_CHANCE = 0.25;
   const WRAITH_HP = 12;
   const WRAITH_MS = 20000;
@@ -395,7 +395,7 @@ export function createAbilities(ctx) {
   let sinceWraith = 0;
 
   async function gathering() {
-    // Where each skeleton stands, before they fall.
+    // Where each sprite stands, before they burst.
     const froms = ctx.crypt.diggerBoxes().map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
     const out = await companion.crypt({ gather: true });
     if (out.crypt) ctx.crypt.update(out.crypt);
@@ -405,7 +405,7 @@ export function createAbilities(ctx) {
     }
     if (!out.gathered) {
       sound.bell();
-      say('The grave answers.\nRise.', 3000);
+      say('The soil stirs.\nGrow.', 3000);
       return out;
     }
     const c = ctx.center();
@@ -414,7 +414,7 @@ export function createAbilities(ctx) {
     points.forEach((p, i) => setTimeout(() => ctx.puff(p.x, p.y), i * 90));
     sound.caught();
     say(out.gathered === 1 ? 'Come.\n' + out.ghosts + (out.ghosts === 1 ? ' ghost.' : ' ghosts.')
-      : 'The dead answer.\n' + out.ghosts + ' ghosts!', 3000);
+      : 'The garden answers.\n' + out.ghosts + ' ghosts!', 3000);
     const wraith = Math.random() < WRAITH_CHANCE || sinceWraith >= 4;
     sinceWraith = wraith ? 0 : sinceWraith + 1;
     startHunt(out.ghosts, points, wraith ? () => setTimeout(() => {
@@ -496,7 +496,7 @@ export function createAbilities(ctx) {
     if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
     if (won) {
       sound.bell();
-      say('Banished.\n+' + out.gained + ' souls' + (out.raised ? ', and a skeleton rises.' : '.'), 5000);
+      say('Banished.\n+' + out.gained + ' souls' + (out.raised ? ', and a moss sprite sprouts.' : '.'), 5000);
     } else {
       say('It got away.', 3000);
     }
@@ -678,7 +678,7 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'The Gathering: every skeleton bursts into its ghosts at once, for one big hunt. Sometimes a wraith answers too.',
+      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'The Gathering: every moss sprite bursts into its ghosts at once, for one big hunt. Sometimes a wraith answers too.',
       ready: () => (hunt ? 'Already hunting.' : null),
       cast: () => { gathering(); }
     },
@@ -696,7 +696,7 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
-      id: 'crypt', name: 'Crypt', cost: 0, school: 'soul', blurb: 'Your banked souls, and the skeletons they raise.',
+      id: 'crypt', name: 'Garden', cost: 0, school: 'soul', blurb: 'Your banked souls, and the garden they grow.',
       free: true,
       active: () => ctx.crypt.isOpen(),
       stop: () => ctx.crypt.close(),
@@ -800,7 +800,7 @@ export function createAbilities(ctx) {
         const out = await ctx.crypt.buy(input.upgrade);
         return out.ok ? { ok: true, result: { bought: out.name, level: out.level, souls: out.crypt.souls } } : { ok: false, error: out.error };
       }
-      case 'raise_skeleton': {
+      case 'raise_worker': {
         const count = input.count === undefined ? 1 : input.count;
         if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
         const kind = input.kind === undefined ? 'digger' : input.kind;

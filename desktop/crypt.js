@@ -1,26 +1,24 @@
-// The Crypt: the rules of the idle game, with no I/O, so the main process, the
-// page's browser stand-in, the tests and the pacing simulation all share them.
+// The Crypt (shown as the Garden): the rules of the idle game, with no I/O, so
+// the main process, the page's browser stand-in, the tests and the pacing
+// simulation all share them.
 //
 // Souls are banked here for good (the meter under the reaper is his energy, a
 // different thing). They come from what the user does: ghosts caught, files
-// reaped, focus timers finished. Souls raise skeletons, which dig up more souls
+// reaped, focus timers finished. Souls raise workers, which gather more souls
 // on their own, including while the user is away or the app is shut. Souls
 // also buy upgrades, and milestones pay a bonus the first time they are reached.
 //
-// Skeletons ripen as they dig: each holds one ghost, and one more for every
-// hour it has dug, up to six. Dropping the reaper on a skeleton reaps it: it
-// bursts into its ghosts, and a hunt begins. A ghost caught banks souls and
-// scores points; one that gets away is lost. Points add up to a score that
-// climbs ranks, each paying souls once.
+// The plain worker is the moss sprite (still `skeletons` and 'digger' inside,
+// so saves carry over). Its sprout grows as it works: one ghost, and one more
+// for every hour, up to six. Dropping the reaper on it reaps it: it bursts
+// into ghosts and a hunt begins. A ghost caught banks souls and scores points;
+// one that gets away is lost. Points climb ranks, each paying souls once. A
+// reaped sprite leaves a seed and sprouts back after a while. Summon's
+// Gathering reaps them all at once; now and then a wraith answers too.
 //
-// Reaped, a skeleton rises again empty. Summon's Gathering reaps them all at
-// once, for one big hunt; now and then a wraith answers too, which pays well
-// if it is beaten.
-//
-// Besides the plain skeleton there are workers unlocked by rank: the ghoul
-// digs twice as much but holds no ghosts; the bat digs nothing but saves
-// ghosts that would get away in a hunt; the will-o'-wisp digs nothing but
-// makes the skeletons ripen faster.
+// Ranks open other workers: the toadstool gathers twice as much but grows no
+// ghosts; the moth saves ghosts that would get away in a hunt; the
+// will-o'-wisp makes the sprouts grow faster.
 
 export const RATE_PER_HOUR = 1.5; // souls one skeleton digs up in an hour
 export const BASE_COST = 25;      // the first skeleton
@@ -49,7 +47,7 @@ export const WRAITH_SOULS = 60;
 export const WRAITH_PER_RANK = 30;
 // Ranks, by score; each pays its reward once, when it is reached.
 export const RANKS = [
-  { name: 'Gravekeeper', at: 0, reward: 0 },
+  { name: 'Groundskeeper', at: 0, reward: 0 },
   { name: 'Ghost catcher', at: 100, reward: 30 },
   { name: 'Soul warden', at: 400, reward: 80 },
   { name: 'Shade hunter', at: 1200, reward: 200 },
@@ -61,15 +59,15 @@ export const RANKS = [
 // `ghosts` whether it ripens, `price` its cost against the next plain one,
 // `rank` the rank that unlocks it, `most` how many can be raised.
 export const KINDS = [
-  { id: 'digger', name: 'Skeleton', blurb: 'Digs souls, and ripens with ghosts to reap.', dig: 1, ghosts: true, price: 1, rank: 0, most: Infinity },
-  { id: 'ghoul', name: 'Ghoul', blurb: 'Digs twice as much, but holds no ghosts.', dig: 2, ghosts: false, price: 2, rank: 1, most: Infinity },
-  { id: 'bat', name: 'Bat', blurb: 'Hangs about the top of the screen. In a hunt it swoops on two ghosts that would get away.', dig: 0, ghosts: false, price: 2, rank: 2, most: 3 },
-  { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Digs nothing, but every skeleton ripens a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
+  { id: 'digger', name: 'Moss sprite', blurb: 'Gathers souls while its sprout grows; reap it at full bloom for the most ghosts.', dig: 1, ghosts: true, price: 1, rank: 0, most: Infinity },
+  { id: 'toadstool', name: 'Toadstool', blurb: 'Gathers twice as much, but grows no ghosts.', dig: 2, ghosts: false, price: 2, rank: 1, most: Infinity },
+  { id: 'moth', name: 'Moth', blurb: 'Drawn to the light: when a hunt runs out it catches two ghosts that would get away.', dig: 0, ghosts: false, price: 2, rank: 2, most: 3 },
+  { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
 ];
-// Each bat saves this many ghosts a hunt.
-export const BAT_CATCHES = 2;
-// Saves from before the wisp: the lantern bearer it replaced.
-const RENAMED = { lantern: 'wisp' };
+// Each moth saves this many ghosts a hunt.
+export const MOTH_CATCHES = 2;
+// Workers from older saves, under their new names.
+const RENAMED = { lantern: 'wisp', ghoul: 'toadstool', bat: 'moth' };
 const KIND_BY_ID = new Map(KINDS.map((k) => [k.id, k]));
 const kindOf = (c, i) => KIND_BY_ID.get((c.kinds && c.kinds[i]) || 'digger') || KINDS[0];
 const counted = (c, id) => (c.kinds || []).filter((k) => k === id).length;
@@ -80,12 +78,12 @@ export const ripenSpeed = (c) => 1 + 0.25 * counted(c, 'wisp');
 // per level; `effect` says what a level gives, for the card.
 export const UPGRADES = [
   {
-    id: 'shovels', name: 'Sharper shovels', blurb: 'Every skeleton digs 25% faster.',
+    id: 'shovels', name: 'Green thumbs', blurb: 'Every worker gathers 25% faster.',
     costs: [60, 110, 200, 360, 650, 1200, 2100, 3800, 6800, 12000],
-    effect: (level) => '+' + level * 25 + '% digging'
+    effect: (level) => '+' + level * 25 + '% gathering'
   },
   {
-    id: 'graves', name: 'Deeper graves', blurb: 'They keep digging longer while the app is shut.',
+    id: 'graves', name: 'Deeper roots', blurb: 'They keep gathering longer while the app is shut.',
     costs: [90, 300, 1000],
     effect: (level) => [8, 12, 16, 24][level] + ' hours'
   },
@@ -109,22 +107,22 @@ const GOLDEN = [0.10, 0.16, 0.22, 0.30];
 // Milestones pay `reward` souls once. `how` is shown until it is reached.
 export const MILESTONES = [
   { id: 'glass1', name: 'First sand', how: 'Finish an hourglass', reward: 15, met: (c) => c.deeds.glasses >= 1 },
-  { id: 'bones1', name: 'It moves', how: 'Raise a skeleton', reward: 10, met: (c) => c.skeletons >= 1 },
+  { id: 'bones1', name: 'It stirs', how: 'Raise a moss sprite', reward: 10, met: (c) => c.skeletons >= 1 },
   { id: 'file1', name: 'A taste', how: 'Feed him a file', reward: 10, met: (c) => c.deeds.reaped >= 1 },
   { id: 'ghosts25', name: 'Ghost catcher', how: 'Catch 25 ghosts', reward: 25, met: (c) => c.deeds.caught >= 25 },
   { id: 'up1', name: 'Tools of the trade', how: 'Buy an upgrade', reward: 20, met: (c) => Object.values(c.upgrades).some((l) => l > 0) },
   { id: 'souls250', name: 'A full urn', how: 'Hold 250 souls over time', reward: 30, met: (c) => c.total >= 250 },
-  { id: 'bones5', name: 'A work crew', how: 'Raise 5 skeletons', reward: 50, met: (c) => c.skeletons >= 5 },
+  { id: 'bones5', name: 'A little grove', how: 'Raise 5 workers', reward: 50, met: (c) => c.skeletons >= 5 },
   { id: 'glass50', name: 'The long watch', how: 'Finish a 50-minute hourglass', reward: 50, met: (c) => c.deeds.longest >= 50 },
   { id: 'glass10', name: 'Keeper of sand', how: 'Finish 10 hourglasses', reward: 100, met: (c) => c.deeds.glasses >= 10 },
   { id: 'ghosts100', name: 'Ghost warden', how: 'Catch 100 ghosts', reward: 100, met: (c) => c.deeds.caught >= 100 },
   { id: 'files25', name: 'Glutton', how: 'Feed him 25 files', reward: 75, met: (c) => c.deeds.reaped >= 25 },
-  { id: 'souls2500', name: 'An ossuary', how: 'Hold 2,500 souls over time', reward: 200, met: (c) => c.total >= 2500 },
-  { id: 'bones10', name: 'A horde', how: 'Raise 10 skeletons', reward: 150, met: (c) => c.skeletons >= 10 },
+  { id: 'souls2500', name: 'A full meadow', how: 'Hold 2,500 souls over time', reward: 200, met: (c) => c.total >= 2500 },
+  { id: 'bones10', name: 'A garden', how: 'Raise 10 workers', reward: 150, met: (c) => c.skeletons >= 10 },
   { id: 'up10', name: 'Master of the craft', how: 'Buy 10 upgrade levels', reward: 250, met: (c) => Object.values(c.upgrades).reduce((a, b) => a + b, 0) >= 10 },
   { id: 'glass50x', name: 'Hourkeeper', how: 'Finish 50 hourglasses', reward: 500, met: (c) => c.deeds.glasses >= 50 },
-  { id: 'bones25', name: 'A legion', how: 'Raise 25 skeletons', reward: 600, met: (c) => c.skeletons >= 25 },
-  { id: 'souls25000', name: 'A necropolis', how: 'Hold 25,000 souls over time', reward: 2000, met: (c) => c.total >= 25000 }
+  { id: 'bones25', name: 'An old wood', how: 'Raise 25 workers', reward: 600, met: (c) => c.skeletons >= 25 },
+  { id: 'souls25000', name: 'An evergreen', how: 'Hold 25,000 souls over time', reward: 2000, met: (c) => c.total >= 25000 }
 ];
 
 const HOUR = 3600000;
@@ -230,9 +228,9 @@ export function raise(c, count = 1, kind = 'digger', now = Date.now()) {
     raised += 1;
   }
   if (raised) return { ok: true, raised, kind: k.id };
-  if (c.skeletons >= MAX_SKELETONS) return { ok: false, raised: 0, error: 'The crypt is full.' };
+  if (c.skeletons >= MAX_SKELETONS) return { ok: false, raised: 0, error: 'The garden is full.' };
   if (counted(c, k.id) >= k.most) return { ok: false, raised: 0, error: 'No more than ' + k.most + ' ' + k.name.toLowerCase() + 's.' };
-  return { ok: false, raised: 0, error: 'Not enough souls: the next ' + k.name.toLowerCase() + ' costs ' + kindCost(c, k.id) + ' and the crypt holds ' + Math.floor(c.souls) + '.' };
+  return { ok: false, raised: 0, error: 'Not enough souls: the next ' + k.name.toLowerCase() + ' costs ' + kindCost(c, k.id) + ' and the garden holds ' + Math.floor(c.souls) + '.' };
 }
 
 // How many ghosts a skeleton that began digging at `born` holds by `now`.
@@ -276,10 +274,10 @@ function tally(c, now) {
 export function reap(c, index = 0, now = Date.now()) {
   tally(c, now);
   const i = Math.floor(Number(index));
-  if (!c.skeletons) return { ok: false, error: 'No skeletons to reap. Raise one first.' };
-  if (!(i >= 0 && i < c.skeletons)) return { ok: false, error: 'No such skeleton.' };
+  if (!c.skeletons) return { ok: false, error: 'No moss sprites to reap. Raise one first.' };
+  if (!(i >= 0 && i < c.skeletons)) return { ok: false, error: 'No such worker.' };
   if (!kindOf(c, i).ghosts) return { ok: false, error: 'A ' + kindOf(c, i).name.toLowerCase() + ' holds no ghosts.' };
-  if (!awake(c, i, now)) return { ok: false, error: 'That grave is still settling.' };
+  if (!awake(c, i, now)) return { ok: false, error: 'That one is still a seed.' };
   const ghosts = holds(c, i, now);
   c.born.splice(i, 1);
   c.kinds.splice(i, 1);
@@ -299,7 +297,7 @@ export function gather(c, now = Date.now()) {
     const resting = c.born.filter((t, i) => kindOf(c, i).ghosts && t > now);
     if (resting.length) {
       const minutes = Math.max(1, Math.ceil((Math.min(...resting) - now) / 60000));
-      return { ok: false, error: 'The graves are still settling. The first rises in ' + minutes + (minutes === 1 ? ' minute.' : ' minutes.') };
+      return { ok: false, error: 'They are all still seeds. The first sprouts in ' + minutes + (minutes === 1 ? ' minute.' : ' minutes.') };
     }
     const risen = summon(c, now);
     return { ...risen, ghosts: 0, gathered: 0 };
@@ -348,7 +346,7 @@ function climb(c) {
 // Summon: a skeleton raised for the reaper's own soul, not banked souls.
 export function summon(c, now = Date.now()) {
   tally(c, now);
-  if (c.skeletons >= MAX_SKELETONS) return { ok: false, error: 'The crypt is full.' };
+  if (c.skeletons >= MAX_SKELETONS) return { ok: false, error: 'The garden is full.' };
   c.skeletons += 1;
   birth(c, now);
   return { ok: true, raised: 1 };
@@ -375,7 +373,7 @@ export function buy(c, id) {
   if (!u) return { ok: false, error: 'No such upgrade. There are: ' + UPGRADES.map((x) => x.id).join(', ') + '.' };
   const price = upgradeCost(c, id);
   if (price === null) return { ok: false, error: u.name + ' can go no further.' };
-  if (c.souls < price) return { ok: false, error: 'Not enough souls: ' + u.name + ' costs ' + price + ' and the crypt holds ' + Math.floor(c.souls) + '.' };
+  if (c.souls < price) return { ok: false, error: 'Not enough souls: ' + u.name + ' costs ' + price + ' and the garden holds ' + Math.floor(c.souls) + '.' };
   c.souls -= price;
   c.upgrades[id] = level(c, id) + 1;
   return { ok: true, upgrade: id, name: u.name, level: c.upgrades[id] };

@@ -416,7 +416,7 @@ function rebuildMenu() {
       click: (item) => { state.roam = item.checked; writeState(); send('settings', { roam: state.roam }); send('doors', doors()); }
     },
     {
-      label: 'Skeletons on screen', type: 'checkbox', checked: state.minions,
+      label: 'Garden on screen', type: 'checkbox', checked: state.minions,
       click: (item) => { state.minions = item.checked; writeState(); send('settings', { minions: state.minions }); }
     },
     { label: 'Hide', type: 'checkbox', checked: hidden, click: () => toggleHidden() }

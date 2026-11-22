@@ -1,9 +1,9 @@
 // The Crypt on the page: its card (the dig, upgrades, milestones), and the
-// skeletons that dig along the bottom of the screen. The rules and the saved
+// sprites that work along the bottom of the screen. The rules and the saved
 // numbers live in the main process (../crypt.js); this draws what it is told.
 import { el, chip } from './dom.js';
 
-// How many skeletons are drawn; the rest dig out of sight.
+// How many sprites are drawn; the rest work out of sight.
 const SHOWN = 8;
 
 const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
@@ -18,7 +18,7 @@ export function createCrypt(ctx) {
 
   // --- The card -------------------------------------------------------------
   const box = el('div', 'crypt');
-  const head = el('h2', null, 'CRYPT');
+  const head = el('h2', null, 'GARDEN');
   const close = el('button', 'card-x', '×');
   close.type = 'button';
   close.setAttribute('aria-label', 'Close');
@@ -26,7 +26,7 @@ export function createCrypt(ctx) {
   head.appendChild(close);
   const count = el('p', 'crypt-souls');
   const tabs = el('div', 'row crypt-tabs');
-  const TABS = [['dig', 'Dig'], ['upgrades', 'Upgrades'], ['milestones', 'Milestones']];
+  const TABS = [['dig', 'Garden'], ['upgrades', 'Upgrades'], ['milestones', 'Milestones']];
   const tabChips = TABS.map(([id, label]) => {
     const c = chip(label, () => { tab = id; paint(); card.refit(); });
     c.dataset.tab = id;
@@ -38,10 +38,10 @@ export function createCrypt(ctx) {
 
   function digPage() {
     const horde = el('p', 'muted', now.skeletons
-      ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.perHour + ' souls an hour.'
-      : 'No skeletons yet. The first costs ' + now.nextCost + ' souls.');
-    const how = el('p', 'muted', 'Skeletons dig souls, even while you are away (up to ' + now.awayCapHours +
-      ' hours with the app shut), and ripen as they dig: a ghost, and one more each hour, up to six. Drop him on a skeleton to reap it and hunt its ghosts; it rises again empty. Summon reaps them all at once, for one big hunt. Higher ranks open other kinds.');
+      ? (now.skeletons === 1 ? 'One worker gathers ' : now.skeletons + ' workers gather ') + now.perHour + ' souls an hour.'
+      : 'Nothing grows here yet. The first moss sprite costs ' + now.nextCost + ' souls.');
+    const how = el('p', 'muted', 'Moss sprites gather souls, even while you are away (up to ' + now.awayCapHours +
+      ' hours with the app shut), and tend a sprout that grows as they work: a ghost, and one more each hour, up to six at full bloom. Drop him on a sprite to reap it and hunt its ghosts; it leaves a seed that sprouts back in 30 minutes. Summon reaps them all at once, for one big hunt. Higher ranks open other workers.');
     // A raise button for each kind; the ones a rank has not opened say which.
     const kinds = el('div', 'crypt-kinds');
     for (const k of now.kinds || []) {
@@ -59,7 +59,7 @@ export function createCrypt(ctx) {
     }
     const row = el('div');
     const next = now.nextRank;
-    const rank = el('p', 'crypt-rank', 'Rank: ' + (now.rank || 'Gravekeeper') + ' · ' + (now.score || 0) + ' points' +
+    const rank = el('p', 'crypt-rank', 'Rank: ' + (now.rank || 'Groundskeeper') + ' · ' + (now.score || 0) + ' points' +
       (next ? '. ' + next.name + ' at ' + next.at + ' (+' + next.reward + ' souls).' : '. The highest rank.'));
     page.append(horde, rank, how, kinds, row);
   }
@@ -102,7 +102,7 @@ export function createCrypt(ctx) {
     crew();
   }
 
-  // --- The skeletons ----------------------------------------------------------
+  // --- The sprites ----------------------------------------------------------
   // They live along the bottom of the screen: each digs a while, leaves a
   // mound, and wanders somewhere new; now and then one hops, looks about or
   // naps. The riper one glows brighter (--ripe is how many ghosts it holds),
@@ -143,46 +143,6 @@ export function createCrypt(ctx) {
       if (diggers.every((o) => o === d || Math.abs((o.to ?? o.x) - x) > 46)) return x;
     }
     return rand(8, span());
-  }
-
-  // A mound of dirt where one dug. It stays until it is swept away (a click:
-  // a soul each); past sixteen, the oldest wears away on its own.
-  const MOST_MOUNDS = 16;
-  function mound(x) {
-    const m = el('div', 'mound hit');
-    m.title = 'Sweep it away';
-    m.style.left = Math.round(x + W_BONE / 2 - 12) + 'px';
-    m.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      e.stopPropagation();
-      sweepMound(m);
-    });
-    field.appendChild(m);
-    const all = [...field.querySelectorAll('.mound:not(.is-swept)')];
-    if (all.length > MOST_MOUNDS) all[0].remove();
-  }
-
-  async function sweepMound(m) {
-    if (m.classList.contains('is-swept')) return;
-    m.classList.add('is-swept');
-    const r = m.getBoundingClientRect();
-    for (let i = 0; i < 5; i++) {
-      const dust = el('div', 'dust');
-      dust.style.left = Math.round(r.left + 4 + i * 4) + 'px';
-      dust.style.setProperty('--dx', Math.round(rand(-14, 14)) + 'px');
-      field.appendChild(dust);
-      setTimeout(() => dust.remove(), 700);
-    }
-    setTimeout(() => m.remove(), 400);
-    const out = await companion.crypt({ sweep: 1 });
-    if (out.crypt) update(out.crypt);
-    if (out.ok) {
-      const pop = el('div', 'soul-pop is-souls', '+' + out.gained);
-      pop.style.left = Math.round(r.left + 4) + 'px';
-      pop.style.top = Math.round(r.top - 14) + 'px';
-      field.appendChild(pop);
-      setTimeout(() => pop.remove(), 900);
-    }
   }
 
   // Picking one up: it dangles where the cursor holds it, and when let go it
@@ -233,10 +193,10 @@ export function createCrypt(ctx) {
     }, 350);
   }
 
-  // What a skeleton does next, once it is done with what it was doing.
+  // What a sprite does next, once it is done with what it was doing.
   function next(d) {
     const was = d.mode;
-    if (was === 'dig') mound(d.x);
+
     const roll = Math.random();
     if (was !== 'walk' && roll < 0.6) {
       const to = destination(d);
@@ -281,7 +241,7 @@ export function createCrypt(ctx) {
   }
   setInterval(tick, 500);
 
-  // He came near: the skeletons by his feet hop out of the way.
+  // He came near: the sprites by his feet hop out of the way.
   let lastNear = 0;
   function near(p, now = false) {
     const t = performance.now();
@@ -299,36 +259,36 @@ export function createCrypt(ctx) {
     }
   }
 
-  // --- Graves, bats and wisps -------------------------------------------------
-  // A reaped skeleton rests a while: a grave where it fell, until it climbs
-  // back up there. Bats flit about the top of the screen and hang from it;
-  // will-o'-wisps drift above the skeletons. Neither takes clicks.
-  const graves = new Map();    // bone id -> { node, x }
+  // --- Seeds, moths and wisps --------------------------------------------------
+  // A reaped sprite leaves a seed where it was, until it sprouts back there.
+  // Moths flutter about the top of the screen and rest against it;
+  // will-o'-wisps drift above the sprites. Neither takes clicks.
+  const graves = new Map();    // bone id -> { node, x }: its seed
   const flyers = [];           // { id, kind, node, mode, until }
 
   function grave(bone, x) {
     let g = graves.get(bone.id);
     if (!g) {
-      const node = el('div', 'grave');
+      const node = el('div', 'seed');
       node.style.left = Math.round(Math.max(8, Math.min(span(), x)) + W_BONE / 2 - 9) + 'px';
       field.appendChild(node);
       g = { node, x };
       graves.set(bone.id, g);
     }
-    g.node.title = 'Resting. It rises in ' + bone.rest + (bone.rest === 1 ? ' minute.' : ' minutes.');
+    g.node.title = 'A seed. It sprouts in ' + bone.rest + (bone.rest === 1 ? ' minute.' : ' minutes.');
     return g;
   }
 
   function flyer(bone) {
     let f = flyers.find((x) => x.id === bone.id);
     if (f) return f;
-    const node = el('div', bone.kind === 'bat' ? 'bat' : 'wisp-worker');
+    const node = el('div', bone.kind === 'moth' ? 'moth' : 'wisp-worker');
     node.style.animationDelay = (-Math.random()).toFixed(2) + 's';
     field.appendChild(node);
     f = { id: bone.id, kind: bone.kind, node, mode: '', until: 0, x: rand(40, innerWidth - 80), y: 0 };
     flyers.push(f);
-    node.title = bone.kind === 'bat' ? 'A bat: in a hunt, it catches ghosts that would get away' : "A will-o'-wisp: the skeletons ripen faster";
-    place(f, f.x, bone.kind === 'bat' ? 0 : innerHeight - 140, 0);
+    node.title = bone.kind === 'moth' ? 'A moth: in a hunt, it catches ghosts that would get away' : "A will-o'-wisp: the sprouts grow faster";
+    place(f, f.x, bone.kind === 'moth' ? 0 : innerHeight - 140, 0);
     nextFlight(f);
     return f;
   }
@@ -341,10 +301,10 @@ export function createCrypt(ctx) {
     f.node.style.top = Math.round(f.y) + 'px';
   }
 
-  // What a bat or a wisp does next.
+  // What a moth or a wisp does next.
   function nextFlight(f) {
     const t = performance.now();
-    if (f.kind === 'bat') {
+    if (f.kind === 'moth') {
       if (f.mode !== 'fly' && !still) {
         // Off it flits, somewhere in the top of the screen.
         const seconds = rand(2.5, 5);
@@ -354,7 +314,7 @@ export function createCrypt(ctx) {
         f.mode = 'fly';
         f.until = t + seconds * 1000;
       } else {
-        // Up to the top edge, to hang there a while.
+        // Up to the top edge, to rest there a while, wings open.
         f.node.classList.remove('is-flying');
         place(f, f.x, 0, still ? 0 : 0.8);
         f.mode = 'hang';
@@ -362,7 +322,7 @@ export function createCrypt(ctx) {
       }
       return;
     }
-    // A wisp drifts over to hover above one of the skeletons.
+    // A wisp drifts over to hover above one of the sprites.
     const ground = diggers.filter((d) => d.kind === 'digger' && d.mode !== 'held');
     const over = ground.length ? ground[Math.floor(Math.random() * ground.length)] : null;
     const x = over ? over.x + W_BONE / 2 - 16 + rand(-10, 10) : rand(40, innerWidth - 80);
@@ -387,7 +347,7 @@ export function createCrypt(ctx) {
       if (!bone || !bone.rest) {
         g.node.remove();
         graves.delete(id);
-        // Risen: it climbs out where its grave was.
+        // Sprouted: it comes up where its seed was.
         if (bone) fallen.unshift(g.x);
       }
     }
@@ -395,12 +355,14 @@ export function createCrypt(ctx) {
       if (!ids.has(flyers[i].id)) flyers.splice(i, 1)[0].node.remove();
     }
     for (const bone of want) {
-      if (bone.kind === 'bat' || bone.kind === 'wisp') { flyer(bone); continue; }
+      if (bone.kind === 'moth' || bone.kind === 'wisp') { flyer(bone); continue; }
       if (bone.rest) { grave(bone, graves.has(bone.id) ? graves.get(bone.id).x : fallen.length ? fallen.shift() : rand(8, span())); continue; }
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
         const node = el('div', 'digger hit');
         node.style.animationDelay = (-Math.random() * 1.2).toFixed(2) + 's';
+        // Its sprout, which shows how ripe it is.
+        node.appendChild(el('div', 'sprout'));
         field.appendChild(node);
         d = { id: bone.id, node, x: 0, to: null, mode: 'dig', until: 0, left: false };
         const me = d;
@@ -420,29 +382,30 @@ export function createCrypt(ctx) {
       }
       d.ripe = bone.ripe;
       d.kind = bone.kind || 'digger';
-      d.node.classList.toggle('is-ghoul', d.kind === 'ghoul');
+      d.node.classList.toggle('is-toadstool', d.kind === 'toadstool');
       d.node.style.setProperty('--ripe', bone.ripe);
+      d.node.style.setProperty('--stage', Math.max(1, Math.min(6, bone.ripe)));
       d.node.classList.toggle('is-ripe', bone.ripe >= 6);
-      d.node.title = d.kind === 'ghoul' ? 'A ghoul: digs hard, holds no ghosts'
-        : bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
+      d.node.title = d.kind === 'toadstool' ? 'A toadstool: gathers hard, grows no ghosts'
+        : bone.ripe >= 6 ? 'In full bloom: 6 ghosts' : bone.ripe === 1 ? 'A seedling: 1 ghost' : 'Growing: ' + bone.ripe + ' ghosts';
     }
     fallen.length = 0;
   }
 
-  // Graves settle on their own time: look again each minute while there are any.
+  // Seeds sprout on their own time: look again each minute while there are any.
   setInterval(async () => {
     if (!graves.size || document.hidden) return;
     const out = await companion.crypt({});
     if (out && out.crypt) update(out.crypt);
   }, 60000);
 
-  // A bat swoops from wherever it is to a point (a ghost getting away) and
+  // A moth flutters from wherever it is to a point (a ghost getting away) and
   // back. Resolves when it gets there. One flies in from the top if none is drawn.
   function swoop(x, y) {
     return new Promise((resolve) => {
-      const bats = flyers.filter((f) => f.kind === 'bat');
-      const from = bats.length ? bats[Math.floor(Math.random() * bats.length)] : null;
-      const node = el('div', 'bat is-flying is-swooping');
+      const moths = flyers.filter((f) => f.kind === 'moth');
+      const from = moths.length ? moths[Math.floor(Math.random() * moths.length)] : null;
+      const node = el('div', 'moth is-flying is-swooping');
       const start = from ? { x: from.x, y: from.y } : { x: x < innerWidth / 2 ? -60 : innerWidth, y: 0 };
       if (from) from.node.style.visibility = 'hidden';
       node.style.left = Math.round(start.x) + 'px';
@@ -465,8 +428,8 @@ export function createCrypt(ctx) {
   }
 
 
-  // Which drawn skeleton is under a point (the reaper's feet), as its place
-  // among the crypt's skeletons, or -1.
+  // Which drawn sprite is under a point (the reaper's feet), as its place
+  // among the garden's sprites, or -1.
   function diggerAt(p) {
     if (!p) return -1;
     const PAD = 18;
@@ -479,7 +442,7 @@ export function createCrypt(ctx) {
     return hit ? (now.bones || []).findIndex((b) => b.id === hit.id) : -1;
   }
 
-  // Light up the skeleton under a point; null puts the light out.
+  // Light up the sprite under a point; null puts the light out.
   function aim(p) {
     const i = diggerAt(p);
     const id = i >= 0 ? now.bones[i].id : null;
@@ -487,15 +450,15 @@ export function createCrypt(ctx) {
     return i;
   }
 
-  // Where a drawn skeleton is on screen, by its place among the crypt's.
+  // Where a drawn sprite is on screen, by its place among the garden's.
   function diggerBox(index) {
     const bone = (now.bones || [])[index];
     const d = bone && diggers.find((x) => x.id === bone.id);
     return d ? d.node.getBoundingClientRect() : null;
   }
 
-  // Where every drawn skeleton is on screen.
-  // (The Gathering's ghosts come out of the skeletons, not the ghouls.)
+  // Where every drawn sprite is on screen.
+  // (The Gathering's ghosts come out of the moss sprites, not the toadstools.)
   function diggerBoxes() {
     return diggers.filter((d) => d.kind === 'digger').map((d) => d.node.getBoundingClientRect());
   }
@@ -516,8 +479,8 @@ export function createCrypt(ctx) {
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
-      const what = { ghoul: 'Ghoul, rise.', bat: 'Wings in the dark.', wisp: 'A light that is not yours to follow.' }[out.kind];
-      say(what && out.raised === 1 ? what : out.raised === 1 ? 'Rise.' : out.raised + ' rise.', 2500);
+      const what = { toadstool: 'Up comes a toadstool.', moth: 'Wings, at the window.', wisp: 'A light that is not yours to follow.' }[out.kind];
+      say(what && out.raised === 1 ? what : out.raised === 1 ? 'Grow.' : out.raised + ' sprout.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);
     }
@@ -553,7 +516,7 @@ export function createCrypt(ctx) {
     const before = now;
     now = { ...now, ...next };
     paint();
-    // Souls for a deed pop over the reaper; what the skeletons dug, over them.
+    // Souls for a deed pop over the reaper; what the garden gathered, over them.
     if (event.gained) ctx.pop('+' + event.gained, 'is-souls');
     else if (event.dug && next.souls > before.souls) unearthed(next.souls - before.souls);
     celebrate(event.reached);
@@ -561,7 +524,7 @@ export function createCrypt(ctx) {
 
   companion.onCrypt((event) => { if (event && event.crypt) update(event.crypt, event); });
 
-  // A skeleton half fades while the cursor is over it, to show what is
+  // A sprite half fades while the cursor is over it, to show what is
   // underneath and that it can be picked up. This goes by the cursor position
   // the app sends, which arrives whether or not the window takes the mouse.
   const SLACK = 6;
@@ -590,18 +553,18 @@ export function createCrypt(ctx) {
     diggerBoxes,
     near,
     swoop,
-    // How many bats the crypt has (each saves two ghosts a hunt).
-    bats: () => ((now.kinds || []).find((k) => k.id === 'bat') || { count: 0 }).count,
+    // How many moths the garden has (each saves two ghosts a hunt).
+    moths: () => ((now.kinds || []).find((k) => k.id === 'moth') || { count: 0 }).count,
     // One is in the hand: the window keeps taking the mouse until it is let go.
     holding: () => !!held,
-    // Every skeleton moves on to whatever it does next (for the tests).
+    // Every sprite moves on to whatever it does next (for the tests).
     stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
-    // "The skeletons dug up 12 souls." for the away report, or '' for nothing.
+    // "The sprites gathered 12 souls." for the away report, or '' for nothing.
     report(dug) {
       if (!(dug >= 1)) return '';
-      return 'The skeletons dug up ' + souls(dug) + '.';
+      return 'The garden gathered ' + souls(dug) + '.';
     }
   };
 }
