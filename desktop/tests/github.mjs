@@ -27,6 +27,7 @@ const fake = (state = {}) => async (cmd, args, opts) => {
     if (args[0] === 'for-each-ref') return { ok: true, out: 'reaper/bone-hound|2 hours ago|Reaper works on himself: add a bone hound\n' };
     return { ok: true, out: '' };
   }
+  if (args.includes('--jq')) return { ok: true, out: 'me/y2k-site\n' };
   if (args.includes('--log-failed')) return { ok: true, out: 'desktop\tstep\tFAIL  the ghosts are too fast\n' };
   const key = args.slice(0, 2).join(' ');
   if (key in replies) return { ok: true, out: JSON.stringify(replies[key]) };
@@ -47,11 +48,13 @@ out = await g.read({ what: 'run', number: 99 });
 check('a failed run, with the end of its log', out.ok && out.result.result === 'failure' && out.result.failedLogTail.includes('the ghosts are too fast'));
 out = await g.read({ what: 'my_branches' });
 check('his own branches', out.ok && out.result.branches[0].branch === 'reaper/bone-hound');
-for (const [bad, input] of [['a repo that is not owner/name', { what: 'prs', repo: 'x; rm -rf ~' }], ['an issue with no number', { what: 'issue' }], ['something unknown', { what: 'secrets' }]]) {
+for (const [bad, input] of [['an issue with no number', { what: 'issue' }], ['something unknown', { what: 'secrets' }]]) {
   const n = calls.length;
   out = await g.read(input);
   check('refused: ' + bad, !out.ok && calls.length === n, out.error);
 }
+out = await g.read({ what: 'prs', repo: 'x; rm -rf ~' });
+check('a repository name that is not one never reaches gh', !calls.some((c) => c.args.some((a) => a.includes('rm -rf'))));
 
 // Asking, in so many words.
 check('the questions name what will happen', g.describe({ action: 'merge_pr', number: 7 }) === 'Merge pull request #7?' &&
@@ -89,6 +92,14 @@ g = createGithub({ repoDir, run: fake() });
 calls.length = 0;
 out = await g.read({ what: 'runs', repo: 'user/repo' });
 check('a placeholder repository means his own', out.ok && !last().args.includes('-R'));
+for (const mine of ['your-repo', 'my repo', 'owner/name']) {
+  out = await g.read({ what: 'runs', repo: mine });
+  check('"' + mine + '" means his own, and the answer says which', out.ok && !calls.some((c) => c.args.includes(mine)) && out.result.repo, JSON.stringify(out.result).slice(0, 80));
+}
+out = await g.read({ what: 'prs', repo: 'https://github.com/octo/cat/pull/3' });
+check('a github.com link names its repository', out.ok && last().args.includes('octo/cat') && out.result.repo === 'octo/cat');
+check('and the question says which repository', g.describe({ action: 'merge_pr', number: 3, repo: 'github.com/octo/cat' }) === 'Merge pull request #3 on octo/cat?' &&
+  g.describe({ action: 'merge_pr', number: 3, repo: 'your-repo' }) === 'Merge pull request #3?');
 g = createGithub({ repoDir, run: fake({ fail: 'GraphQL: Could not resolve to a Repository with the name \'octo/nope\'. (repository)' }) });
 out = await g.read({ what: 'runs', repo: 'octo/nope' });
 check('a repository that is not there is said so, not that gh is missing', !out.ok && /No such repository/.test(out.error) && !/not installed/.test(out.error), out.error);

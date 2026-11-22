@@ -44,6 +44,14 @@ function trouble(out) {
   return error.slice(0, 300);
 }
 
+// owner/name from what was given ("octo/cat", a github.com link), or null:
+// anything else (a placeholder, "your-repo") means his own repository.
+export function named(raw) {
+  const s = String(raw || '').trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//i, '').replace(/\.git$/i, '');
+  const two = s.split('/').filter(Boolean).slice(0, 2).join('/');
+  return REPO.test(two) && !PLACEHOLDER.test(two) ? two : null;
+}
+
 // What small models put in when they mean "the user's own".
 const PLACEHOLDER = /^(user|owner|username|your-?username|me|my|example|you)\/(repo|name|repository|my-?repo|project)$/i;
 
@@ -53,12 +61,18 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   const git = found(GIT_PLACES, 'git');
 
   function where(input) {
-    if (input.repo !== undefined && input.repo !== null && input.repo !== '' && !PLACEHOLDER.test(String(input.repo))) {
-      if (!REPO.test(String(input.repo))) return { error: 'repo must look like owner/name' };
-      return { args: ['-R', String(input.repo)], cwd: repoDir || undefined, name: String(input.repo) };
-    }
+    const other = named(input.repo);
+    if (other) return { args: ['-R', other], cwd: repoDir || undefined, name: other };
     if (!repoDir || !fs.existsSync(repoDir)) return { error: "I don't know which repository: name one as owner/name." };
     return { args: [], cwd: repoDir, name: null };
+  }
+  // His own repository's name, asked once, so every answer can say which it was.
+  let own = null;
+  async function ownName() {
+    if (own) return own;
+    const out = await run(gh, ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], { cwd: repoDir });
+    if (out.ok && REPO.test(out.out.trim())) own = out.out.trim();
+    return own;
   }
   const number = (n) => (Number.isInteger(n) && n > 0 && n < 1e7 ? String(n) : null);
 
@@ -69,6 +83,16 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   }
 
   async function read(input = {}) {
+    const out = await reading(input);
+    // Say which repository the answer is about.
+    if (out.ok && input.what !== 'notifications' && out.result && !out.result.repo) {
+      const name = named(input.repo) || (repoDir ? await ownName() : null);
+      if (name) out.result = { repo: name, ...out.result };
+    }
+    return out;
+  }
+
+  async function reading(input = {}) {
     const what = input.what;
     if (!READS.includes(what)) return { ok: false, error: 'what must be one of ' + READS.join(', ') };
     if (what === 'notifications') {
@@ -153,7 +177,8 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
 
   // A sentence for the page to ask with, before anything is changed; null if the input is wrong.
   function describe(input = {}) {
-    const on = input.repo ? ' on ' + input.repo : '';
+    const other = named(input.repo);
+    const on = other ? ' on ' + other : '';
     switch (input.action) {
       case 'create_issue': return input.title ? 'Open an issue' + on + ': “' + String(input.title).slice(0, 80) + '”?' : null;
       case 'comment': return number(input.number) && input.body ? 'Comment on #' + input.number + on + ': “' + String(input.body).slice(0, 80) + '”?' : null;
