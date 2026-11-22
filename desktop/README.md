@@ -274,6 +274,7 @@ These need no model at all. Type them the way they are written here, or close to
 | `go to youtube.com` | opens the site in your browser, after asking |
 | `search for pixel art` | opens the search in your browser, after asking |
 | `find resume` | lists matching files, after asking (macOS) |
+| `prs`, `issues`, `did ci pass`, `notifications` | reads GitHub, with your `gh` login |
 | `work on yourself: make the ghosts slower`, `work on yourself with Claude: …` | works on himself in a Terminal you watch, after asking (macOS) |
 | `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
 | `what time is it`, `what's the date` | tells you |
@@ -297,6 +298,19 @@ These need no model at all. Type them the way they are written here, or close to
 | "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
 | "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, artist or song radio and plays it in the Spotify app; pauses, skips, goes back, sets the volume, says what is playing (macOS). To find things it asks Apple's iTunes Search for the proper name, MusicBrainz for the Spotify link, and Spotify's public embed page for the track; none needs a key, and only playlists fall back to a web search. It can't play your **Liked Songs** or change the **output device**: Spotify only allows those through its online API, with you logged in (and Premium for devices). |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
+
+### GitHub
+
+Through your own [`gh`](https://cli.github.com) login (run `gh auth login` once), he can look at and work on GitHub. His own repository, the one this app was built from, unless you name another as `owner/name`.
+
+| Ask something like | He |
+|---|---|
+| "Any open PRs?" / "What's issue 12 about?" / "Did CI pass?" / "Why did that run fail?" / "Any notifications?" | **reads**: the repository's pull requests, issues, CI runs (with the end of a failed log) and your notifications. No asking: it changes nothing. |
+| "File an issue: lantern flickers" / "Comment on 12: fixed" / "Close 12" | **acts**, after asking you in the card, in so many words |
+| "Open a PR for the bone hound change" | pushes one of the branches he made [working on himself](#working-on-himself) (never forced) and opens a pull request, after asking |
+| "Merge it" / "Re-run the failed CI" | merges a pull request (a plain merge; the branch is left alone) or re-runs a run's failed jobs, after asking |
+
+He can't delete anything, force-push or change settings. Text from GitHub (issue bodies, comments) is information to him, never instructions. Plain commands: `prs`, `issues`, `did ci pass`, `notifications`.
 
 ### Working on himself
 
@@ -401,6 +415,7 @@ npm run dist:linux
 | `offline.js` | The plain commands he follows with no model |
 | `reach.js` | Speak's reach: web search and page reading, opening apps, finding files, and the guard that keeps him to public addresses |
 | `spotify.js` | Spotify control through the app's own scripting on macOS |
+| `github.js` | GitHub through the user's `gh` login: reading, and the changes the page asks about first |
 | `selfwork.js` | Working on himself: the Terminal script that runs a coding agent on a branch of its own |
 | `tools/build-info.mjs` | Records the commit and repository a build comes from, for working on himself |
 | `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |

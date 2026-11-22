@@ -827,6 +827,15 @@ export function createAbilities(ctx) {
         if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
         return companion.findFiles(input.query);
       }
+      // GitHub: reading is free; any change is asked, in the words the app gives.
+      case 'github_read':
+        return companion.github('read', input);
+      case 'github_act': {
+        const question = await companion.github('describe', input);
+        if (!question) return { ok: false, error: 'That is not something I can do on GitHub, or a field is missing.' };
+        if (!(await ctx.speak.ask(question))) return { ok: false, error: 'The user said no.' };
+        return companion.github('act', input);
+      }
       // Working on himself: a coding agent in a Terminal the user watches.
       case 'work_on_myself': {
         if (typeof input.request !== 'string' || !input.request.trim()) return { ok: false, error: 'request must say what to change' };

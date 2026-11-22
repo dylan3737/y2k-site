@@ -73,6 +73,12 @@ function browserStandIn() {
     async openUrl(url) { (window.__companion.opened ||= []).push(url); return { ok: true, result: { opened: url } }; },
     async openApp(name) { (window.__companion.opened ||= []).push('app:' + name); return { ok: true, result: { opened: name } }; },
     async findFiles(query) { return { ok: true, result: { query, files: [{ path: '~/Documents/' + query + '.txt', kind: 'file', modified: '2026-01-01' }] } }; },
+    async github(mode, input) {
+      const g = window.__companion.github ||= { done: [] };
+      if (mode === 'describe') return input.action && (input.title || input.number || input.branch) ? 'Do ' + input.action + (input.number ? ' #' + input.number : '') + '?' : null;
+      if (mode === 'act') { g.done.push(input); return { ok: true, result: { done: input.action } }; }
+      return { ok: true, result: { pullRequests: [{ number: 7, title: 'A bone hound', branch: 'reaper/bone-hound' }] } };
+    },
     async selfWork(input) { (window.__companion.selfWork ||= []).push(input); return { ok: true, result: { opened: 'Terminal', engine: input.engine === 'claude' ? 'Claude Code' : 'OpenCode on Qwen3-Coder 30B', branch: 'reaper/test' } }; },
     async spotify(input) { (window.__companion.spotify ||= []).push(input); return { ok: true, result: input.action === 'pause' ? { paused: true } : { playing: input.query ? input.query + ' by Someone' : 'A song by Someone' } }; },
     async openFile(file, reveal) { (window.__companion.opened ||= []).push((reveal ? 'show:' : 'file:') + file); return { ok: true, result: { opened: file } }; },

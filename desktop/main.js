@@ -13,6 +13,7 @@ import { createFreeMind, serverPath } from './freemind.js';
 import * as reach from './reach.js';
 import { spotify } from './spotify.js';
 import * as selfwork from './selfwork.js';
+import { createGithub } from './github.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
@@ -454,9 +455,9 @@ const pendingTools = new Map();
 let toolSeq = 0;
 
 // Tools that wait for the user to allow them get longer to answer.
-const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file', 'work_on_myself'];
+const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file', 'work_on_myself', 'github_act'];
 // Tools that go out to the web get longer too.
-const SLOW = ['web_search', 'read_webpage', 'spotify'];
+const SLOW = ['web_search', 'read_webpage', 'spotify', 'github_read', 'github_act'];
 
 function runTool(name, input, signal) {
   return new Promise((resolve) => {
@@ -575,6 +576,16 @@ function wireIpc() {
   });
   ipcMain.handle('open-app', (_e, name) => reach.openApp(name));
   ipcMain.handle('spotify', (_e, input) => spotify(input && typeof input === 'object' ? input : {}));
+  // GitHub through the user's own gh login (github.js): his own repository
+  // unless another is named. The page asks before anything is changed, with
+  // the sentence 'describe' gives it.
+  const github = createGithub({ repoDir: (selfwork.readBuildInfo(path.join(app.getAppPath(), 'build-info.json')) || {}).repo || null });
+  ipcMain.handle('github', (_e, { mode, input } = {}) => {
+    const i = input && typeof input === 'object' ? input : {};
+    if (mode === 'describe') return github.describe(i);
+    if (mode === 'act') return github.act(i);
+    return github.read(i);
+  });
   // Working on himself: a script in Terminal the user watches (selfwork.js).
   // Asked in the page first. The local coding mind needs the memory, so the
   // free mind is put to sleep first.

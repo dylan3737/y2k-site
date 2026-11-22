@@ -24,6 +24,8 @@ const TOOL_LINES = {
   open_app: (i) => '✦ asks to open ' + (typeof i.name === 'string' ? i.name : 'an app'),
   find_files: () => '✦ asks to look through your files',
   open_file: () => '✦ asks to open a file',
+  github_read: (i) => '✦ looks at GitHub' + (i.what ? ': ' + String(i.what).replace('_', ' ') + (i.number ? ' #' + i.number : '') : ''),
+  github_act: (i) => '✦ asks to ' + String(i.action || 'act').replace('_', ' ') + ' on GitHub',
   work_on_myself: (i) => '✦ asks to work on himself' + (i.engine === 'claude' ? ', with Claude' : ''),
   spotify: (i) => ({ pause: '✦ pauses Spotify', next: '✦ skips the song', previous: '✦ goes back a song', now_playing: '✦ listens', volume: '✦ turns Spotify ' + (i.volume ?? '') }[i.action] ||
     '✦ plays ' + (typeof i.query === 'string' && i.query ? i.query : 'Spotify'))

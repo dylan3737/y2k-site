@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('companion', {
   openFile: (file, reveal) => ipcRenderer.invoke('open-file', { file, reveal }),
   spotify: (input) => ipcRenderer.invoke('spotify', input),
   selfWork: (input) => ipcRenderer.invoke('self-work', input),
+  github: (mode, input) => ipcRenderer.invoke('github', { mode, input }),
   trash: (paths) => ipcRenderer.invoke('trash', paths),
   pathForFile: (file) => webUtils.getPathForFile(file),
   setAbilities: (list) => ipcRenderer.send('abilities', list),

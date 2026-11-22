@@ -59,13 +59,15 @@ try {
   events = await ask('what did I just ask you to remind me about?');
   check('it remembers the conversation', /oven/i.test(words(events)), words(events).slice(0, 120));
 
+  let told = '';
   const hushed = new Promise((resolve) => oracle.ask('tell me a very long story about a lighthouse keeper', (e) => {
+    if (e.type === 'delta') told += e.text;
     if (e.type === 'error' || e.type === 'done') resolve(e);
   }));
   await new Promise((r) => setTimeout(r, 1500));
   oracle.stop();
   const ended = await Promise.race([hushed, new Promise((r) => setTimeout(() => r('timeout'), 5000))]);
-  check('Hush stops it mid-answer', ended !== 'timeout' && ended.code === 'stopped', JSON.stringify(ended));
+  check('Hush stops it mid-answer', ended !== 'timeout' && ended.code === 'stopped', JSON.stringify(ended) + ' after ' + told.length + ' characters: ' + JSON.stringify(told.slice(0, 120)));
   events = await ask('say hi');
   check('and it answers again after', events.at(-1).type === 'done' && words(events).length > 0);
   freeMind.unload();

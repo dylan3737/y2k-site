@@ -559,6 +559,19 @@ try {
   outcome = await toolOut();
   check('and shows it', outcome && outcome.ok && (await page.evaluate(() => window.__companion.opened)).includes('show:~/Documents/resume.txt'));
 
+  await toolCall('github_read', { what: 'prs' });
+  outcome = await toolOut();
+  check('GitHub reads without asking', outcome && outcome.ok && outcome.result.pullRequests[0].number === 7 && !(await page.$('.ask:not(.is-answered)')));
+  await toolCall('github_act', { action: 'merge_pr', number: 7 });
+  await page.waitForTimeout(150);
+  check('changing GitHub asks first, in so many words', (await page.textContent('.ask:not(.is-answered)')).includes('merge_pr #7'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Not now")');
+  outcome = await toolOut();
+  check('declined, GitHub is left alone', outcome && !outcome.ok && !(await page.evaluate(() => (window.__companion.github || { done: [] }).done.length)));
+  await toolCall('github_act', { action: 'delete_repo' });
+  outcome = await toolOut();
+  check('and what it cannot do is not even asked', outcome && !outcome.ok && !(await page.$('.ask:not(.is-answered)')));
+
   await toolCall('work_on_myself', { request: 'make the ghosts slower' });
   await page.waitForTimeout(150);
   check('working on himself asks first, saying with what', (await page.textContent('.ask:not(.is-answered)')).includes('his own coding mind') &&

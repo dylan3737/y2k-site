@@ -21,6 +21,7 @@ export const HELP = [
   '• pause / next song / what\'s playing',
   '• open Spotify / go to youtube.com / search for pixel art',
   '• find resume',
+  '• prs / issues / did ci pass / notifications (GitHub)',
   '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -263,6 +264,18 @@ function reaching(text, original) {
       return out.ok ? 'A Terminal opens. Watch me work, on ' + out.result.branch + '.' : out.error || 'I could not.';
     };
   }
+  // GitHub, read only: anything that changes it goes through a mind, and asks.
+  const gh = (input, line) => async ({ tool }) => {
+    const out = await tool('github_read', input);
+    return out.ok ? line(out.result) : out.error || 'GitHub would not answer.';
+  };
+  const list = (items, show) => (items.length ? items.slice(0, 8).map((x) => '• ' + show(x)).join('\n') : 'None.');
+  if (/^(any |show |list |my )?(open )?(prs|pull requests)\??$/.test(text)) return gh({ what: 'prs' }, (r) => list(r.pullRequests, (p) => '#' + p.number + ' ' + p.title));
+  if (/^(any |show |list |my )?(open )?issues\??$/.test(text)) return gh({ what: 'issues' }, (r) => list(r.issues, (i) => '#' + i.number + ' ' + i.title));
+  if (/^(did (the )?ci pass|ci|ci status|how(('|’)s| is) ci|(show |list )?(ci )?runs)\??$/.test(text)) {
+    return gh({ what: 'runs' }, (r) => list(r.runs, (x) => x.title + ': ' + (x.result || x.status) + (x.branch ? ' (' + x.branch + ')' : '')));
+  }
+  if (/^(github )?notifications\??$/.test(text)) return gh({ what: 'notifications' }, (r) => list(r.notifications, (x) => x.repo + ': ' + x.title));
   // The user's own spelling of the last words, for what goes to a search.
   const words = (part) => original.trim().replace(/[!.?]+$/, '').replace(/\s+on spotify$/i, '').split(/\s+/).slice(-part.split(' ').length).join(' ');
   const music = (input, line) => async ({ tool }) => {
