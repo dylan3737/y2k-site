@@ -263,7 +263,6 @@ body.is-capturing * { visibility: hidden !important; }
   pointer-events: none;
 }
 .digger.is-ripe .sprout { filter: drop-shadow(0 0 4px rgba(255, 190, 225, 1)) drop-shadow(0 0 10px rgba(255, 160, 210, 0.7)); }
-.digger.is-toadstool .sprout { display: none; }
 @keyframes dig { to { background-position: calc(var(--sheet-w) * -1) 0; } }
 
 /* Walking: the shovel stops and he bobs along. */
@@ -280,13 +279,51 @@ body.is-capturing * { visibility: hidden !important; }
 .digger.is-rising { animation: dig 1.2s steps(var(--frames)) infinite, rise 0.8s ease-out; }
 @keyframes rise { from { translate: 0 62px; } }
 
-/* A toadstool: 24x28 pixel frames at twice the size, four of them. */
-.digger.is-toadstool {
-  width: 48px;
-  height: 56px;
-  background-image: url('../assets/toadstool.png');
-  background-size: 192px 56px;
+/* The other ground workers, each its own pixel sheet at twice the size. */
+.digger.is-snail { --sheet-w: 224px; width: 56px; height: 40px; background-image: url('../assets/snail.png'); background-size: 224px 40px; }
+.digger.is-frog { --sheet-w: 224px; width: 56px; height: 44px; background-image: url('../assets/frog.png'); background-size: 224px 44px; }
+.digger.is-caterpillar { --sheet-w: 176px; width: 44px; height: 20px; background-image: url('../assets/caterpillar.png'); background-size: 176px 20px; }
+.digger.is-robin { --sheet-w: 160px; width: 40px; height: 40px; background-image: url('../assets/robin.png'); background-size: 160px 40px; }
+.digger.is-ladybug { --sheet-w: 48px; --frames: 2; width: 24px; height: 20px; background-image: url('../assets/ladybug.png'); background-size: 48px 20px; }
+/* Crawlers keep their legs going as they go; frogs and robins hop along. */
+.digger.is-snail.is-walking, .digger.is-caterpillar.is-walking, .digger.is-ladybug.is-walking { animation: dig 1s steps(var(--frames)) infinite; }
+.digger.is-frog.is-walking, .digger.is-robin.is-walking { animation: dig 1.2s steps(var(--frames)) infinite paused, hop 0.45s ease-out infinite; }
+/* A frog sits and blinks; a robin pecks: their work runs slower. */
+.digger.is-frog, .digger.is-robin { animation-duration: 2.4s; }
+.digger:not(.is-digger) { filter: none; }
+
+/* The bloom on a snail's shell or a frog's lily pad: a bud that opens as it ripens (--stage 1-6). */
+.digger .bloom {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: url('../assets/bloom.png') calc((var(--stage, 1) - 1) * -20px) 0 / 120px 20px no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
+.digger.is-snail .bloom { left: 26px; top: -10px; }
+.digger.is-frog .bloom { left: 38px; top: 26px; }
+.digger.is-ripe .bloom { filter: drop-shadow(0 0 4px rgba(255, 190, 225, 1)) drop-shadow(0 0 10px rgba(255, 160, 210, 0.7)); }
+
+/* A bee: 14x12 pixel frames at twice the size, its wings a blur. */
+.bee {
+  position: fixed;
+  width: 28px;
+  height: 24px;
+  pointer-events: none;
+  background: url('../assets/bee.png') 0 0 / 56px 24px no-repeat;
+  image-rendering: pixelated;
+  transition-property: left, top;
+  transition-timing-function: ease-in-out;
+  animation: bee-buzz 0.12s steps(2) infinite, bob 1.4s ease-in-out infinite;
+  z-index: 6;
+}
+.bee.is-left { scale: -1 1; }
+@keyframes bee-buzz { to { background-position: -56px 0; } }
+
+/* A robin's song, and a bee's pollen. */
+.note { position: fixed; pointer-events: none; font: 12px/1 var(--pixel); color: #f6a078; text-shadow: 0 0 3px rgba(255, 220, 190, 0.9); animation: drift-up 2.4s ease-out forwards; }
+.pollen { position: fixed; width: 3px; height: 3px; pointer-events: none; background: #ffe58a; box-shadow: 0 0 4px 1px rgba(255, 220, 120, 0.9); animation: drift-up 1.4s ease-out forwards; }
 
 /* A seed where a reaped sprite was, until it sprouts back. */
 .seed {
@@ -390,7 +427,8 @@ body.is-capturing * { visibility: hidden !important; }
 @media (prefers-reduced-motion: reduce) {
   .digger, .digger.is-ripe, .digger.is-walking, .digger.is-hopping, .digger.is-rising, .digger.is-startled { animation: none !important; }
   .wisp, .snore { display: none; }
-  .moth.is-flying, .wisp-worker, .ghost.is-golden::before, .cocoon { animation: none; }
+  .moth.is-flying, .wisp-worker, .ghost.is-golden::before, .cocoon, .bee { animation: none; }
+  .note, .pollen { display: none; }
   .digger.is-held, .digger.is-landing { animation: none !important; }
 }
 

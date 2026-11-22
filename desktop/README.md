@@ -125,18 +125,24 @@ Higher ranks open other workers, each its own creature (all pixel art, like him)
 
 | Worker | Opens at | Price | What it does |
 |---|---|---|---|
-| **Moss sprite** | | ×1 | Gathers 1.5 souls an hour, and grows ghosts to reap. |
-| **Toadstool** | Ghost catcher | ×2 | A little mushroom-folk with a basket: gathers twice as many souls, and grows ghosts slowly, one every two hours, three at most. Reap it like a sprite; it leaves a seed and comes back a toadstool. |
-| **Moth** | Soul warden | ×2 | Flutters about the top of your screen and rests against it; pick it up and put it anywhere. Gathers nothing, but when a hunt runs out, it is drawn to the ghosts about to get away and catches two (at base points, no combo). Reap it (drop him so he touches it, or carry it down to him) for **two spirit-lights**; it rests as a cocoon hanging from the top for 30 minutes, and catches nothing meanwhile. Three at most. |
-| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the sprites. Gathers nothing, and can't be reaped, but every sprout grows a quarter faster for each one. Three at most. |
+| **Moss sprite** | | ×1 | Gathers 1.5 souls an hour; its sprout grows up to six ghosts, one an hour. |
+| **Snail** | Ghost catcher | ×2 | Inches along with a little garden on its shell. Gathers twice as much; the flower on its shell grows a ghost every two hours, three at most. |
+| **Frog** | Ghost catcher | ×1.5 | Sits on its lily pad, blinks, and hops now and then. Gathers half as much again; the lotus on its pad grows a ghost every hour and a half, four at most. |
+| **Bee** | Soul warden | ×2.5 | Buzzes from worker to worker and pollinates one now and then: it grows a ghost on the spot. Each worker once an hour; the bees, between them, once every 20 minutes. Three at most. |
+| **Moth** | Soul warden | ×2 | Starts as a **caterpillar** that inches about for a few hours, spins a cocoon at the top of the screen, and comes out a moth. The moth flutters about the top and rests against it; pick it up and put it anywhere. When a hunt runs out it catches two ghosts that would get away (at base points, no combo). Reap it (drop him so he touches it, or carry it down to him) for **two spirit-lights**; it rests as a cocoon meanwhile. Three at most. |
+| **Robin** | Shade hunter | ×3 | Hops about, pecks, and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two. Two at most. |
+| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the sprites. Every sprout grows a quarter faster for each one. Three at most. |
+| **Ladybug** | Wraith lord | ×3 | Crawls along the bottom of the screen. Each makes spirit-lights 5% more likely in a hunt, on top of the Ghost lure. Three at most. |
 
-(Older saves carry over: skeletons became moss sprites, ghouls toadstools, bats moths, lantern bearers wisps.)
+The sprite, the snail and the frog grow ghosts and can be reaped; so can a moth. The rest can't, and gather nothing: their help is their job.
+
+(Older saves carry over: skeletons became moss sprites, ghouls and toadstools snails, bats moths, lantern bearers wisps.)
 
 ### Reaping and the hunt
 
 A moss sprite's **sprout grows** as it works, so you can see how ripe it is: a seedling holds one ghost, and it grows one more for every hour, up to six, when it is in full bloom and glows.
 
-**Drag him onto a sprite** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **seed** where it was; after 30 minutes it sprouts back, a new sprite with a new seedling. Meanwhile it gathers nothing. A short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click them to catch them:
+**Drag him onto a sprite** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **seed** where it was; after 30 minutes (less with robins) it sprouts back, a new sprite with a new seedling. Meanwhile it gathers nothing. A short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click them to catch them:
 
 - Most are ghosts; now and then one is a **spirit-light**, a glowing orb worth three.
 - Each caught banks 10 souls (30 for a spirit-light) and scores 10 points (30 for a spirit-light), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
@@ -154,7 +160,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Wraith lord | 3,000 | 500 |
 | The Reaper's hand | 8,000 | 1,200 |
 
-**Summon is the Gathering**: he calls every moss sprite (and toadstool) at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
+**Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
 ### Upgrades
 

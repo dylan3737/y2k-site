@@ -16,9 +16,11 @@
 // reaped sprite leaves a seed and sprouts back after a while. Summon's
 // Gathering reaps them all at once; now and then a wraith answers too.
 //
-// Ranks open other workers: the toadstool gathers twice as much but grows no
-// ghosts; the moth saves ghosts that would get away in a hunt; the
-// will-o'-wisp makes the sprouts grow faster.
+// Ranks open other workers: the snail and the frog gather more and grow
+// fewer ghosts, more slowly; the bee pollinates (a ghost at once); the moth
+// starts as a caterpillar, catches escaping ghosts, and gives spirit-lights
+// when reaped; the robin shortens the rest after a reaping; the will-o'-wisp
+// makes sprouts grow faster; the ladybug brings more spirit-lights.
 
 export const RATE_PER_HOUR = 1.5; // souls one skeleton digs up in an hour
 export const BASE_COST = 25;      // the first skeleton
@@ -58,16 +60,30 @@ export const RANKS = [
 // The kinds of skeleton. `dig` is how much one digs against a plain one,
 // `ghosts` whether it ripens, `price` its cost against the next plain one,
 // `rank` the rank that unlocks it, `most` how many can be raised.
+// `ripest` the most ghosts it grows, `every` the hours each takes, `lights`
+// the spirit-lights a reaped one gives.
 export const KINDS = [
   { id: 'digger', name: 'Moss sprite', blurb: 'Gathers souls while its sprout grows; reap it at full bloom for the most ghosts.', dig: 1, ghosts: true, ripest: 6, every: 1, price: 1, rank: 0, most: Infinity },
-  { id: 'toadstool', name: 'Toadstool', blurb: 'Gathers twice as much; grows ghosts slowly, one every two hours, three at most.', dig: 2, ghosts: true, ripest: 3, every: 2, price: 2, rank: 1, most: Infinity },
-  { id: 'moth', name: 'Moth', blurb: 'Drawn to the light: when a hunt runs out it catches two ghosts that would get away. Reaped, it gives two spirit-lights and rests as a cocoon.', dig: 0, ghosts: false, lights: 2, price: 2, rank: 2, most: 3 },
-  { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
+  { id: 'snail', name: 'Snail', blurb: 'Inches along with a garden on its shell. Gathers twice as much; its flower grows ghosts slowly, three at most.', dig: 2, ghosts: true, ripest: 3, every: 2, price: 2, rank: 1, most: Infinity },
+  { id: 'frog', name: 'Frog', blurb: 'Sits on its lily pad. Gathers half as much again; its lotus grows a ghost every hour and a half, four at most.', dig: 1.5, ghosts: true, ripest: 4, every: 1.5, price: 1.5, rank: 1, most: Infinity },
+  { id: 'bee', name: 'Bee', blurb: 'Pollinates: buzzes to a worker and gives it a ghost on the spot (each worker once an hour).', dig: 0, ghosts: false, price: 2.5, rank: 2, most: 3 },
+  { id: 'moth', name: 'Moth', blurb: 'Starts as a caterpillar, spins a cocoon, and becomes a moth that catches two ghosts that would get away when a hunt runs out. Reaped, it gives two spirit-lights.', dig: 0, ghosts: false, lights: 2, price: 2, rank: 2, most: 3 },
+  { id: 'robin', name: 'Robin', blurb: 'Hops about and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two.', dig: 0, ghosts: false, price: 3, rank: 3, most: 2 },
+  { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 },
+  { id: 'ladybug', name: 'Ladybug', blurb: 'Brings luck: each one makes spirit-lights more likely in a hunt.', dig: 0, ghosts: false, price: 3, rank: 4, most: 3 }
 ];
 // Each moth saves this many ghosts a hunt.
 export const MOTH_CATCHES = 2;
+// A moth is a caterpillar this long, then a cocoon for the last half hour.
+export const METAMORPHOSIS_MS = 3 * 60 * 60000;
+export const COCOON_MS = 30 * 60000;
+// A bee pollinates once in this long (shared among the bees), and a worker
+// is pollinated at most once an hour.
+export const POLLEN_MS = 20 * 60000;
+// Each ladybug adds this to the chance of a spirit-light.
+export const LADYBUG_LUCK = 0.05;
 // Workers from older saves, under their new names.
-const RENAMED = { lantern: 'wisp', ghoul: 'toadstool', bat: 'moth' };
+const RENAMED = { lantern: 'wisp', ghoul: 'snail', toadstool: 'snail', bat: 'moth' };
 const KIND_BY_ID = new Map(KINDS.map((k) => [k.id, k]));
 const kindOf = (c, i) => KIND_BY_ID.get((c.kinds && c.kinds[i]) || 'digger') || KINDS[0];
 const counted = (c, id) => (c.kinds || []).filter((k) => k === id).length;
@@ -148,6 +164,10 @@ export function clean(raw, now = Date.now()) {
     kinds: [],
     // Ghosts let loose by the last reaping, and not yet hunted.
     loose: Math.floor(whole(c.loose, MAX_LOOSE)),
+    // Pollen from the bees, by worker; and when a bee last pollinated.
+    boosts: c.boosts && typeof c.boosts === 'object' ? Object.fromEntries(Object.entries(c.boosts)
+      .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(0, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
+    pollenAt: Number.isFinite(c.pollenAt) && c.pollenAt <= now ? c.pollenAt : 0,
     score: Math.floor(whole(c.score, 1e12)),
     rank: Math.floor(whole(c.rank, RANKS.length - 1)),
     done: Array.isArray(c.done) ? MILESTONES.map((m) => m.id).filter((id) => c.done.includes(id)) : [],
@@ -161,9 +181,9 @@ export function clean(raw, now = Date.now()) {
   // (Ones raised together are a millisecond apart, so the last can be just ahead.)
   const savedKinds = Array.isArray(c.born) && Array.isArray(c.kinds) && c.kinds.length === c.born.length ? c.kinds : [];
   const pairs = Array.isArray(c.born)
-    ? c.born.map((t, i) => [t, savedKinds[i]]).filter(([t]) => Number.isFinite(t) && t <= now + REST_MS + MAX_SKELETONS) : [];
+    ? c.born.map((t, i) => [t, savedKinds[i]]).filter(([t]) => Number.isFinite(t) && t <= now + METAMORPHOSIS_MS + MAX_SKELETONS) : [];
   out.born = [];
-  for (const [t, kind] of pairs.slice(0, out.skeletons)) birth(out, Math.min(t, now + REST_MS + MAX_SKELETONS), KIND_BY_ID.has(RENAMED[kind] || kind) ? RENAMED[kind] || kind : 'digger');
+  for (const [t, kind] of pairs.slice(0, out.skeletons)) birth(out, Math.min(t, now + METAMORPHOSIS_MS + MAX_SKELETONS), KIND_BY_ID.has(RENAMED[kind] || kind) ? RENAMED[kind] || kind : 'digger');
   while (out.born.length < out.skeletons) birth(out, now);
   out.loose = Math.min(out.loose, MAX_LOOSE);
   return out;
@@ -180,7 +200,9 @@ const shares = (c, now = c.at) => {
 export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels'));
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
-export const goldenChance = (c) => GOLDEN[level(c, 'lure')];
+export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug')) * 100) / 100;
+// How long a reaped worker rests: shorter with robins about.
+export const restMs = (c) => [30, 20, 15][Math.min(2, counted(c, 'robin'))] * 60000;
 
 const bank = (c, n) => { c.souls += n; c.total += n; };
 
@@ -224,7 +246,8 @@ export function raise(c, count = 1, kind = 'digger', now = Date.now()) {
   while (raised < wanted && c.skeletons < MAX_SKELETONS && counted(c, k.id) < k.most && c.souls >= kindCost(c, k.id)) {
     c.souls -= kindCost(c, k.id);
     c.skeletons += 1;
-    if (c.born) birth(c, now, k.id);
+    // A moth starts as a caterpillar: it is "up" once it has turned.
+    if (c.born) birth(c, k.id === 'moth' ? now + METAMORPHOSIS_MS : now, k.id);
     raised += 1;
   }
   if (raised) return { ok: true, raised, kind: k.id };
@@ -237,12 +260,34 @@ export function raise(c, count = 1, kind = 'digger', now = Date.now()) {
 // Faster with will-o'-wisps about (`speed`).
 export const ripeness = (born, now = Date.now(), speed = 1) => Math.min(MAX_RIPE, 1 + Math.floor(Math.max(0, now - born) * speed / HOUR));
 // What the one at `i` holds: nothing, for a kind that holds no ghosts.
-// (A toadstool grows its ghosts more slowly, and fewer.)
+// (A snail or a frog grows its ghosts more slowly, and fewer; a bee's
+// pollen adds to them.)
 const holds = (c, i, now) => {
   const k = kindOf(c, i);
   if (!k.ghosts || !awake(c, i, now)) return 0;
-  return Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every));
+  const pollen = (c.boosts && c.boosts[c.born[i]] && c.boosts[c.born[i]].n) || 0;
+  return Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every) + pollen);
 };
+
+// A bee pollinates the worker at `index`: one more ghost, at once. Each worker
+// once an hour, and the bees between them once every POLLEN_MS.
+export function pollinate(c, index, now = Date.now()) {
+  tally(c, now);
+  const bees = counted(c, 'bee');
+  if (!bees) return { ok: false, error: 'There are no bees.' };
+  const i = Math.floor(Number(index));
+  if (!(i >= 0 && i < c.skeletons)) return { ok: false, error: 'No such worker.' };
+  const k = kindOf(c, i);
+  if (!k.ghosts || !awake(c, i, now)) return { ok: false, error: 'Nothing there to pollinate.' };
+  if (now - (c.pollenAt || 0) < POLLEN_MS / bees) return { ok: false, error: 'The bees are resting.' };
+  const id = c.born[i];
+  const b = (c.boosts && c.boosts[id]) || { n: 0, at: -Infinity };
+  if (now - b.at < HOUR) return { ok: false, error: 'That one was pollinated within the hour.' };
+  if (holds(c, i, now) >= k.ripest) return { ok: false, error: 'That one is in full bloom already.' };
+  c.boosts = { ...(c.boosts || {}), [id]: { n: b.n + 1, at: now } };
+  c.pollenAt = now;
+  return { ok: true, pollinated: i, ripe: holds(c, i, now) };
+}
 
 // A new skeleton begins to dig. Its start time is also how it is known, so no
 // two share one.
@@ -265,6 +310,10 @@ const awake = (c, i, now = Date.now()) => c.born[i] <= now + 1000;
 
 // Keep `born` in step with the count: new ones start now, extra ones go.
 function tally(c, now) {
+  if (c.boosts) {
+    const ids = new Set(c.born);
+    for (const id of Object.keys(c.boosts)) if (!ids.has(Number(id))) delete c.boosts[id];
+  }
   if (!c.kinds) c.kinds = [];
   while (c.kinds.length < c.born.length) c.kinds.push('digger');
   while (c.born.length < c.skeletons) birth(c, now);
@@ -286,10 +335,11 @@ export function reap(c, index = 0, now = Date.now()) {
   if (!awake(c, i, now)) return { ok: false, error: k.id === 'moth' ? 'That one is still a cocoon.' : 'That one is still a seed.' };
   // A moth gives spirit-lights, always; the others the ghosts they have grown.
   const ghosts = k.lights || holds(c, i, now);
+  if (c.boosts) delete c.boosts[c.born[i]];
   c.born.splice(i, 1);
   c.kinds.splice(i, 1);
   // It rests (a seed, or a cocoon), then comes back as what it was.
-  birth(c, now + REST_MS, k.id);
+  birth(c, now + restMs(c), k.id);
   c.loose = ghosts;
   return { ok: true, ghosts, lights: k.lights || 0, kind: k.id };
 }
@@ -316,10 +366,11 @@ export function gather(c, now = Date.now()) {
   const taken = new Set(which);
   const keep = c.kinds.map((k, i) => [c.born[i], k]).filter((_, i) => !taken.has(i));
   const back = which.map((i) => c.kinds[i]);
+  if (c.boosts) for (const i of which) delete c.boosts[c.born[i]];
   c.born = [];
   c.kinds = [];
   for (const [t, k] of keep) { c.born.push(t); c.kinds.push(k); }
-  for (const kind of back) birth(c, now + REST_MS, kind);
+  for (const kind of back) birth(c, now + restMs(c), kind);
   c.loose = ghosts;
   return { ok: true, ghosts, gathered: n };
 }
@@ -431,6 +482,7 @@ export function act(c, action, now = Date.now()) {
     : 'reap' in a ? reap(c, a.reap, now)
       : a.gather ? gather(c, now)
       : 'sweep' in a ? sweep(c, a.sweep)
+      : 'pollinate' in a ? pollinate(c, a.pollinate, now)
       : a.hunt ? hunted(c, a.hunt)
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)
@@ -451,7 +503,7 @@ export function view(c) {
     // The skeletons drawn on screen (the oldest eight): how each is known,
     // how many ghosts it holds, and what kind it is.
     // A resting one has `rest`: the minutes until it rises.
-    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, Date.now()),
+    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, Date.now()), most: kindOf(c, i).ripest || 0,
       ...(t > Date.now() + 1000 ? { rest: Math.max(1, Math.round((t - Date.now()) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,

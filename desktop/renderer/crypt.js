@@ -109,7 +109,15 @@ export function createCrypt(ctx) {
   // and a full one rattles and leaks wisps. They hop when he comes near. A
   // reaped one falls and claws back up where it stood.
   const W_BONE = 36;
-  const WALK_PX_S = 24;
+  // How each walks: its pace (pixels a second), and whether it is drawn
+  // facing left (so it is flipped to go right).
+  const PACE = { digger: 24, snail: 6, frog: 70, caterpillar: 8, robin: 60, ladybug: 10 };
+  const FACES_LEFT = new Set(['snail', 'robin', 'ladybug']);
+  // Those that crawl keep moving their legs (frames) as they go; frogs and
+  // robins hop; sprites bob.
+  const CRAWLS = new Set(['snail', 'caterpillar', 'ladybug']);
+  // Which can be reaped: the ones that grow ghosts.
+  const REAPABLE = new Set(['digger', 'snail', 'frog']);
   const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90];
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fallen = [];
@@ -125,7 +133,7 @@ export function createCrypt(ctx) {
 
   function face(d, left) {
     d.left = left;
-    d.node.classList.toggle('is-flipped', left);
+    d.node.classList.toggle('is-flipped', left !== FACES_LEFT.has(d.kind));
   }
 
   function setMode(d, mode, ms) {
@@ -198,9 +206,11 @@ export function createCrypt(ctx) {
     const was = d.mode;
 
     const roll = Math.random();
-    if (was !== 'walk' && roll < 0.6) {
-      const to = destination(d);
-      const seconds = Math.abs(to - d.x) / WALK_PX_S;
+    // A frog mostly sits; a crawler mostly crawls.
+    const goes = d.kind === 'frog' ? 0.25 : CRAWLS.has(d.kind) ? 0.75 : 0.6;
+    if (was !== 'walk' && roll < goes) {
+      const to = d.kind === 'frog' ? Math.max(8, Math.min(span(), d.x + (Math.random() < 0.5 ? -1 : 1) * rand(40, 110))) : destination(d);
+      const seconds = Math.abs(to - d.x) / (PACE[d.kind] || PACE.digger);
       face(d, to < d.x);
       d.to = to;
       setMode(d, 'walk', seconds * 1000);
@@ -214,7 +224,7 @@ export function createCrypt(ctx) {
       [500, 1200, 1900].forEach((t) => setTimeout(() => { if (d.mode === 'look') face(d, !d.left); }, t));
       return;
     }
-    if (roll < 0.86 && d.ripe < 6) return setMode(d, 'nap', rand(12000, 30000));
+    if (roll < 0.86 && d.kind === 'digger' && d.ripe < 6) return setMode(d, 'nap', rand(12000, 30000));
     setMode(d, 'dig', rand(15000, 50000));
   }
 
@@ -235,7 +245,9 @@ export function createCrypt(ctx) {
     for (const d of diggers) {
       if (d.mode === 'held') continue;
       if (!still && t >= d.until) next(d);
-      if (d.ripe >= 6 && Math.random() < 0.35) puffOf(d, 'wisp');
+      if (d.most && d.ripe >= d.most && Math.random() < 0.35) puffOf(d, 'wisp');
+      // A robin sings now and then.
+      if (d.kind === 'robin' && d.mode === 'dig' && Math.random() < 0.06) puffOf(d, 'note', Math.random() < 0.5 ? '♪' : '♫');
       if (d.mode === 'nap' && Math.random() < 0.25) puffOf(d, 'snore', 'z');
     }
   }
@@ -284,7 +296,7 @@ export function createCrypt(ctx) {
   function flyer(bone) {
     let f = flyers.find((x) => x.id === bone.id);
     if (f) return f;
-    const node = el('div', bone.kind === 'moth' ? 'moth hit' : 'wisp-worker');
+    const node = el('div', bone.kind === 'moth' ? 'moth hit' : bone.kind === 'bee' ? 'bee' : 'wisp-worker');
     node.style.animationDelay = (-Math.random()).toFixed(2) + 's';
     field.appendChild(node);
     f = { id: bone.id, kind: bone.kind, node, mode: '', until: 0, x: rand(40, innerWidth - 80), y: 0 };
@@ -297,7 +309,8 @@ export function createCrypt(ctx) {
       node.addEventListener('pointerup', (e) => dropMoth(me, e));
       node.addEventListener('pointercancel', (e) => dropMoth(me, e));
     }
-    node.title = bone.kind === 'moth' ? 'A moth: in a hunt, it catches ghosts that would get away' : "A will-o'-wisp: the sprouts grow faster";
+    node.title = { moth: 'A moth: in a hunt, it catches ghosts that would get away', bee: 'A bee: it pollinates, and a worker grows a ghost' }[bone.kind] ||
+      "A will-o'-wisp: the sprouts grow faster";
     place(f, f.x, bone.kind === 'moth' ? 0 : innerHeight - 140, 0);
     nextFlight(f);
     return f;
@@ -332,6 +345,7 @@ export function createCrypt(ctx) {
       }
       return;
     }
+    if (f.kind === 'bee') return beeFlight(f, t);
     // A wisp drifts over to hover above one of the sprites.
     const ground = diggers.filter((d) => d.kind === 'digger' && d.mode !== 'held');
     const over = ground.length ? ground[Math.floor(Math.random() * ground.length)] : null;
@@ -371,11 +385,44 @@ export function createCrypt(ctx) {
     nextFlight(f);
   }
 
+  // How a worker shows: on the ground (its kind, or a caterpillar for a moth
+  // still turning), resting (a seed, or a moth's cocoon), or in the air.
+  function shape(bone) {
+    if (bone.kind === 'moth') return bone.rest ? (bone.rest > 30 ? 'caterpillar' : 'rest') : 'air';
+    if (bone.rest) return 'rest';
+    return bone.kind === 'wisp' || bone.kind === 'bee' ? 'air' : bone.kind;
+  }
+
+  // A bee buzzes from worker to worker. Now and then it settles on one that
+  // grows ghosts and pollinates it (the rules say whether it may).
+  function beeFlight(f, t) {
+    const growing = diggers.filter((d) => REAPABLE.has(d.kind) && d.mode !== 'held' && d.most && d.ripe < d.most);
+    const over = growing.length ? growing[Math.floor(Math.random() * growing.length)] : null;
+    const x = over ? over.x + 8 + rand(-6, 6) : rand(40, innerWidth - 80);
+    const y = innerHeight - (over ? over.node.offsetHeight : 40) - 30 + rand(-10, 6);
+    const seconds = still ? 0 : rand(1.2, 2.4);
+    f.node.classList.toggle('is-left', x < f.x);
+    place(f, x, y, seconds);
+    f.mode = 'buzz';
+    f.until = t + seconds * 1000 + rand(2500, 6000);
+    if (over && t >= (f.pollenTry || 0)) {
+      f.pollenTry = t + rand(60000, 180000);
+      setTimeout(async () => {
+        const index = (now.bones || []).findIndex((b) => b.id === over.id);
+        if (index < 0 || !diggers.includes(over)) return;
+        const out = await companion.crypt({ pollinate: index });
+        if (out && out.crypt) update(out.crypt);
+        if (out && out.ok) for (let k = 0; k < 5; k++) setTimeout(() => puffOf(over, 'pollen'), k * 90);
+      }, seconds * 1000 + 300);
+    }
+  }
+
   function crew() {
     const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
-    const ids = new Set(want.map((b) => b.id));
+    const as = new Map(want.map((b) => [b.id, shape(b)]));
     for (let i = diggers.length - 1; i >= 0; i--) {
-      if (!ids.has(diggers[i].id)) {
+      const look = as.get(diggers[i].id);
+      if (look !== diggers[i].kind) {
         const [d] = diggers.splice(i, 1);
         if (held && held.d === d) held = null;
         fallen.push(d.x);
@@ -383,16 +430,15 @@ export function createCrypt(ctx) {
       }
     }
     for (const [id, g] of graves) {
-      const bone = want.find((b) => b.id === id);
-      if (!bone || !bone.rest) {
+      if (as.get(id) !== 'rest') {
         g.node.remove();
         graves.delete(id);
-        // Sprouted: it comes up where its seed was.
-        if (bone) fallen.unshift(g.x);
+        // Back: it comes up where its seed (or cocoon) was.
+        if (as.has(id)) fallen.unshift(g.x);
       }
     }
     for (let i = flyers.length - 1; i >= 0; i--) {
-      if (!ids.has(flyers[i].id)) {
+      if (as.get(flyers[i].id) !== 'air') {
         const [f] = flyers.splice(i, 1);
         if (heldMoth && heldMoth.f === f) heldMoth = null;
         // A reaped moth's cocoon hangs where it was.
@@ -401,24 +447,26 @@ export function createCrypt(ctx) {
       }
     }
     for (const bone of want) {
-      // Resting first: a seed, or a moth's cocoon.
-      if (bone.rest) { grave(bone, graves.has(bone.id) ? graves.get(bone.id).x : fallen.length ? fallen.shift() : rand(8, span())); continue; }
-      if (bone.kind === 'moth' || bone.kind === 'wisp') { flyer(bone); continue; }
+      const look = as.get(bone.id);
+      if (look === 'rest') { grave(bone, graves.has(bone.id) ? graves.get(bone.id).x : fallen.length ? fallen.shift() : rand(8, span())); continue; }
+      if (look === 'air') { flyer(bone); continue; }
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
-        const node = el('div', 'digger hit');
+        const node = el('div', 'digger hit is-' + look);
         node.style.animationDelay = (-Math.random() * 1.2).toFixed(2) + 's';
-        // Its sprout, which shows how ripe it is.
-        node.appendChild(el('div', 'sprout'));
+        // What shows how ripe it is: a sprout beside a sprite, a bloom on a
+        // snail's shell or a frog's lily pad.
+        if (look === 'digger') node.appendChild(el('div', 'sprout'));
+        if (look === 'snail' || look === 'frog') node.appendChild(el('div', 'bloom'));
         field.appendChild(node);
-        d = { id: bone.id, node, x: 0, to: null, mode: 'dig', until: 0, left: false };
+        d = { id: bone.id, node, x: 0, to: null, mode: 'dig', until: 0, left: false, kind: look };
         const me = d;
         node.addEventListener('pointerdown', (e) => grab(me, e));
         node.addEventListener('pointermove', (e) => carry(me, e));
         node.addEventListener('pointerup', (e) => drop(me, e));
         node.addEventListener('pointercancel', (e) => drop(me, e));
         diggers.push(d);
-        // A reaped one rises where it fell; a new one at a free spot.
+        // A reaped one comes back where it was; a new one at a free spot.
         const x = fallen.length ? fallen.shift()
           : SPOTS.map((f) => f / 100 * span()).find((sx) => diggers.every((o) => o === d || Math.abs(o.x - sx) > 46)) ?? rand(8, span());
         setX(d, x);
@@ -428,16 +476,22 @@ export function createCrypt(ctx) {
         setTimeout(() => node.classList.remove('is-rising'), 900);
       }
       d.ripe = bone.ripe;
-      d.kind = bone.kind || 'digger';
-      d.node.classList.toggle('is-toadstool', d.kind === 'toadstool');
+      d.most = bone.most || 0;
       d.node.style.setProperty('--ripe', bone.ripe);
-      d.node.style.setProperty('--stage', Math.max(1, Math.min(6, bone.ripe)));
-      d.node.classList.toggle('is-ripe', bone.ripe >= 6);
-      d.node.title = d.kind === 'toadstool' ? 'A toadstool: gathers hard, grows no ghosts'
-        : bone.ripe >= 6 ? 'In full bloom: 6 ghosts' : bone.ripe === 1 ? 'A seedling: 1 ghost' : 'Growing: ' + bone.ripe + ' ghosts';
+      // Six pictures of growing, whatever the most it can hold.
+      d.node.style.setProperty('--stage', d.most ? Math.max(1, Math.min(6, Math.ceil(bone.ripe / d.most * 6))) : 1);
+      d.node.classList.toggle('is-ripe', d.most > 0 && bone.ripe >= d.most);
+      d.node.title = {
+        snail: 'A snail: gathers twice as much; ' + bone.ripe + ' of 3 ghosts',
+        frog: 'A frog: gathers half as much again; ' + bone.ripe + ' of 4 ghosts',
+        caterpillar: 'A caterpillar: a moth in ' + Math.max(0, bone.rest - 30) + ' minutes, after a cocoon',
+        robin: 'A robin: reaped workers come back sooner',
+        ladybug: 'A ladybug: more spirit-lights in hunts'
+      }[look] || (bone.ripe >= 6 ? 'In full bloom: 6 ghosts' : bone.ripe === 1 ? 'A seedling: 1 ghost' : 'Growing: ' + bone.ripe + ' ghosts');
     }
     fallen.length = 0;
   }
+
 
   // Seeds sprout on their own time: look again each minute while there are any.
   setInterval(async () => {
@@ -483,8 +537,8 @@ export function createCrypt(ctx) {
   function diggerAt(p, box) {
     if (!p) return -1;
     const PAD = 18;
-    const hit = diggers.find(({ node, mode }) => {
-      if (mode === 'held') return false;
+    const hit = diggers.find(({ node, mode, kind }) => {
+      if (mode === 'held' || !REAPABLE.has(kind)) return false;
       const r = node.getBoundingClientRect();
       return p.x >= r.left - PAD && p.x <= r.right + PAD && p.y >= r.top - PAD && p.y <= r.bottom + PAD;
     }) || (box && flyers.find(({ node, kind, mode }) => {
@@ -512,9 +566,9 @@ export function createCrypt(ctx) {
   }
 
   // Where every drawn sprite is on screen.
-  // (The Gathering's ghosts come out of the moss sprites, not the toadstools.)
+  // (The Gathering's ghosts come out of the ones that grow them.)
   function diggerBoxes() {
-    return diggers.filter((d) => d.kind === 'digger').map((d) => d.node.getBoundingClientRect());
+    return diggers.filter((d) => REAPABLE.has(d.kind)).map((d) => d.node.getBoundingClientRect());
   }
 
   // A small "+n" over one of the diggers when they bring something up.
@@ -533,7 +587,9 @@ export function createCrypt(ctx) {
     if (out.crypt) update(out.crypt);
     if (out.ok) {
       sound.bell();
-      const what = { toadstool: 'Up comes a toadstool.', moth: 'Wings, at the window.', wisp: 'A light that is not yours to follow.' }[out.kind];
+      const what = { snail: 'A snail. Take your time.', frog: 'A frog. It approves of nothing.', bee: 'Busy, busy.',
+        moth: 'A caterpillar. Give it a few hours.', robin: 'A robin. It sings at dawn. And noon.', wisp: 'A light that is not yours to follow.',
+        ladybug: 'A ladybug. For luck.' }[out.kind];
       say(what && out.raised === 1 ? what : out.raised === 1 ? 'Grow.' : out.raised + ' sprout.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);
