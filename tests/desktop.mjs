@@ -492,6 +492,54 @@ try {
   await toolCall('copy_to_clipboard', { text: 'a draft' });
   outcome = await toolOut();
   check('copy_to_clipboard copies', outcome && outcome.ok && (await page.evaluate(() => window.__companion.clipboard)) === 'a draft');
+  // The web reads freely; opening anything or looking through files asks first.
+  await toolCall('web_search', { query: 'grim reaper' });
+  outcome = await toolOut();
+  check('web_search answers without asking', outcome && outcome.ok && outcome.result.results.length === 1 && !(await page.$('.ask:not(.is-answered)')));
+  await toolCall('read_webpage', { url: 'https://example.com/' });
+  outcome = await toolOut();
+  check('read_webpage reads a page', outcome && outcome.ok && outcome.result.text.includes('example.com'));
+  await toolCall('open_app', { name: 'Spotify' });
+  await page.waitForTimeout(150);
+  check('open_app asks first', (await page.textContent('.ask:not(.is-answered)')).includes('Open Spotify?'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Not now")');
+  outcome = await toolOut();
+  check('declined, nothing opens', outcome && !outcome.ok && !(await page.evaluate(() => window.__companion.opened || [])).length);
+  await toolCall('open_app', { name: 'Spotify' });
+  await page.waitForTimeout(150);
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('allowed, the app opens', outcome && outcome.ok && (await page.evaluate(() => window.__companion.opened)).includes('app:Spotify'));
+  await toolCall('open_url', { url: 'https://example.com/a' });
+  await page.waitForTimeout(150);
+  check('open_url asks first, naming the site', (await page.textContent('.ask:not(.is-answered)')).includes('example.com/a'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('and opens it', outcome && outcome.ok && (await page.evaluate(() => window.__companion.opened)).includes('https://example.com/a'));
+  await toolCall('open_url', { url: 'file:///etc/passwd' });
+  outcome = await toolOut();
+  check('open_url takes only web addresses', outcome && !outcome.ok);
+  await toolCall('find_files', { query: 'resume' });
+  await page.waitForTimeout(150);
+  check('find_files asks first', (await page.textContent('.ask:not(.is-answered)')).includes('resume'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('and lists what it found', outcome && outcome.ok && outcome.result.files[0].path === '~/Documents/resume.txt');
+  await toolCall('open_file', { path: '~/Documents/resume.txt', reveal: true });
+  await page.waitForTimeout(150);
+  check('open_file asks first', (await page.textContent('.ask:not(.is-answered)')).includes('Show resume.txt in Finder?'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('and shows it', outcome && outcome.ok && (await page.evaluate(() => window.__companion.opened)).includes('show:~/Documents/resume.txt'));
+
+  await toolCall('spotify', { action: 'play', query: 'Blue Monday' });
+  outcome = await toolOut();
+  check('Speak can play a song on Spotify, without asking', outcome && outcome.ok && outcome.result.playing.startsWith('Blue Monday') &&
+    (await page.evaluate(() => window.__companion.spotify[0].query)) === 'Blue Monday');
+  await toolCall('spotify', { action: 'dance' });
+  outcome = await toolOut();
+  check('but only what Spotify can do', outcome && !outcome.ok);
+
   await toolCall('cast', { ability: 'vanish' });
   outcome = await toolOut();
   await page.waitForTimeout(1100);

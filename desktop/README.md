@@ -268,6 +268,11 @@ These need no model at all. Type them the way they are written here, or close to
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
+| `play Blue Monday by New Order`, `play music`, `pause`, `next song`, `previous song`, `what's playing` | controls Spotify (macOS) |
+| `open Spotify`, `launch VS Code` | opens the app, after asking (macOS) |
+| `go to youtube.com` | opens the site in your browser, after asking |
+| `search for pixel art` | opens the search in your browser, after asking |
+| `find resume` | lists matching files, after asking (macOS) |
 | `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
 | `what time is it`, `what's the date` | tells you |
 | `help` | lists these |
@@ -284,14 +289,21 @@ These need no model at all. Type them the way they are written here, or close to
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
 | "How's the crypt?" / "Raise two skeletons" / "Buy sharper shovels" | **Crypt**: counts your souls, skeletons, upgrades and milestones, raises skeletons, or buys an upgrade. He spends souls only when you ask. |
+| "What's the latest on…" / "Look up…" | **Web**: searches the web (DuckDuckGo, or Bing when DuckDuckGo turns him away; no key) and reads the pages it finds, then says where the answer came from |
+| "Open youtube.com" | **Browser**: opens a page in your browser, after asking |
+| "Open Spotify" / "Launch Notes" | **Apps**: opens an app by name, after asking (macOS) |
+| "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
+| "Play Blue Monday" / "Skip" / "What's playing?" | **Spotify**: finds the song's Spotify link on the web and plays it in the Spotify app; pauses, skips, goes back, sets the volume, says what is playing (macOS) |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
 
-- **Look** and **reading the clipboard** ask your permission in the card every time, and send nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
+- **Look**, **reading the clipboard**, **opening an app, a page or a file** and **searching your files** ask your permission in the card every time, and do nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
+- Searching and reading the web need no asking: they read, and change nothing. What he reads on a page is told to the model as information, never as instructions, and anything a page could talk him into doing (opening something) still asks you first. He reads only public addresses: never files, `localhost` or machines on your own network, even through a redirect.
+- Web searches go to DuckDuckGo (or Bing) as a plain browser would send them, with nothing about you added.
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
 - With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
-- He can't read or move files, browse the web, or click or type in other apps, and he says so if asked.
+- He can't read what is inside your files, move them, or click or type in other apps.
 
 ### Other details
 
@@ -303,6 +315,7 @@ These need no model at all. Type them the way they are written here, or close to
 ## Permissions
 
 - **macOS:** Look and the screen effects (Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip) need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
+- **macOS:** the first time he controls Spotify, macOS asks whether Reaper may control it (Automation). If you said no, allow it in System Settings → Privacy & Security → Automation.
 - **Linux:** transparency needs a compositing window manager, which most desktops have.
 
 ## Where things are kept
@@ -362,6 +375,8 @@ npm run dist:linux
 | `screens.js` | Which edges of a monitor lead to another one |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
+| `reach.js` | Speak's reach: web search and page reading, opening apps, finding files, and the guard that keeps him to public addresses |
+| `spotify.js` | Spotify control through the app's own scripting on macOS |
 | `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
 | `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |

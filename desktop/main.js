@@ -10,6 +10,8 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
 import { createFreeMind, serverPath } from './freemind.js';
+import * as reach from './reach.js';
+import { spotify } from './spotify.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
@@ -441,7 +443,9 @@ const pendingTools = new Map();
 let toolSeq = 0;
 
 // Tools that wait for the user to allow them get longer to answer.
-const ASKS_FIRST = ['look_at_screen', 'read_clipboard'];
+const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file'];
+// Tools that go out to the web get longer too.
+const SLOW = ['web_search', 'read_webpage', 'spotify'];
 
 function runTool(name, input, signal) {
   return new Promise((resolve) => {
@@ -450,7 +454,7 @@ function runTool(name, input, signal) {
     send('tool-call', { id, name, input });
     const timer = setTimeout(() => {
       if (pendingTools.delete(id)) resolve({ ok: false, error: 'No answer from the user or the reaper in time.' });
-    }, ASKS_FIRST.includes(name) ? 90000 : 10000);
+    }, ASKS_FIRST.includes(name) ? 90000 : SLOW.includes(name) ? 40000 : 10000);
     // Hush or ↺: stop waiting, and withdraw any question the page is asking.
     if (signal) {
       signal.addEventListener('abort', () => {
@@ -546,6 +550,30 @@ function wireIpc() {
   ipcMain.on('clipboard-write', async (_e, text) => {
     if (typeof text !== 'string') return;
     try { await clipboard.writeText(text.slice(0, 100000)); } catch {}
+  });
+
+  // Speak's reach. Reading the web needs no asking; opening things and looking
+  // through files are asked in the page before these are called.
+  ipcMain.handle('web-search', (_e, query) => reach.search(query));
+  ipcMain.handle('web-read', (_e, url) => reach.read(url));
+  ipcMain.handle('open-url', async (_e, url) => {
+    const u = reach.publicUrl(url);
+    if (!u) return { ok: false, error: 'Only public http or https addresses can be opened.' };
+    await shell.openExternal(u.href);
+    return { ok: true, result: { opened: u.href } };
+  });
+  ipcMain.handle('open-app', (_e, name) => reach.openApp(name));
+  ipcMain.handle('spotify', (_e, input) => spotify(input && typeof input === 'object' ? input : {}));
+  ipcMain.handle('find-files', (_e, query) => reach.findFiles(query));
+  ipcMain.handle('open-file', async (_e, { file, reveal } = {}) => {
+    const p = reach.realPath(file);
+    if (!p) return { ok: false, error: 'No such file: ' + file };
+    if (reveal) {
+      shell.showItemInFolder(p);
+      return { ok: true, result: { shown: p } };
+    }
+    const err = await shell.openPath(p);
+    return err ? { ok: false, error: err } : { ok: true, result: { opened: p } };
   });
 
   // A picture of this display's work area, for Scythe Slash. On macOS this

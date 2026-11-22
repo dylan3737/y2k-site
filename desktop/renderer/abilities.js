@@ -803,6 +803,42 @@ export function createAbilities(ctx) {
         companion.clipboardWrite(input.text);
         return { ok: true, result: { copied: input.text.length + ' characters' } };
       }
+      // The web: read freely; anything that opens something asks first.
+      case 'web_search': {
+        if (typeof input.query !== 'string' || !input.query.trim()) return { ok: false, error: 'query must be a non-empty string' };
+        return companion.webSearch(input.query);
+      }
+      case 'read_webpage': {
+        if (typeof input.url !== 'string' || !input.url) return { ok: false, error: 'url must be a string' };
+        return companion.webRead(input.url);
+      }
+      case 'open_url': {
+        if (typeof input.url !== 'string' || !/^https?:\/\//.test(input.url)) return { ok: false, error: 'url must start with http:// or https://' };
+        if (!(await ctx.speak.ask('Open ' + input.url.replace(/^https?:\/\//, '').slice(0, 60) + ' in your browser?'))) return { ok: false, error: 'The user said no.' };
+        return companion.openUrl(input.url);
+      }
+      case 'open_app': {
+        if (typeof input.name !== 'string' || !input.name.trim()) return { ok: false, error: 'name must be a non-empty string' };
+        if (!(await ctx.speak.ask('Open ' + input.name.slice(0, 40) + '?'))) return { ok: false, error: 'The user said no.' };
+        return companion.openApp(input.name);
+      }
+      case 'find_files': {
+        if (typeof input.query !== 'string' || !input.query.trim()) return { ok: false, error: 'query must be a non-empty string' };
+        if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
+        return companion.findFiles(input.query);
+      }
+      // Playing music is his to do when asked; it opens nothing and reads nothing private.
+      case 'spotify': {
+        const actions = ['play', 'pause', 'next', 'previous', 'now_playing', 'volume'];
+        if (input.action !== undefined && !actions.includes(input.action)) return { ok: false, error: 'action must be one of ' + actions.join(', ') };
+        return companion.spotify({ action: input.action || 'play', query: input.query, kind: input.kind, volume: input.volume });
+      }
+      case 'open_file': {
+        if (typeof input.path !== 'string' || !input.path) return { ok: false, error: 'path must be a string' };
+        const shown = input.path.split('/').pop().slice(0, 40);
+        if (!(await ctx.speak.ask((input.reveal ? 'Show ' + shown + ' in Finder?' : 'Open ' + shown + '?')))) return { ok: false, error: 'The user said no.' };
+        return companion.openFile(input.path, !!input.reveal);
+      }
       default:
         return { ok: false, error: 'Unknown tool ' + name };
     }

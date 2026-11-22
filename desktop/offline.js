@@ -17,6 +17,9 @@ export const HELP = [
   '• crypt / raise a skeleton / raise 3 skeletons',
   '• upgrades / buy shovels (or graves, sand, lure) / milestones',
   '• remember I like tea / what do you remember / forget tea',
+  '• play Blue Monday by New Order / pause / next song / what\'s playing',
+  '• open Spotify / go to youtube.com / search for pixel art',
+  '• find resume',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
 
@@ -246,6 +249,64 @@ function remembering(text, original) {
   return null;
 }
 
+// The computer and the web: open an app or a site, search, find a file. With
+// no mind to read a search, he opens it in the browser instead.
+const NOT_APPS = /^(the )?(crypt|speak|ring|hourglass|raven|menu|card)$/;
+function reaching(text, original) {
+  // The user's own spelling of the last words, for what goes to a search.
+  const words = (part) => original.trim().replace(/[!.?]+$/, '').replace(/\s+on spotify$/i, '').split(/\s+/).slice(-part.split(' ').length).join(' ');
+  const music = (input, line) => async ({ tool }) => {
+    const out = await tool('spotify', input);
+    if (!out.ok) return out.error || 'Spotify would not answer.';
+    return line(out.result);
+  };
+  if (/^(pause|stop)( the)?( music| song| spotify)?$/.test(text)) return music({ action: 'pause' }, () => 'Silence.');
+  if (/^(next|skip)( song| track| this)?$/.test(text)) return music({ action: 'next' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Skipped.'));
+  if (/^(previous|go back)( a)?( song| track)?$|^last song$/.test(text)) return music({ action: 'previous' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Back one.'));
+  if (/^what('|’)?s (playing|this song)\??$|^what (song )?is (playing|this)\??$/.test(text)) return music({ action: 'now_playing' }, (r) => r.playing);
+  if (/^(play|resume)( (the|some))?( music| spotify)?$/.test(text)) return music({ action: 'play' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Playing.'));
+  const play = /^play\s+(.+?)(?:\s+on spotify)?$/.exec(text);
+  if (play && !/^(a |your |me a )?(tune|song for me)$/.test(play[1])) {
+    const query = words(play[1]);
+    return music({ action: 'play', query }, (r) => 'Now: ' + r.playing + '.');
+  }
+  const search = /^(?:search(?: the web| online)?(?: for)?|google|look up|bing)\s+(.+)$/.exec(text);
+  if (search) {
+    const q = original.trim().replace(/[!.]+$/, '').split(/\s+/).slice(original.trim().split(/\s+/).length - search[1].split(' ').length).join(' ');
+    return async ({ tool }) => {
+      const out = await tool('open_url', { url: 'https://duckduckgo.com/?q=' + encodeURIComponent(q) });
+      return out.ok ? 'Searching for ' + q + '.' : out.error || 'I could not.';
+    };
+  }
+  const site = /^(?:go to|open|visit|show me)\s+((?:https?:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/\S*)?)$/.exec(text);
+  if (site) {
+    const url = /^https?:/.test(site[1]) ? site[1] : 'https://' + site[1];
+    return async ({ tool }) => {
+      const out = await tool('open_url', { url });
+      return out.ok ? 'There.' : out.error || 'I could not.';
+    };
+  }
+  const app = /^(?:open|launch|start|run)\s+(?:the\s+)?(?:app\s+)?(.+?)(?:\s+app)?$/.exec(text);
+  if (app && !NOT_APPS.test(app[1]) && app[1].split(' ').length <= 4) {
+    const name = original.trim().replace(/[!.]+$/, '').split(/\s+/).slice(-app[1].split(' ').length).join(' ').replace(/\s+app$/i, '');
+    return async ({ tool }) => {
+      const out = await tool('open_app', { name });
+      return out.ok ? out.result.opened + ', open.' : out.error || 'I could not.';
+    };
+  }
+  const find = /^(?:find|where(?: is|'s|’s)|locate)\s+(?:my\s+|the\s+)?(?:file\s+)?(.+?)\??$/.exec(text);
+  if (find) {
+    return async ({ tool }) => {
+      const out = await tool('find_files', { query: find[1] });
+      if (!out.ok) return out.error || 'I could not look.';
+      const files = out.result.files;
+      if (!files.length) return 'Nothing called ' + find[1] + '.';
+      return ['Found:', ...files.slice(0, 6).map((f) => '• ' + f.path)].join('\n');
+    };
+  }
+  return null;
+}
+
 // Longest names first, so "soul rip" is not read as something shorter.
 const CASTS = [
   [/\bsoul ?rip\b|\brip\b/, 'soulrip', 'A piece of it is mine now.'],
@@ -290,5 +351,5 @@ export function parseCommand(input, now = new Date(), { withModel = false } = {}
   if (!text) return null;
   if (!withModel && /^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
   return reminder(original, now) || reminders(text) || timer(text) || tally(text) || cryptwork(text) ||
-    remembering(text, original) || clockwork(text, now) || (withModel ? null : casting(text));
+    remembering(text, original) || clockwork(text, now) || (withModel ? null : reaching(text, original) || casting(text));
 }
