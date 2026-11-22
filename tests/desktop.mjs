@@ -223,14 +223,7 @@ try {
   await page.keyboard.press('Enter');
   await page.waitForTimeout(150);
   check('the question shows in the card', (await page.textContent('.line.you')) === 'hello');
-  // Claude instead: the key form, which leads back to the free mind.
-  await page.click('#card .chip:has-text("Use a key")');
-  await page.waitForTimeout(150);
-  check('"Use a key" asks for one', await visible(page, '#card input[type=password]'));
-  await page.click('#card .chip:has-text("Free mind")');
-  await page.waitForTimeout(150);
-  check('and "Free mind" goes back to the download', await page.isVisible('#card .chip:has-text("Download")') &&
-    (await page.evaluate(() => window.__companion.read().brain)) === 'free');
+  check('the free mind\'s offer has no key button', !(await page.isVisible('#card .chip:has-text("Use a key")')));
   // The download, with its progress.
   const seenProgress = page.evaluate(() => new Promise((resolve) => {
     const widths = [];

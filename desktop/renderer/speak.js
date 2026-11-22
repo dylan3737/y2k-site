@@ -148,7 +148,8 @@ export function createSpeak(ctx) {
         'Plain commands work meanwhile; say "help".'));
     }
     const row = el('div', 'row end');
-    row.append(chip('Use a key', useKey), chip('Commands only', useNone), chip('Download', fetchFree, 'solid'));
+    // No key here: Speak's mind is the free one. A key is in the tray's Mind menu.
+    row.append(chip('Commands only', useNone), chip('Download', fetchFree, 'solid'));
     keyForm.appendChild(row);
     card.refit();
   }
