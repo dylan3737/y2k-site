@@ -227,14 +227,21 @@ body.is-capturing * { visibility: hidden !important; }
   height: 62px;
   background: url('../assets/digger.webp') 0 0 / 576px 62px no-repeat;
   animation: dig 1.2s steps(16) infinite;
-  /* left moves it when it walks (the page sets how long); opacity fades it. */
-  transition-property: left, opacity;
-  transition-timing-function: linear, ease;
-  transition-duration: 0s, 0.2s;
+  /* left moves it when it walks (the page sets how long); opacity fades it;
+     bottom lets it fall when it is put down. */
+  transition-property: left, opacity, bottom;
+  transition-timing-function: linear, ease, cubic-bezier(0.5, 0, 1, 1);
+  transition-duration: 0s, 0.2s, 0.35s;
+  cursor: grab;
 }
 /* Flipped with `scale`, so `translate` is free for hops and walking. */
 .digger.is-flipped { scale: -1 1; }
-.digger.is-faded { opacity: 0.15; }
+.digger.is-faded { opacity: 0.55; }
+/* In the hand: it dangles and kicks. */
+.digger.is-held { cursor: grabbing; transition-duration: 0s, 0.2s, 0s !important; animation: dig 1.2s steps(16) infinite paused, dangle 0.6s ease-in-out infinite !important; transform-origin: 50% 8%; z-index: 4; }
+@keyframes dangle { 0%, 100% { rotate: -9deg; } 50% { rotate: 9deg; } }
+.digger.is-landing { animation: dig 1.2s steps(16) infinite, land 0.35s ease-out !important; }
+@keyframes land { 30% { translate: 0 2px; } 60% { translate: 0 -3px; } }
 /* Riper skeletons glow brighter: --ripe is how many ghosts one holds (1-6). */
 .digger { filter: drop-shadow(0 0 calc(2px + var(--ripe, 1) * 1.2px) rgba(190, 150, 255, calc(0.3 + var(--ripe, 1) * 0.1))); }
 .digger.is-ripe { filter: brightness(1.15) drop-shadow(0 0 9px rgba(225, 190, 255, 1)); }
@@ -294,24 +301,38 @@ body.is-capturing * { visibility: hidden !important; }
 .snore { font: 9px/1 var(--pixel); color: #d8c8ff; text-shadow: 0 0 4px rgba(150, 110, 230, 0.9); }
 @keyframes drift-up { from { opacity: 0.95; translate: 0 0; } to { opacity: 0; translate: 6px -38px; } }
 
-/* A mound of dirt where one dug; it settles away after a few minutes. */
+/* A mound of dirt where one dug, until it is swept away. The box is bigger
+   than the pile, so it is easy to click. */
 .mound {
   position: fixed;
+  bottom: 0;
+  width: 24px;
+  height: 12px;
+  cursor: pointer;
+}
+.mound::before {
+  content: '';
+  position: absolute;
+  left: 3px;
   bottom: 0;
   width: 18px;
   height: 4px;
   background: #4a3550;
-  box-shadow: 4px -2px 0 -0px #5c4363, 8px -2px 0 -1px #5c4363, 0 0 0 1px rgba(24, 8, 20, 0.6);
+  box-shadow: 3px -2px 0 -0px #5c4363, 7px -3px 0 -1px #6a5072, 0 0 0 1px rgba(24, 8, 20, 0.6);
   border-radius: 1px;
-  pointer-events: none;
-  animation: settle 480s linear forwards;
+  transition: filter 0.15s ease;
 }
-@keyframes settle { 0% { opacity: 0.9; } 80% { opacity: 0.7; } 100% { opacity: 0; } }
+.mound:hover::before { filter: brightness(1.5) drop-shadow(0 0 3px rgba(220, 190, 255, 0.8)); }
+.mound.is-swept { pointer-events: none !important; animation: swept 0.4s ease-out forwards; }
+@keyframes swept { to { opacity: 0; translate: 0 -3px; scale: 1.3 0.4; } }
+.dust { position: fixed; bottom: 2px; width: 3px; height: 3px; background: #8a7096; pointer-events: none; animation: dust 0.7s ease-out forwards; }
+@keyframes dust { to { opacity: 0; translate: var(--dx, 0) -18px; } }
 
 @media (prefers-reduced-motion: reduce) {
   .digger, .digger.is-ripe, .digger.is-walking, .digger.is-hopping, .digger.is-rising, .digger.is-startled { animation: none !important; }
   .wisp, .snore { display: none; }
   .digger.is-lantern::after { animation: none; }
+  .digger.is-held, .digger.is-landing { animation: none !important; }
 }
 
 @keyframes popUp {

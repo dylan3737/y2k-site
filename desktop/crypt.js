@@ -35,6 +35,9 @@ export const WORTH = { caught: 1, reaped: 5, focus: 1 };
 export const GHOST_SOULS = 10;
 export const GHOST_POINTS = 10;
 export const MAX_RIPE = 6;
+// A mound of dirt swept away pays this, and no more than this many at once.
+export const SWEEP_SOULS = 1;
+export const MOST_MOUNDS = 16;
 // The most ghosts one hunt can hold: a Gathering of eight full skeletons.
 export const MAX_LOOSE = 60;
 // A beaten wraith pays this, and this much more for every rank reached.
@@ -375,7 +378,15 @@ export function deed(c, key, n, now = Date.now()) {
   return { gained, reached: reach(c) };
 }
 
-// { raise: count }, { reap: index }, { gather: true }, { hunt: result }, { summon: true },
+// Mounds of dirt the skeletons left, swept away: a soul each.
+export function sweep(c, n) {
+  const count = Math.floor(whole(Number(n), MOST_MOUNDS));
+  if (!count) return { ok: false, error: 'Nothing to sweep.' };
+  bank(c, count * SWEEP_SOULS);
+  return { ok: true, swept: count, gained: count * SWEEP_SOULS };
+}
+
+// { raise: count }, { reap: index }, { gather: true }, { sweep: mounds }, { hunt: result }, { summon: true },
 // { wraith: { won } } or { buy: id }; anything else only counts the digging.
 export function act(c, action, now = Date.now()) {
   settle(c, now);
@@ -384,6 +395,7 @@ export function act(c, action, now = Date.now()) {
   const out = a.raise ? raise(c, a.raise, a.kind, now)
     : 'reap' in a ? reap(c, a.reap, now)
       : a.gather ? gather(c, now)
+      : 'sweep' in a ? sweep(c, a.sweep)
       : a.hunt ? hunted(c, a.hunt)
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)

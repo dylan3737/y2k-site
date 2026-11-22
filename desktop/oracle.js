@@ -167,11 +167,11 @@ export const TOOL_DEFS = [
   },
   {
     name: 'spotify',
-    description: 'Control Spotify on this Mac. play with a query finds that song (or album, playlist, artist) on Spotify and plays it; play with no query carries on. pause, next, previous, now_playing (what is playing), volume (0-100).',
+    description: 'Control Spotify on this Mac. play with a query finds that song, album, playlist, artist or song radio on Spotify and plays it (set kind to match what they asked for: "play the album Discovery" -> kind album, "Blue Monday radio" -> kind radio, "radio for this song" -> kind radio with query "this song"); play with no query carries on. pause, next, previous, now_playing (what is playing), volume (0-100). It cannot change the output device.',
     input_schema: object({
       action: { type: 'string', enum: ['play', 'pause', 'next', 'previous', 'now_playing', 'volume'] },
       query: { type: 'string', description: 'For play: the song and artist, e.g. "Blue Monday New Order".' },
-      kind: { type: 'string', enum: ['song', 'album', 'playlist', 'artist'], description: 'For play: what the query is. Defaults to song.' },
+      kind: { type: 'string', enum: ['song', 'album', 'playlist', 'artist', 'radio'], description: 'For play: what the query is. radio is a song radio: songs like that one. Defaults to song.' },
       volume: { type: 'integer', description: 'For volume: 0 to 100.' }
     }, ['action'])
   },

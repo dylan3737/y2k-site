@@ -116,9 +116,10 @@ export function createCrypt(ctx) {
   const rand = (a, b) => a + Math.random() * (b - a);
   const span = () => Math.max(W_BONE, innerWidth - W_BONE - 8);
 
+  // Transitions, in order: left (walking), opacity (fading), bottom (falling).
   function setX(d, x, seconds = 0) {
     d.x = Math.max(8, Math.min(span(), x));
-    d.node.style.transitionDuration = seconds ? seconds.toFixed(2) + 's, 0.2s' : '0s, 0.2s';
+    d.node.style.transitionDuration = (seconds ? seconds.toFixed(2) : '0') + 's, 0.2s, 0.35s';
     d.node.style.left = Math.round(d.x) + 'px';
   }
 
@@ -144,13 +145,92 @@ export function createCrypt(ctx) {
     return rand(8, span());
   }
 
+  // A mound of dirt where one dug. It stays until it is swept away (a click:
+  // a soul each); past sixteen, the oldest wears away on its own.
+  const MOST_MOUNDS = 16;
   function mound(x) {
-    const m = el('div', 'mound');
-    m.style.left = Math.round(x + W_BONE / 2 - 9) + 'px';
+    const m = el('div', 'mound hit');
+    m.title = 'Sweep it away';
+    m.style.left = Math.round(x + W_BONE / 2 - 12) + 'px';
+    m.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      sweepMound(m);
+    });
     field.appendChild(m);
-    const all = field.querySelectorAll('.mound');
-    if (all.length > 12) all[0].remove();
-    setTimeout(() => m.remove(), 8 * 60000);
+    const all = [...field.querySelectorAll('.mound:not(.is-swept)')];
+    if (all.length > MOST_MOUNDS) all[0].remove();
+  }
+
+  async function sweepMound(m) {
+    if (m.classList.contains('is-swept')) return;
+    m.classList.add('is-swept');
+    const r = m.getBoundingClientRect();
+    for (let i = 0; i < 5; i++) {
+      const dust = el('div', 'dust');
+      dust.style.left = Math.round(r.left + 4 + i * 4) + 'px';
+      dust.style.setProperty('--dx', Math.round(rand(-14, 14)) + 'px');
+      field.appendChild(dust);
+      setTimeout(() => dust.remove(), 700);
+    }
+    setTimeout(() => m.remove(), 400);
+    const out = await companion.crypt({ sweep: 1 });
+    if (out.crypt) update(out.crypt);
+    if (out.ok) {
+      const pop = el('div', 'soul-pop is-souls', '+' + out.gained);
+      pop.style.left = Math.round(r.left + 4) + 'px';
+      pop.style.top = Math.round(r.top - 14) + 'px';
+      field.appendChild(pop);
+      setTimeout(() => pop.remove(), 900);
+    }
+  }
+
+  // Picking one up: it dangles where the cursor holds it, and when let go it
+  // drops back to the ground and gets back to work. A click without a drag
+  // only startles it.
+  let held = null;
+  function grab(d, e) {
+    if (e.button !== 0 || held) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const r = d.node.getBoundingClientRect();
+    held = { d, offX: e.clientX - r.left, offY: e.clientY - r.top, x0: e.clientX, y0: e.clientY, moved: 0 };
+    try { d.node.setPointerCapture(e.pointerId); } catch {}
+  }
+  function carry(d, e) {
+    if (!held || held.d !== d) return;
+    held.moved = Math.max(held.moved, Math.hypot(e.clientX - held.x0, e.clientY - held.y0));
+    if (held.moved < 5) return;
+    if (d.mode !== 'held') {
+      setMode(d, 'held', Infinity);
+      d.node.classList.add('is-held');
+      d.node.classList.remove('is-faded');
+      d.to = null;
+    }
+    face(d, e.movementX < 0 ? true : e.movementX > 0 ? false : d.left);
+    setX(d, e.clientX - held.offX);
+    const h = d.node.offsetHeight;
+    d.node.style.bottom = Math.max(0, Math.min(innerHeight - h, innerHeight - (e.clientY - held.offY) - h)) + 'px';
+  }
+  function drop(d, e) {
+    if (!held || held.d !== d) return;
+    const { moved } = held;
+    held = null;
+    try { d.node.releasePointerCapture(e.pointerId); } catch {}
+    if (moved < 5) {
+      d.node.classList.remove('is-startled');
+      void d.node.offsetWidth;
+      d.node.classList.add('is-startled');
+      return;
+    }
+    // Down it falls, lands with a bump, and digs where it landed.
+    d.node.style.bottom = '0px';
+    setTimeout(() => {
+      d.node.classList.remove('is-held');
+      d.node.classList.add('is-landing');
+      setTimeout(() => d.node.classList.remove('is-landing'), 400);
+      setMode(d, 'dig', rand(15000, 40000));
+    }, 350);
   }
 
   // What a skeleton does next, once it is done with what it was doing.
@@ -191,6 +271,7 @@ export function createCrypt(ctx) {
     if (!diggers.length || document.hidden) return;
     const t = performance.now();
     for (const d of diggers) {
+      if (d.mode === 'held') continue;
       if (!still && t >= d.until) next(d);
       if (d.ripe >= 6 && Math.random() < 0.35) puffOf(d, 'wisp');
       if (d.mode === 'nap' && Math.random() < 0.25) puffOf(d, 'snore', 'z');
@@ -205,7 +286,7 @@ export function createCrypt(ctx) {
     if (!p || (!now && t - lastNear < 250)) return;
     lastNear = t;
     for (const d of diggers) {
-      if (d.mode === 'walk' || t - (d.startled ?? -Infinity) < 4000) continue;
+      if (d.mode === 'walk' || d.mode === 'held' || t - (d.startled ?? -Infinity) < 4000) continue;
       const r = d.node.getBoundingClientRect();
       if (Math.abs(p.x - (r.left + r.width / 2)) < 70 && p.y > r.top - 90 && p.y < r.bottom + 20) {
         d.startled = t;
@@ -222,6 +303,7 @@ export function createCrypt(ctx) {
     for (let i = diggers.length - 1; i >= 0; i--) {
       if (!ids.has(diggers[i].id)) {
         const [d] = diggers.splice(i, 1);
+        if (held && held.d === d) held = null;
         fallen.push(d.x);
         d.node.remove();
       }
@@ -229,10 +311,15 @@ export function createCrypt(ctx) {
     for (const bone of want) {
       let d = diggers.find((x) => x.id === bone.id);
       if (!d) {
-        const node = el('div', 'digger');
+        const node = el('div', 'digger hit');
         node.style.animationDelay = (-Math.random() * 1.2).toFixed(2) + 's';
         field.appendChild(node);
         d = { id: bone.id, node, x: 0, to: null, mode: 'dig', until: 0, left: false };
+        const me = d;
+        node.addEventListener('pointerdown', (e) => grab(me, e));
+        node.addEventListener('pointermove', (e) => carry(me, e));
+        node.addEventListener('pointerup', (e) => drop(me, e));
+        node.addEventListener('pointercancel', (e) => drop(me, e));
         diggers.push(d);
         // A reaped one rises where it fell; a new one at a free spot.
         const x = fallen.length ? fallen.shift()
@@ -262,8 +349,8 @@ export function createCrypt(ctx) {
     if (!p) return -1;
     const PAD = 18;
     // Only the ones that hold ghosts can be reaped.
-    const hit = diggers.find(({ node, kind }) => {
-      if (kind && kind !== 'digger') return false;
+    const hit = diggers.find(({ node, kind, mode }) => {
+      if ((kind && kind !== 'digger') || mode === 'held') return false;
       const r = node.getBoundingClientRect();
       return p.x >= r.left - PAD && p.x <= r.right + PAD && p.y >= r.top - PAD && p.y <= r.bottom + PAD;
     });
@@ -351,15 +438,15 @@ export function createCrypt(ctx) {
 
   companion.onCrypt((event) => { if (event && event.crypt) update(event.crypt, event); });
 
-  // A skeleton fades almost away while the cursor is over it, so it never
-  // hides what is underneath. (Clicks already pass through it.) The window
-  // ignores the mouse here, so this goes by the cursor position the app sends.
+  // A skeleton half fades while the cursor is over it, to show what is
+  // underneath and that it can be picked up. This goes by the cursor position
+  // the app sends, which arrives whether or not the window takes the mouse.
   const SLACK = 6;
   companion.onCursor((p) => {
     for (const { node } of diggers) {
       const r = node.getBoundingClientRect();
       const over = p.x >= r.left - SLACK && p.x <= r.right + SLACK && p.y >= r.top - SLACK && p.y <= r.bottom + SLACK;
-      node.classList.toggle('is-faded', over);
+      node.classList.toggle('is-faded', over && !held);
     }
   });
 
@@ -379,6 +466,8 @@ export function createCrypt(ctx) {
     diggerBox,
     diggerBoxes,
     near,
+    // One is in the hand: the window keeps taking the mouse until it is let go.
+    holding: () => !!held,
     // Every skeleton moves on to whatever it does next (for the tests).
     stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,

@@ -1,6 +1,6 @@
 // Spotify control (spotify.js) with stand-ins for osascript and the search:
 // nothing plays and nothing goes out to the web.
-import { spotify, spotifyUri, pickResult, tidyTitle } from '../spotify.js';
+import { spotify, spotifyUri, pickResult, tidyTitle, readQuery, searches } from '../spotify.js';
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -17,6 +17,17 @@ const results = [
 ];
 check('the kind asked for wins', pickResult(results, 'track').uri === 'spotify:track:6gv02BqPCsOQz5QQ4jnNOY' && pickResult(results, 'artist').kind === 'artist');
 check('titles are tidied', tidyTitle('Blue Monday - song and lyrics by New Order | Spotify') === 'Blue Monday by New Order');
+
+check('an embed link counts', spotifyUri('https://open.spotify.com/embed/album/2noRn2Aes5aoNVsU6iWThc?si=1').uri === 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
+check('nothing of the wrong kind is played', pickResult(results, 'album') === null);
+const said = (q, k) => JSON.stringify(readQuery(q, k));
+check('what was asked for is read from the words', said('the album Discovery by Daft Punk') === '{"query":"Discovery by Daft Punk","kind":"album"}' &&
+  said('Discovery album') === '{"query":"Discovery","kind":"album"}' && said('Blue Monday radio') === '{"query":"Blue Monday","kind":"radio"}' &&
+  said('song radio for Giannis') === '{"query":"Giannis","kind":"radio"}' && said('my playlist Gym') === '{"query":"Gym","kind":"playlist"}' &&
+  said('songs by Radiohead') === '{"query":"Radiohead","kind":"artist"}' && said('Blue Monday') === '{"query":"Blue Monday","kind":"track"}' &&
+  said('Discovery', 'album') === '{"query":"Discovery","kind":"album"}', said('song radio for Giannis'));
+check('a radio is looked for by its song', searches('Blue Monday by New Order', 'radio')[0] === 'site:open.spotify.com/track Blue Monday by New Order');
+check('"radio for this song" means the one playing', said('radio for this song') === '{"query":"this song","kind":"radio"}');
 
 const scripts = [];
 const run = (state = {}) => async (script) => {
@@ -35,6 +46,20 @@ check('and says what Spotify is playing', out.result.playing === 'Blue Monday by
 scripts.length = 0;
 out = await spotify({ action: 'play', query: 'x" & do shell script "rm -rf ~' }, { ...opts(), find: async () => ({ ok: true, result: { results: [] } }) });
 check('a query never reaches the script', !out.ok && scripts.length === 0, JSON.stringify(out));
+const albums = [{ title: 'Discovery - Album by Daft Punk | Spotify', url: 'https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc' }];
+const asked = [];
+const fussy = async (q) => { asked.push(q); return { ok: true, result: { results: q.startsWith('site:') ? [{ title: 'Album', url: 'https://en.wikipedia.org/wiki/Album' }] : albums } }; };
+out = await spotify({ action: 'play', query: 'the album Discovery by Daft Punk' }, { ...opts(), find: fussy });
+check('an album is found even when the first search misses', out.ok && out.result.uri === 'spotify:album:2noRn2Aes5aoNVsU6iWThc' && asked.length === 2 &&
+  scripts.includes('tell application "Spotify" to play track "spotify:album:2noRn2Aes5aoNVsU6iWThc"'), JSON.stringify([out, asked]));
+out = await spotify({ action: 'play', query: 'Blue Monday radio' }, opts());
+check('a song radio plays the song\'s station', out.ok && out.result.radio === 'songs like Blue Monday by New Order' &&
+  scripts.includes('tell application "Spotify" to play track "spotify:station:track:6gv02BqPCsOQz5QQ4jnNOY"'), JSON.stringify(out));
+const playingNow = async (script) => { scripts.push(script); return { ok: true, out: /id of current track/.test(script) ? 'spotify:track:0jc0dX55DtUJaHRw8rreNd|Giannis' : '' }; };
+out = await spotify({ action: 'play', query: 'radio for this song' }, { ...opts(), run: playingNow, find: async () => { throw new Error('no search needed'); } });
+check('a radio of what is playing starts from it, with no search', out.ok && scripts.includes('tell application "Spotify" to play track "spotify:station:track:0jc0dX55DtUJaHRw8rreNd"'), JSON.stringify(out));
+out = await spotify({ action: 'play', query: 'Discovery', kind: 'album' }, { ...opts(), find: async () => ({ ok: true, result: { results: [] } }) });
+check('nothing found says what was looked for', !out.ok && /the album "Discovery"/.test(out.error), out.error);
 out = await spotify({ action: 'pause' }, opts());
 check('pause', out.ok && out.result.paused && scripts.includes('tell application "Spotify" to pause'));
 out = await spotify({ action: 'next' }, opts());

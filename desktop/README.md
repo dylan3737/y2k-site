@@ -117,7 +117,8 @@ Souls raise **skeletons**. The first costs 25, and each one after costs 25% more
 
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight skeletons live along the bottom of your screen. Each digs a while, leaves a mound of dirt, and wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. Clicks pass through them, and each fades almost away while your cursor is over it.
+- Up to eight skeletons live along the bottom of your screen. Each digs a while, leaves a mound of dirt, and wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and digs there. Each half fades while your cursor is over it.
+- Skeletons leave **mounds of dirt** where they dig. Click one to sweep it away, for a soul. Up to 16 pile up; past that the oldest wears away.
 
 #### Kinds
 
@@ -268,7 +269,7 @@ These need no model at all. Type them the way they are written here, or close to
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
-| `play Blue Monday by New Order`, `play music`, `pause`, `next song`, `previous song`, `what's playing` | controls Spotify (macOS) |
+| `play Blue Monday by New Order`, `play the album Discovery`, `play my playlist Gym`, `start a radio for this song`, `play music`, `pause`, `next song`, `previous song`, `what's playing` | controls Spotify (macOS) |
 | `open Spotify`, `launch VS Code` | opens the app, after asking (macOS) |
 | `go to youtube.com` | opens the site in your browser, after asking |
 | `search for pixel art` | opens the search in your browser, after asking |
@@ -293,7 +294,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Open youtube.com" | **Browser**: opens a page in your browser, after asking |
 | "Open Spotify" / "Launch Notes" | **Apps**: opens an app by name, after asking (macOS) |
 | "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
-| "Play Blue Monday" / "Skip" / "What's playing?" | **Spotify**: finds the song's Spotify link on the web and plays it in the Spotify app; pauses, skips, goes back, sets the volume, says what is playing (macOS) |
+| "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, playlist or artist's Spotify link on the web and plays it in the Spotify app, or a song's radio (songs like it); pauses, skips, goes back, sets the volume, says what is playing (macOS). It can't change the output device: Spotify only allows that through its online API, which needs Premium and a developer app of your own. |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Privacy
@@ -304,6 +305,7 @@ These need no model at all. Type them the way they are written here, or close to
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
 - With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
 - He can't read what is inside your files, move them, or click or type in other apps.
+- Skeletons and mounds of dirt take clicks: pick a skeleton up and drop it somewhere else, or click a mound to sweep it away (a soul each).
 
 ### Other details
 

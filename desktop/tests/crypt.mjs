@@ -218,6 +218,14 @@ check('with only ghouls, a Gathering raises a skeleton instead', out.ok && out.g
 check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
 check('an unknown kind is refused', !crypt.act(k, { raise: 1, kind: 'dragon' }).ok);
 
+// Sweeping their dirt.
+const broom = crypt.fresh(T0);
+out = crypt.act(broom, { sweep: 1 }, T0);
+check('a swept mound pays a soul', out.ok && out.gained === 1 && broom.souls === 1 && broom.total === 1);
+out = crypt.act(broom, { sweep: 1000 }, T0);
+check('never more than there can be mounds', out.gained === crypt.MOST_MOUNDS);
+check('and nothing is nothing', !crypt.act(broom, { sweep: 0 }, T0).ok && !crypt.act(broom, { sweep: 'lots' }, T0).ok);
+
 check('every skeleton is known by its own start time', new Set(r.born).size === r.born.length);
 const legacy = crypt.clean({ skeletons: 3, souls: 5 }, T0);
 check('skeletons from before ripening start ripening on load', legacy.born.length === 3 && legacy.born[0] === T0 && legacy.loose === 0);

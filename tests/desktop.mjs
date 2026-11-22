@@ -196,8 +196,35 @@ try {
     (await page.$$('.field .digger.is-walking')).length === 2 &&
     (await page.$$eval('.field .digger', (ns) => ns.map((n) => n.getBoundingClientRect().left))).some((x, i) => Math.abs(x - startX[i]) > 10));
   check('a full one rattles and leaks wisps', (await page.$$('.field .digger.is-ripe')).length === 1 && (await page.$$('.wisp')).length > 0);
+  // Sweeping a mound: a click, and it is gone for a soul.
+  const soulsBeforeSweep = await page.evaluate(() => window.__reaper.crypt.get().souls);
+  const dirt = await page.locator('.mound').first().boundingBox();
+  await page.mouse.click(dirt.x + dirt.width / 2, dirt.y + dirt.height / 2);
+  await page.waitForTimeout(600);
+  check('a click sweeps a mound away, for a soul', (await page.$$('.mound')).length === 1 &&
+    (await page.evaluate(() => window.__reaper.crypt.get().souls)) >= soulsBeforeSweep + 1);
+  // Picking one up: it dangles, and dropped, it falls back to the ground.
+  await page.evaluate(() => window.__reaper.crypt.stir());
+  await page.waitForTimeout(100);
+  const pick = await page.locator('.field .digger').last().boundingBox();
+  await page.mouse.move(pick.x + pick.width / 2, pick.y + 20);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) {
+    await page.mouse.move(pick.x + pick.width / 2 + i * 25, pick.y + 20 - i * 30);
+    await page.waitForTimeout(20);
+  }
+  const up = await page.locator('.field .digger').last().boundingBox();
+  check('a skeleton can be picked up and carried', !!(await page.$('.field .digger.is-held')) &&
+    up.y < pick.y - 150 && up.x > pick.x + 150, JSON.stringify([pick, up]));
+  check('and while it is held, the reaper cannot be aimed at it', (await page.evaluate((p) => window.__reaper.crypt.diggerAt(p), { x: up.x + up.width / 2, y: up.y + 20 })) === -1);
+  await page.mouse.up();
+  await page.waitForTimeout(800);
+  const landed = await page.locator('.field .digger').last().boundingBox();
+  check('let go, it falls back to the ground where it was dropped, and digs', Math.abs(landed.y + landed.height - 800) < 2 &&
+    Math.abs((landed.x + landed.width / 2) - (up.x + up.width / 2)) < 15 && !(await page.$('.digger.is-held')), JSON.stringify([up, landed]));
   const nearOne = await page.locator('.field .digger').first().boundingBox();
-  await page.evaluate((p) => { window.__reaper.crypt.stir(); window.__reaper.crypt.near(p, true); }, { x: nearOne.x + nearOne.width / 2, y: nearOne.y });
+  // Stirred twice from walking: it hops, and stands still to be startled.
+  await page.evaluate((p) => { window.__reaper.crypt.stir(); window.__reaper.crypt.stir(); window.__reaper.crypt.near(p, true); }, { x: nearOne.x + nearOne.width / 2, y: nearOne.y });
   check('one hops when he comes near', (await page.$$('.field .digger.is-startled')).length >= 1);
 
   // Hourglass

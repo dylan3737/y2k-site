@@ -17,7 +17,8 @@ export const HELP = [
   '• crypt / raise a skeleton / raise 3 skeletons',
   '• upgrades / buy shovels (or graves, sand, lure) / milestones',
   '• remember I like tea / what do you remember / forget tea',
-  '• play Blue Monday by New Order / pause / next song / what\'s playing',
+  '• play Blue Monday by New Order / play the album Discovery / start a radio for this song',
+  '• pause / next song / what\'s playing',
   '• open Spotify / go to youtube.com / search for pixel art',
   '• find resume',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
@@ -265,10 +266,12 @@ function reaching(text, original) {
   if (/^(previous|go back)( a)?( song| track)?$|^last song$/.test(text)) return music({ action: 'previous' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Back one.'));
   if (/^what('|’)?s (playing|this song)\??$|^what (song )?is (playing|this)\??$/.test(text)) return music({ action: 'now_playing' }, (r) => r.playing);
   if (/^(play|resume)( (the|some))?( music| spotify)?$/.test(text)) return music({ action: 'play' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Playing.'));
+  const radio = /^(?:start|play|put on)\s+(?:a\s+|the\s+)?(?:song\s+)?radio\s+(?:for|of|from|like)\s+(.+)$/.exec(text);
+  if (radio) return music({ action: 'play', query: words(radio[1]), kind: 'radio' }, (r) => 'A radio of ' + r.radio + '.');
   const play = /^play\s+(.+?)(?:\s+on spotify)?$/.exec(text);
   if (play && !/^(a |your |me a )?(tune|song for me)$/.test(play[1])) {
     const query = words(play[1]);
-    return music({ action: 'play', query }, (r) => 'Now: ' + r.playing + '.');
+    return music({ action: 'play', query }, (r) => (r.radio ? 'A radio of ' + r.radio + '.' : 'Now: ' + r.playing + '.'));
   }
   const search = /^(?:search(?: the web| online)?(?: for)?|google|look up|bing)\s+(.+)$/.exec(text);
   if (search) {

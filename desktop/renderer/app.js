@@ -326,7 +326,8 @@ let dragging = null;
 
 function hitTest() {
   const el = cursor.x > -999 ? document.elementFromPoint(cursor.x, cursor.y) : null;
-  const want = !!dragging || !!(el && el.closest('.hit'));
+  // A skeleton in the hand keeps the mouse too, even when the cursor slips off it.
+  const want = !!dragging || crypt.holding() || !!(el && el.closest('.hit'));
   if (want !== interactive) {
     interactive = want;
     companion.interactive(want);

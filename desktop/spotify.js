@@ -7,8 +7,30 @@ import { search } from './reach.js';
 
 // Spotify's links: open.spotify.com/track/<22 characters>, sometimes with a
 // language part ("intl-de") before the kind.
-const LINK = /open\.spotify\.com\/(?:intl-[a-z-]+\/)?(track|album|playlist|artist)\/([A-Za-z0-9]{22})/;
-const KINDS = { song: 'track', track: 'track', album: 'album', playlist: 'playlist', artist: 'artist' };
+const LINK = /open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(track|album|playlist|artist)\/([A-Za-z0-9]{22})/;
+const KINDS = { song: 'track', track: 'track', album: 'album', playlist: 'playlist', artist: 'artist', radio: 'radio' };
+// A song's radio (songs like it) is its station: spotify:station:track:<id>.
+const station = (trackUri) => 'spotify:station:' + trackUri.replace(/^spotify:/, '');
+// "radio for this song": the one playing now.
+const THIS_ONE = /^(this|that|the current|current|what('|’)?s playing|what is playing)( song| track| one)?$/i;
+
+// What a request means when no kind was given: "the album Discovery",
+// "Blue Monday radio", "songs by Radiohead". The words that said so go.
+export function readQuery(query, kind) {
+  let q = String(query || '').trim().replace(/\s+on spotify$/i, '');
+  let k = KINDS[String(kind || '').toLowerCase()] || null;
+  const said = (re, as) => {
+    if (!re.test(q)) return false;
+    if (!k || k === 'track') k = as;
+    q = q.replace(re, ' ').replace(/\s+/g, ' ').trim();
+    return true;
+  };
+  said(/^(a |the )?(song |track )?(radio|station) (for|of|from|based on|like) |\b(song |track )?(radio|station)$/i, 'radio') ||
+    said(/^(the |an? )?album\b( called)?|\b(the )?album$/i, 'album') ||
+    said(/^(the |my |a )?playlist\b( called)?|\bplaylist$/i, 'playlist') ||
+    said(/^(some |songs by |music by |anything by |stuff by )/i, 'artist');
+  return { query: q.replace(/^(the |a )song /i, ''), kind: k || 'track' };
+}
 
 export function spotifyUri(url) {
   const m = LINK.exec(String(url || ''));
@@ -18,7 +40,16 @@ export function spotifyUri(url) {
 // The best result of the kind wanted; another kind only if there is none.
 export function pickResult(results, kind = 'track') {
   const found = results.map((r) => ({ ...r, ...spotifyUri(r.url) })).filter((r) => r.uri);
-  return found.find((r) => r.kind === kind) || found[0] || null;
+  return found.find((r) => r.kind === (kind === 'radio' ? 'track' : kind)) || null;
+}
+
+// Ways to ask the web for it, tried in turn until one turns up a link of the
+// right kind: engines ignore some of them some of the time.
+export function searches(query, kind) {
+  // A radio starts from its song.
+  if (kind === 'radio') kind = 'track';
+  const word = kind === 'track' ? 'song' : kind;
+  return ['site:open.spotify.com/' + kind + ' ' + query, query + ' ' + word + ' spotify', 'open.spotify.com ' + kind + ' ' + query];
 }
 
 // "Song Name - song and lyrics by Artist | Spotify" -> "Song Name by Artist".
@@ -89,16 +120,30 @@ export async function spotify(input = {}, { platform = process.platform, run = o
     await wait(Math.min(settle, 700));
     return { ok: true, result: { playing: await nowPlaying(run) } };
   }
-  const kind = KINDS[String(input.kind || 'song').toLowerCase()] || 'track';
-  const words = kind === 'track' ? 'song' : kind;
-  const found = await find('site:open.spotify.com ' + words + ' ' + query);
-  if (!found.ok) return { ok: false, error: found.error };
-  const best = pickResult(found.result.results || [], kind);
-  if (!best) return { ok: false, error: 'I could not find "' + query + '" on Spotify.' };
-  const out = await run(tell('play track "' + best.uri + '"'));
+  const want = readQuery(query, input.kind);
+  let best = null;
+  let error = null;
+  // The radio of what is playing needs no search.
+  if (want.kind === 'radio' && (!want.query || THIS_ONE.test(want.query))) {
+    const now = await run('if application "Spotify" is running then\n' + tell('return (id of current track) & "|" & (name of current track)') + '\nend if');
+    const [uri, name] = (now.ok ? now.out : '').split('|');
+    if (!/^spotify:track:[A-Za-z0-9]{22}$/.test(uri || '')) return { ok: false, error: 'Nothing is playing to start a radio from.' };
+    best = { uri, kind: 'track', title: name };
+  }
+  for (const q of best ? [] : searches(want.query, want.kind)) {
+    const found = await find(q);
+    if (!found.ok) { error = found.error; continue; }
+    best = pickResult(found.result.results || [], want.kind);
+    if (best) break;
+  }
+  if (!best) return { ok: false, error: error || 'I could not find ' + (want.kind === 'track' ? '' : want.kind === 'radio' ? 'a radio for ' : 'the ' + want.kind + ' ') + '"' + want.query + '" on Spotify.' };
+  const uri = want.kind === 'radio' ? station(best.uri) : best.uri;
+  const out = await run(tell('play track "' + uri + '"'));
   if (!out.ok) return { ok: false, error: refused(out.error) };
   // What Spotify says it is playing is the truth; the search title is a guess.
   await wait(settle);
   const playing = await nowPlaying(run);
-  return { ok: true, result: { playing: playing || tidyTitle(best.title), kind: best.kind, uri: best.uri } };
+  return want.kind === 'radio'
+    ? { ok: true, result: { radio: 'songs like ' + tidyTitle(best.title), playing, uri } }
+    : { ok: true, result: { playing: playing || tidyTitle(best.title), kind: best.kind, uri } };
 }
