@@ -73,6 +73,7 @@ function browserStandIn() {
     async openUrl(url) { (window.__companion.opened ||= []).push(url); return { ok: true, result: { opened: url } }; },
     async openApp(name) { (window.__companion.opened ||= []).push('app:' + name); return { ok: true, result: { opened: name } }; },
     async findFiles(query) { return { ok: true, result: { query, files: [{ path: '~/Documents/' + query + '.txt', kind: 'file', modified: '2026-01-01' }] } }; },
+    async selfWork(input) { (window.__companion.selfWork ||= []).push(input); return { ok: true, result: { opened: 'Terminal', engine: input.engine === 'claude' ? 'Claude Code' : 'OpenCode on Qwen3-Coder 30B', branch: 'reaper/test' } }; },
     async spotify(input) { (window.__companion.spotify ||= []).push(input); return { ok: true, result: input.action === 'pause' ? { paused: true } : { playing: input.query ? input.query + ' by Someone' : 'A song by Someone' } }; },
     async openFile(file, reveal) { (window.__companion.opened ||= []).push((reveal ? 'show:' : 'file:') + file); return { ok: true, result: { opened: file } }; },
     trash: async (paths) => ({ ok: 0, failed: paths.length }),

@@ -827,6 +827,17 @@ export function createAbilities(ctx) {
         if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
         return companion.findFiles(input.query);
       }
+      // Working on himself: a coding agent in a Terminal the user watches.
+      case 'work_on_myself': {
+        if (typeof input.request !== 'string' || !input.request.trim()) return { ok: false, error: 'request must say what to change' };
+        const engine = input.engine === 'claude' || input.model ? 'claude' : 'local';
+        const model = ['haiku', 'sonnet', 'opus'].includes(input.model) ? input.model : undefined;
+        const who = engine === 'claude' ? 'Claude Code' + (model ? ' (' + model[0].toUpperCase() + model.slice(1) + ')' : '') : 'his own coding mind';
+        if (!(await ctx.speak.ask('Let him work on himself with ' + who + '? “' + input.request.trim().slice(0, 80) + '”. A Terminal window opens; you watch and approve.'))) {
+          return { ok: false, error: 'The user said no.' };
+        }
+        return companion.selfWork({ request: input.request.trim(), engine, model });
+      }
       // Playing music is his to do when asked; it opens nothing and reads nothing private.
       case 'spotify': {
         const actions = ['play', 'pause', 'next', 'previous', 'now_playing', 'volume'];

@@ -12,6 +12,7 @@ import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE }
 import { createFreeMind, serverPath } from './freemind.js';
 import * as reach from './reach.js';
 import { spotify } from './spotify.js';
+import * as selfwork from './selfwork.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
@@ -37,6 +38,8 @@ const state = {
   // Whose mind Speak borrows: 'free' (built in, on this computer), 'claude' (an
   // API key), 'ollama' (the user's own Ollama) or 'offline' (plain commands only).
   brain: 'free', localModel: null,
+  // Which Claude Code model big self-work jobs use: haiku, sonnet or opus.
+  bigJobModel: 'haiku',
   // The idle game: banked souls and the skeletons that dig for more.
   crypt: crypt.fresh(), minions: true,
   // Whether he walks (and can be flung) from one monitor to the next.
@@ -376,6 +379,14 @@ function rebuildMenu() {
         { label: 'Claude (your API key)', type: 'radio', checked: getBrain().kind === 'claude', click: () => setBrain({ kind: 'claude' }) },
         { label: 'Your own Ollama', type: 'radio', checked: getBrain().kind === 'ollama', click: () => setBrain({ kind: 'ollama' }) },
         { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
+        { type: 'separator' },
+        {
+          label: 'Big jobs (working on himself with Claude)',
+          submenu: Object.entries(selfwork.CLAUDE_MODELS).map(([id, name]) => ({
+            label: name, type: 'radio', checked: selfwork.pickClaudeModel(state.bigJobModel) === id,
+            click: () => { state.bigJobModel = id; writeState(); }
+          }))
+        },
         ...(getBrain().kind === 'ollama' && localModels.length ? [
           { type: 'separator' },
           { label: 'Pick the model for me', type: 'radio', checked: !localModels.includes(state.localModel), click: () => setBrain({ model: null }) },
@@ -443,7 +454,7 @@ const pendingTools = new Map();
 let toolSeq = 0;
 
 // Tools that wait for the user to allow them get longer to answer.
-const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file'];
+const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file', 'work_on_myself'];
 // Tools that go out to the web get longer too.
 const SLOW = ['web_search', 'read_webpage', 'spotify'];
 
@@ -564,6 +575,24 @@ function wireIpc() {
   });
   ipcMain.handle('open-app', (_e, name) => reach.openApp(name));
   ipcMain.handle('spotify', (_e, input) => spotify(input && typeof input === 'object' ? input : {}));
+  // Working on himself: a script in Terminal the user watches (selfwork.js).
+  // Asked in the page first. The local coding mind needs the memory, so the
+  // free mind is put to sleep first.
+  ipcMain.handle('self-work', (_e, input = {}) => {
+    const engine = input.engine === 'claude' ? 'claude' : 'local';
+    if (engine === 'local') freeMind.unload();
+    return selfwork.start({
+      request: input.request,
+      engine,
+      // Named for this job, or the one chosen in the tray.
+      claudeModel: selfwork.pickClaudeModel(input.model || state.bigJobModel),
+      info: selfwork.readBuildInfo(path.join(app.getAppPath(), 'build-info.json')),
+      dataDir: app.getPath('userData'),
+      server: process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: app.isPackaged, resources: process.resourcesPath, here }),
+      // The .app this is, to put the rebuilt one in its place.
+      appPath: app.isPackaged ? path.resolve(process.execPath, '..', '..', '..') : '/Applications/Reaper.app'
+    });
+  });
   ipcMain.handle('find-files', (_e, query) => reach.findFiles(query));
   ipcMain.handle('open-file', async (_e, { file, reveal } = {}) => {
     const p = reach.realPath(file);

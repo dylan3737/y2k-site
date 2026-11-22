@@ -21,6 +21,7 @@ export const HELP = [
   '• pause / next song / what\'s playing',
   '• open Spotify / go to youtube.com / search for pixel art',
   '• find resume',
+  '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
 
@@ -254,6 +255,14 @@ function remembering(text, original) {
 // no mind to read a search, he opens it in the browser instead.
 const NOT_APPS = /^(the )?(crypt|speak|ring|hourglass|raven|menu|card)$/;
 function reaching(text, original) {
+  const self = /^(?:work on|improve|change|upgrade|fix) (?:yourself|your code)(?: with (claude(?: code)?)(?: (haiku|sonnet|opus))?)?[:,]?\s+(.+)$/.exec(text);
+  if (self) {
+    const request = original.trim().replace(/^[^:,]*?(yourself|your code)(\s+with\s+claude(\s+code)?(\s+(haiku|sonnet|opus))?)?[:,]?\s+/i, '');
+    return async ({ tool }) => {
+      const out = await tool('work_on_myself', { request, engine: self[1] ? 'claude' : 'local', ...(self[2] ? { model: self[2] } : {}) });
+      return out.ok ? 'A Terminal opens. Watch me work, on ' + out.result.branch + '.' : out.error || 'I could not.';
+    };
+  }
   // The user's own spelling of the last words, for what goes to a search.
   const words = (part) => original.trim().replace(/[!.?]+$/, '').replace(/\s+on spotify$/i, '').split(/\s+/).slice(-part.split(' ').length).join(' ');
   const music = (input, line) => async ({ tool }) => {

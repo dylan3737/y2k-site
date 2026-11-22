@@ -8,12 +8,13 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/launch.mjs",
+    "test": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs && node tests/launch.mjs",
+    "test:quick": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs",
     "pacing": "node tools/pacing.mjs",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux",
+    "dist": "node tools/build-info.mjs && electron-builder",
+    "dist:mac": "node tools/build-info.mjs && electron-builder --mac",
+    "dist:win": "node tools/build-info.mjs && electron-builder --win",
+    "dist:linux": "node tools/build-info.mjs && electron-builder --linux",
     "fetch-llama": "node tools/fetch-llama-server.mjs"
   },
   "devDependencies": {
@@ -43,7 +44,9 @@
       "package.json",
       "freemind.js",
       "reach.js",
-      "spotify.js"
+      "spotify.js",
+      "selfwork.js",
+      "build-info.json"
     ],
     "mac": {
       "category": "public.app-category.entertainment",

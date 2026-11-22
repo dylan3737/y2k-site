@@ -559,6 +559,20 @@ try {
   outcome = await toolOut();
   check('and shows it', outcome && outcome.ok && (await page.evaluate(() => window.__companion.opened)).includes('show:~/Documents/resume.txt'));
 
+  await toolCall('work_on_myself', { request: 'make the ghosts slower' });
+  await page.waitForTimeout(150);
+  check('working on himself asks first, saying with what', (await page.textContent('.ask:not(.is-answered)')).includes('his own coding mind') &&
+    (await page.textContent('.ask:not(.is-answered)')).includes('make the ghosts slower'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Allow")');
+  outcome = await toolOut();
+  check('allowed, a Terminal opens on his own engine', outcome && outcome.ok && (await page.evaluate(() => window.__companion.selfWork[0].engine)) === 'local');
+  await toolCall('work_on_myself', { request: 'add a bone hound', engine: 'claude' });
+  await page.waitForTimeout(150);
+  check('or with Claude, for a big job', (await page.textContent('.ask:not(.is-answered)')).includes('Claude Code'));
+  await page.click('.ask:not(.is-answered) .chip:has-text("Not now")');
+  outcome = await toolOut();
+  check('declined, nothing opens', outcome && !outcome.ok && (await page.evaluate(() => window.__companion.selfWork.length)) === 1);
+
   await toolCall('spotify', { action: 'play', query: 'Blue Monday' });
   outcome = await toolOut();
   check('Speak can play a song on Spotify, without asking', outcome && outcome.ok && outcome.result.playing.startsWith('Blue Monday') &&

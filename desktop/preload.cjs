@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('companion', {
   findFiles: (query) => ipcRenderer.invoke('find-files', query),
   openFile: (file, reveal) => ipcRenderer.invoke('open-file', { file, reveal }),
   spotify: (input) => ipcRenderer.invoke('spotify', input),
+  selfWork: (input) => ipcRenderer.invoke('self-work', input),
   trash: (paths) => ipcRenderer.invoke('trash', paths),
   pathForFile: (file) => webUtils.getPathForFile(file),
   setAbilities: (list) => ipcRenderer.send('abilities', list),

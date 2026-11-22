@@ -274,6 +274,7 @@ These need no model at all. Type them the way they are written here, or close to
 | `go to youtube.com` | opens the site in your browser, after asking |
 | `search for pixel art` | opens the search in your browser, after asking |
 | `find resume` | lists matching files, after asking (macOS) |
+| `work on yourself: make the ghosts slower`, `work on yourself with Claude: …` | works on himself in a Terminal you watch, after asking (macOS) |
 | `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
 | `what time is it`, `what's the date` | tells you |
 | `help` | lists these |
@@ -296,6 +297,26 @@ These need no model at all. Type them the way they are written here, or close to
 | "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
 | "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, playlist or artist's Spotify link on the web and plays it in the Spotify app, or a song's radio (songs like it); pauses, skips, goes back, sets the volume, says what is playing (macOS). It can't change the output device: Spotify only allows that through its online API, which needs Premium and a developer app of your own. |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
+
+### Working on himself
+
+Ask him to change himself ("work on yourself: make the ghosts slower", "give yourself a hat") and, after you allow it, he opens a **Terminal** window where a coding agent does the work while you watch:
+
+| Engine | When | What runs |
+|---|---|---|
+| **His own** (the default) | Small and medium changes: numbers, colours, words, simple features | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
+| **Claude** ("…with Claude") | Bigger jobs: new features | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Big jobs** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+
+The script in that window:
+
+1. Makes a fresh copy of his code on a branch of its own (`reaper/<what you asked>-<time>`, in `~/ReaperWork/`), from the exact commit this app was built from. Your own checkout is never touched.
+2. Hands your request to the agent. You see and approve its work the way that agent always asks.
+3. Runs the checks. If they fail, it offers to hand the failures back to the agent (up to three rounds).
+4. Commits the work on that branch, and only if the checks pass, asks whether to rebuild and reinstall him. The app it replaces goes to the Trash, so you can have him back as he was.
+
+Nothing is pushed. To keep a change for good, merge its branch.
+
+Needs: macOS, the repository this app was built from (the build records where it is), npm, and OpenCode (`npm install -g --allow-scripts=opencode-ai opencode-ai`; the script offers to install it) or Claude Code. His coding mind needs most of 24 GB of memory while it runs, so the free mind is put to sleep first.
 
 ### Privacy
 
@@ -379,6 +400,8 @@ npm run dist:linux
 | `offline.js` | The plain commands he follows with no model |
 | `reach.js` | Speak's reach: web search and page reading, opening apps, finding files, and the guard that keeps him to public addresses |
 | `spotify.js` | Spotify control through the app's own scripting on macOS |
+| `selfwork.js` | Working on himself: the Terminal script that runs a coding agent on a branch of its own |
+| `tools/build-info.mjs` | Records the commit and repository a build comes from, for working on himself |
 | `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
 | `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |
