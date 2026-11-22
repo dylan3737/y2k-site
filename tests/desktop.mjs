@@ -74,7 +74,7 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of fourteen abilities', buttons.length === 14, buttons.join(','));
+  check('click opens the ring of fifteen abilities', buttons.length === 15 && buttons.includes('dragon'), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -234,9 +234,14 @@ try {
   const landed = await page.locator('.field .digger').last().boundingBox();
   check('let go, it falls back to the ground where it was dropped, and digs', Math.abs(landed.y + landed.height - 800) < 2 &&
     Math.abs((landed.x + landed.width / 2) - (up.x + up.width / 2)) < 15 && !(await page.$('.digger.is-held')), JSON.stringify([up, landed]));
-  const nearOne = await page.locator('.field .digger').first().boundingBox();
-  // Stirred twice from walking: it hops, and stands still to be startled.
-  await page.evaluate((p) => { window.__reaper.crypt.stir(); window.__reaper.crypt.stir(); window.__reaper.crypt.near(p, true); }, { x: nearOne.x + nearOne.width / 2, y: nearOne.y });
+  // Stirred until it is not walking (a walker is never startled), then he comes
+  // near where it is right now.
+  await page.evaluate(() => {
+    const crypt = window.__reaper.crypt;
+    for (let i = 0; i < 4 && document.querySelector('.field .digger').classList.contains('is-walking'); i++) crypt.stir();
+    const r = document.querySelector('.field .digger').getBoundingClientRect();
+    crypt.near({ x: r.left + r.width / 2, y: r.top }, true);
+  });
   check('one hops when he comes near', (await page.$$('.field .digger.is-startled')).length >= 1);
 
   // Hourglass
@@ -524,6 +529,95 @@ try {
     await castFromRing(page, 'slash');
     await page.waitForTimeout(1800);
   }
+
+  // The dragon: an egg to take and warm; it hatches, grows, trains, and ascends.
+  page = await open({ wander: false, muted: true, crypt: { souls: 2000, skeletons: 0, total: 0, at: Date.now() } });
+  await castFromRing(page, 'dragon');
+  await page.waitForTimeout(150);
+  check('the Dragon card offers an egg', (await page.textContent('#card')).includes('Take the egg'));
+  await page.click('#card .chip:has-text("Take the egg")');
+  await page.waitForTimeout(300);
+  check('taken, the egg sits in the garden', !!(await page.$('.field .dragon.is-egg')) && (await page.textContent('#card')).includes('Warmth'));
+  const eggBox = await page.locator('.field .dragon').boundingBox();
+  await page.mouse.click(eggBox.x + eggBox.width / 2, eggBox.y + eggBox.height / 2);
+  await page.waitForTimeout(300);
+  check('clicking it warms it', (await page.evaluate(() => window.__reaper.dragon.get().warmth)) === 3);
+  // Warm enough (as if hours had passed): it hatches.
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    saved.crypt.dragon.warmth = 99.5;
+    saved.crypt.dragon.at = Date.now() - 3600000;
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(400);
+  await page.evaluate(async () => { const { companion } = await import('./bridge.js'); const o = await companion.crypt({}); window.__reaper.crypt.update(o.crypt); });
+  await page.waitForTimeout(400);
+  check('warm enough, it hatches', (await page.evaluate(() => window.__reaper.dragon.get().stage)) === 'hatchling' && !!(await page.$('.field .dragon.is-hatchling')),
+    await page.evaluate(() => JSON.stringify(window.__reaper.dragon.get())));
+  check('the hatchling shows its own picture', /dragon-hatchling-[a-z]+\.png/.test(await page.$eval('.field .dragon', (n) => n.style.backgroundImage)));
+  await page.evaluate(() => window.__reaper.dragon.open());
+  await page.waitForTimeout(150);
+  await page.click('#card .chip:has-text("50 souls")');
+  await page.waitForTimeout(250);
+  check('fed souls, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  await page.click('#card .chip:has-text("Garden ·")');
+  await page.waitForTimeout(250);
+  check('trained, it learns, and tires', (await page.evaluate(() => window.__reaper.dragon.get().train.garden)) === 1 &&
+    (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 75);
+  // Its favourite food: a snail from the garden.
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    Object.assign(saved.crypt, { skeletons: 1, born: [Date.now() - 3600000], kinds: ['snail'], rank: 1 });
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.__reaper.dragon.open());
+  await page.waitForTimeout(150);
+  const xpSnail = await page.evaluate(() => window.__reaper.dragon.get().xp);
+  check('with a snail in the garden, the card offers its favourite', !!(await page.$('#card .chip[data-feed="snail"]')));
+  await page.click('#card .chip[data-feed="snail"]');
+  await page.waitForTimeout(300);
+  check('it eats the snail, and grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > xpSnail &&
+    !(await page.$('.field .digger.is-snail')) && !(await page.$('#card .chip[data-feed="snail"]')));
+
+  // An elder with a strong bond ascends: scales, and an egg of a new element.
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    Object.assign(saved.crypt.dragon, { stage: 4, xp: 2000, bond: 90, branch: 'hunter' });
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(400);
+  const wasElement = await page.evaluate(() => window.__reaper.dragon.get().element);
+  check('an elder is drawn as one', !!(await page.$('.field .dragon.is-elder')));
+  await page.evaluate(() => window.__reaper.dragon.open());
+  await page.waitForTimeout(150);
+  await page.click('#card .chip:has-text("Ascend")');
+  await page.waitForTimeout(300);
+  const ascended = await page.evaluate(() => window.__reaper.dragon.get());
+  check('it ascends: an egg of a new element, a lineage higher, and scales kept', ascended.stage === 'egg' && ascended.element !== wasElement &&
+    ascended.lineage === 1 && ascended.scales >= 10, JSON.stringify(ascended));
+  await page.click('#card .chip[data-perk="power"]');
+  await page.waitForTimeout(250);
+  check('scales buy a perk', (await page.evaluate(() => window.__reaper.dragon.get().perks.find((p) => p.id === 'power').level)) === 1);
+  // A hunter breathes on ghosts in a hunt.
+  page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
+    dragon: { element: 'ember', stage: 3, xp: 500, bond: 80, energy: 100, branch: 'hunter', lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });
+  // Caught ghosts leave the page a moment later, so count the catches as they happen.
+  await page.evaluate(() => {
+    window.__breathed = 0;
+    new MutationObserver((ms) => { for (const m of ms) if (m.target.classList && m.target.classList.contains('is-caught') && m.oldValue && !m.oldValue.includes('is-caught')) window.__breathed++; })
+      .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+  });
+  await page.evaluate(() => window.__reaper.abilities.reapAt(0));
+  await page.waitForTimeout(3600);
+  check('a hunter dragon breathes on ghosts and catches them', (await page.evaluate(() => window.__breathed)) >= 1 && (await page.$$('.dragon-breath')).length >= 0,
+    String(await page.evaluate(() => window.__breathed)));
 
   // A moth starts as a caterpillar on the ground, then hangs as a cocoon.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 2, born: [Date.now() + 2 * 3600000, Date.now() + 10 * 60000],

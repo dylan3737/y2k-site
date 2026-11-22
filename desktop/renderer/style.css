@@ -391,6 +391,68 @@ body.is-capturing * { visibility: hidden !important; }
 @keyframes flicker-wisp { to { background-position: -192px 0; } }
 @keyframes bob { 50% { translate: 0 -6px; } }
 
+/* --- The dragon ---------------------------------------------------------- */
+/* Its sheet is four frames of idle (a breath, the wings lifting); the page sets
+   the size and the picture for its stage and element. */
+.dragon {
+  position: fixed;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  transition-property: left, top;
+  transition-timing-function: ease-in-out;
+  animation: dragon-idle 1.6s steps(4) infinite;
+  cursor: pointer;
+  z-index: 7;
+  --glow: rgba(216, 150, 255, 0.85);
+}
+@keyframes dragon-idle { to { background-position: calc(var(--sheet-w) * -1) 0; } }
+.dragon.is-ember { --glow: rgba(255, 140, 110, 0.85); }
+.dragon.is-frost { --glow: rgba(130, 220, 255, 0.85); }
+.dragon.is-shadow { --glow: rgba(216, 150, 255, 0.85); }
+.dragon.is-storm { --glow: rgba(255, 232, 140, 0.85); }
+.dragon { filter: drop-shadow(0 0 4px var(--glow)); }
+/* Its art faces left; going right, it turns. */
+.dragon.is-right { scale: -1 1; }
+.dragon.is-napping { animation-duration: 4s; filter: brightness(0.85) drop-shadow(0 0 3px var(--glow)); }
+/* The egg: it rocks gently, and shows its cracks when it is nearly ready. */
+.dragon.is-egg { animation: egg-rock 3s ease-in-out infinite; transform-origin: 50% 100%; background-position: 0 0; }
+.dragon.is-egg.is-cracking { background-position: calc(var(--sheet-w) / -2) 0; animation-duration: 1.2s; }
+@keyframes egg-rock { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
+/* The Gleam perk: an aura, deeper each level; an Ancient blazes. */
+.dragon.has-aura-1 { filter: drop-shadow(0 0 6px var(--glow)) drop-shadow(0 0 14px var(--glow)); }
+.dragon.has-aura-2 { filter: drop-shadow(0 0 8px var(--glow)) drop-shadow(0 0 22px var(--glow)); }
+.dragon.has-aura-3, .dragon.is-ancient { filter: drop-shadow(0 0 10px var(--glow)) drop-shadow(0 0 30px var(--glow)) brightness(1.1); }
+.dragon-heart { position: fixed; pointer-events: none; font: 12px/1 var(--pixel); color: #ff9ec7; text-shadow: 0 0 4px rgba(255, 170, 210, 0.9); animation: drift-up 1.6s ease-out forwards; }
+/* A hunter's breath: a beam of its element from its mouth to the ghost. */
+.dragon-breath { position: fixed; height: 6px; margin-top: -3px; transform-origin: 0 50%; pointer-events: none; border-radius: 3px; z-index: 6;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), var(--breath) 40%, transparent); box-shadow: 0 0 10px var(--breath); animation: breath-fade 0.45s ease-out forwards; }
+.dragon-breath.is-ember { --breath: rgba(255, 140, 110, 0.95); }
+.dragon-breath.is-frost { --breath: rgba(130, 220, 255, 0.95); }
+.dragon-breath.is-shadow { --breath: rgba(216, 150, 255, 0.95); }
+.dragon-breath.is-storm { --breath: rgba(255, 232, 140, 0.95); }
+@keyframes breath-fade { from { opacity: 1; scale: 0.2 1; } 30% { scale: 1 1; } to { opacity: 0; } }
+.dragon-spark { position: fixed; width: 4px; height: 4px; pointer-events: none; border-radius: 1px; background: var(--breath, #fff); box-shadow: 0 0 6px var(--breath, #fff); animation: spark 1.1s ease-out forwards; z-index: 6; }
+.dragon-spark.is-ember { --breath: rgba(255, 140, 110, 0.95); }
+.dragon-spark.is-frost { --breath: rgba(130, 220, 255, 0.95); }
+.dragon-spark.is-shadow { --breath: rgba(216, 150, 255, 0.95); }
+.dragon-spark.is-storm { --breath: rgba(255, 232, 140, 0.95); }
+@keyframes spark { to { translate: var(--dx) var(--dy); opacity: 0; } }
+/* Its card. */
+.dragon-title { font-size: 10px; color: #fff; margin: 0 0 8px; text-transform: capitalize; }
+.dragon-meter { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 8px; margin: 4px 0; }
+.dragon-meter b { font-weight: normal; font-size: 8px; color: #cfc4e6; }
+.dragon-bar { height: 8px; background: rgba(255, 255, 255, 0.12); border-radius: 4px; overflow: hidden; }
+.dragon-bar span { display: block; height: 100%; background: #c79cff; }
+.dragon-bar.is-warm span { background: #ff9e7a; }
+.dragon-bar.is-xp span { background: #9ce6c7; }
+.dragon-bar.is-bond span { background: #ff9ec7; }
+.dragon-bar.is-energy span { background: #ffe58a; }
+.dragon-branch { font-size: 9px; color: #ffe58a; margin: 8px 0; }
+.dragon-ascend { margin: 10px 0 6px; }
+.dragon-scales { font-size: 9px; color: #9ce6f2; margin: 6px 0; }
+.dragon-card .row { gap: 6px; margin: 6px 0; flex-wrap: wrap; align-items: center; }
+
 /* What a full one leaks, and what a sleeping one says. */
 .wisp, .snore { position: fixed; pointer-events: none; animation: drift-up 2.4s ease-out forwards; }
 .wisp { width: 4px; height: 4px; background: #e6d2ff; box-shadow: 0 0 6px 2px rgba(190, 140, 255, 0.8); }
@@ -429,6 +491,7 @@ body.is-capturing * { visibility: hidden !important; }
   .wisp, .snore { display: none; }
   .moth.is-flying, .wisp-worker, .ghost.is-golden::before, .cocoon, .bee { animation: none; }
   .note, .pollen { display: none; }
+  .dragon, .dragon.is-egg { animation: none; }
   .digger.is-held, .digger.is-landing { animation: none !important; }
 }
 

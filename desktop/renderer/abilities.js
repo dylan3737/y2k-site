@@ -65,6 +65,8 @@ export function createAbilities(ctx) {
       return;
     }
     companion.notify('The sand has run out.', minutesText(minutes) + ' done. Stand up. Stretch. You are not dead yet.');
+    // A dragon of an ascended line (Lore, second level) lights up the sky for it.
+    if (ctx.dragon && ctx.dragon.lore() >= 2) ctx.dragon.fireworks();
     companion.stat('focus', 1, minutes);
     // A card the user is using is left alone; the bubble and bell are enough.
     if (card.isOpen()) {
@@ -291,9 +293,11 @@ export function createAbilities(ctx) {
   const MOTH_CATCHES = 2;
   async function mothsSwoop() {
     const moths = (ctx.crypt && ctx.crypt.moths && ctx.crypt.moths()) || 0;
-    if (!hunt || !moths) return;
+    if (!hunt || (!moths && !(ctx.dragon && ctx.dragon.lore() >= 3))) return;
     hunt.swooping = true;
-    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, moths * MOTH_CATCHES);
+    // (A dragon of the Lore perk's third level fetches one more.)
+    const fetches = moths * MOTH_CATCHES + (ctx.dragon && ctx.dragon.lore() >= 3 ? 1 : 0);
+    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, fetches);
     for (const g of loose) {
       // Held still while the moth comes for it.
       g.held = true;
@@ -325,6 +329,28 @@ export function createAbilities(ctx) {
     for (let i = 0; i < count; i++) spawnGhost(froms[i % froms.length], i < lights);
     paintScore();
     requestAnimationFrame(moveGhosts);
+    dragonHunts();
+  }
+
+  // A hunter dragon breathes on ghosts through the hunt: one at a time, no
+  // combo, as many as it can (more with its stage and the Old blood perk).
+  function dragonHunts() {
+    const d = ctx.dragon;
+    let left = d ? d.breaths() : 0;
+    if (!left) return;
+    const mine = hunt;
+    const once = () => {
+      if (!hunt || hunt !== mine || hunt.wraith || !left) return;
+      const loose = hunt.ghosts.filter((g) => !g.caught && !g.held);
+      if (!loose.length) return;
+      const g = loose[Math.floor(Math.random() * loose.length)];
+      left -= 1;
+      g.held = true;
+      d.breathe(g.x + GHOST_W / 2, g.y + GHOST_H / 2);
+      setTimeout(() => { if (hunt === mine) catchGhost(g, { byMoth: true }); }, 260);
+      setTimeout(once, 1700);
+    };
+    setTimeout(once, 1200);
   }
 
   async function endHunt() {
@@ -443,6 +469,14 @@ export function createAbilities(ctx) {
     huntRing.hidden = false;
     sound.caught();
     requestAnimationFrame(moveWraith);
+    // A dragon of an ascended line (the Lore perk) dives at it.
+    if (ctx.dragon && ctx.dragon.lore() >= 1) {
+      setTimeout(async () => {
+        if (!hunt || !hunt.wraith) return;
+        await ctx.dragon.dive(hunt.wraith.x + WRAITH_W / 2, hunt.wraith.y + WRAITH_H / 2);
+        if (hunt && hunt.wraith) hitWraith(3);
+      }, 900);
+    }
     return { ok: true, wraith: true };
   }
 
@@ -695,6 +729,13 @@ export function createAbilities(ctx) {
       id: 'raven', name: 'Raven', cost: 5, school: 'message', blurb: 'A reminder, carried back to you later.',
       free: true,
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
+    },
+    {
+      id: 'dragon', name: 'Dragon', cost: 0, school: 'spirit', blurb: 'Your dragon: its egg, raising and training it, and ascension.',
+      free: true,
+      active: () => ctx.dragon.isOpen(),
+      stop: () => ctx.dragon.close(),
+      cast: () => ctx.dragon.open()
     },
     {
       id: 'crypt', name: 'Garden', cost: 0, school: 'soul', blurb: 'Your banked souls, and the garden they grow.',

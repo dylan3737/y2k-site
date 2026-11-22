@@ -22,6 +22,8 @@
 // when reaped; the robin shortens the rest after a reaping; the will-o'-wisp
 // makes sprouts grow faster; the ladybug brings more spirit-lights.
 
+import * as dragons from './dragon.js';
+
 export const RATE_PER_HOUR = 1.5; // souls one skeleton digs up in an hour
 export const BASE_COST = 25;      // the first skeleton
 export const GROWTH = 1.25;      // each one costs this much more than the last
@@ -88,7 +90,8 @@ const KIND_BY_ID = new Map(KINDS.map((k) => [k.id, k]));
 const kindOf = (c, i) => KIND_BY_ID.get((c.kinds && c.kinds[i]) || 'digger') || KINDS[0];
 const counted = (c, id) => (c.kinds || []).filter((k) => k === id).length;
 // How fast skeletons ripen: a quarter faster for each will-o'-wisp.
-export const ripenSpeed = (c) => 1 + 0.25 * counted(c, 'wisp');
+// (and a guardian dragon, or the Warm roots perk).
+export const ripenSpeed = (c) => (1 + 0.25 * counted(c, 'wisp')) * (1 + dragons.gardenGrowth(c.dragon));
 
 // Upgrades change the rules instead of adding diggers. `costs` has one price
 // per level; `effect` says what a level gives, for the card.
@@ -168,6 +171,8 @@ export function clean(raw, now = Date.now()) {
     boosts: c.boosts && typeof c.boosts === 'object' ? Object.fromEntries(Object.entries(c.boosts)
       .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(0, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
     pollenAt: Number.isFinite(c.pollenAt) && c.pollenAt <= now ? c.pollenAt : 0,
+    // The reaper's dragon (dragon.js), once it has one.
+    dragon: dragons.cleanDragon(c.dragon, now),
     score: Math.floor(whole(c.score, 1e12)),
     rank: Math.floor(whole(c.rank, RANKS.length - 1)),
     done: Array.isArray(c.done) ? MILESTONES.map((m) => m.id).filter((id) => c.done.includes(id)) : [],
@@ -197,7 +202,7 @@ const shares = (c, now = c.at) => {
   for (let i = 0; i < c.skeletons; i++) if (!c.born || c.born[i] === undefined || awake(c, i, now)) n += kindOf(c, i).dig;
   return n;
 };
-export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels'));
+export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels')) * (1 + dragons.gardenSouls(c.dragon));
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
 export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug')) * 100) / 100;
@@ -389,7 +394,9 @@ export function hunted(c, result) {
   const gained = (caught + 2 * golden) * GHOST_SOULS;
   bank(c, gained);
   c.score += points;
-  return { ok: true, caught, golden, points, gained, ranked: climb(c) };
+  // The dragon learns from every hunt it shares.
+  const dragon = c.dragon ? dragons.hunted(c.dragon, caught) : null;
+  return { ok: true, caught, golden, points, gained, ranked: climb(c), ...(dragon && dragon.grew.length ? { dragonGrew: dragon.grew } : {}) };
 }
 
 // Pay every rank the score has newly reached.
@@ -461,7 +468,56 @@ export function reach(c) {
 export function deed(c, key, n, now = Date.now()) {
   settle(c, now);
   const gained = earn(c, key, n);
-  return { gained, reached: reach(c) };
+  // A finished hourglass warms the egg, or teaches the dragon.
+  const dragon = c.dragon && key === 'focus' ? dragons.focus(c.dragon, n, now) : null;
+  return { gained, reached: reach(c), ...(dragon ? { dragon: dragon } : {}) };
+}
+
+// The dragon: { adopt }, { pet }, { feed: souls }, { snail } (its favourite:
+// one of the garden's snails), { train: kind }, { ascend },
+// { perk: id }. Its time is counted first.
+export function dragonAct(c, a, now = Date.now()) {
+  if (a.adopt) {
+    if (c.dragon) return { ok: false, error: 'He has a dragon already.' };
+    c.dragon = dragons.freshDragon(now);
+    return { ok: true, adopted: c.dragon.element };
+  }
+  const d = c.dragon;
+  if (!d) return { ok: false, error: 'There is no dragon yet. Take the egg first.' };
+  const aged = dragons.age(d, now);
+  let out;
+  if (a.pet) {
+    out = dragons.pet(d, now);
+    // A trickster's play is worth souls.
+    const play = out.ok ? dragons.playSouls(d) : 0;
+    if (play) { bank(c, play); out.gained = play; }
+  } else if (a.snail) {
+    // Its favourite: one of the garden's snails (one that is up, not a seed).
+    const i = c.kinds.findIndex((k, j) => k === 'snail' && awake(c, j, now));
+    if (i < 0) return { ok: false, error: 'There are no snails in the garden. (It checked.)' };
+    out = dragons.snack(d, now);
+    if (out.ok) {
+      if (c.boosts) delete c.boosts[c.born[i]];
+      c.born.splice(i, 1);
+      c.kinds.splice(i, 1);
+      c.skeletons -= 1;
+    }
+  } else if ('feed' in a) {
+    const n = Math.floor(whole(Number(a.feed), 1e6));
+    if (!n) return { ok: false, error: 'Feed it some souls.' };
+    if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
+    out = dragons.feed(d, n, now);
+    if (out.ok) c.souls -= n;
+  } else if (a.train) {
+    out = dragons.train(d, a.train, now);
+  } else if (a.ascend) {
+    out = dragons.ascend(d, now);
+  } else if (typeof a.perk === 'string') {
+    out = dragons.buyPerk(d, a.perk);
+  } else {
+    out = { ok: true };
+  }
+  return { ...out, ...(aged.hatched ? { hatched: true } : {}) };
 }
 
 // Mounds of dirt the skeletons left, swept away: a soul each.
@@ -477,6 +533,8 @@ export function sweep(c, n) {
 export function act(c, action, now = Date.now()) {
   settle(c, now);
   tally(c, now);
+  // The dragon's time passes too: the egg warms, and may hatch.
+  const aged = c.dragon ? dragons.age(c.dragon, now) : {};
   const a = action && typeof action === 'object' ? action : {};
   const out = a.raise ? raise(c, a.raise, a.kind, now)
     : 'reap' in a ? reap(c, a.reap, now)
@@ -486,8 +544,9 @@ export function act(c, action, now = Date.now()) {
       : a.hunt ? hunted(c, a.hunt)
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)
-            : typeof a.buy === 'string' ? buy(c, a.buy) : { ok: true };
-  return { ...out, reached: reach(c) };
+            : typeof a.buy === 'string' ? buy(c, a.buy)
+              : a.dragon ? dragonAct(c, a.dragon, now) : { ok: true };
+  return { ...out, ...(aged.hatched ? { hatched: true } : {}), reached: reach(c) };
 }
 
 // What the page and Speak are shown: whole souls only.
@@ -510,6 +569,7 @@ export function view(c) {
       cost: kindCost(c, k.id), open: (c.rank || 0) >= k.rank, rank: RANKS[k.rank].name
     })),
     loose: c.loose,
+    dragon: dragons.viewDragon(c.dragon),
     // Moths up and about (not cocoons): each saves ghosts at a hunt's end.
     moths: (c.born || []).filter((t, i) => kindOf(c, i).id === 'moth' && awake(c, i, Date.now())).length,
     score: c.score,

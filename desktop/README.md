@@ -162,6 +162,31 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 
 **Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
+### The dragon
+
+Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise what hatches.
+
+- **The egg** has an element, which shows in its colour: **Ember** (plum, coral glow), **Frost** (navy, ice blue), **Shadow** (violet, pink) or **Storm** (slate, gold). It hatches when it is warm enough: it warms slowly on its own, more each time you click it, and most from every finished Hourglass.
+- **Growing:** hatchling, drake, wyvern, elder. It grows with experience: souls you feed it, training, petting, and every hunt it shares. **Bond** (from care) makes it grow faster, and fades if it is left alone for days. **Energy** pays for training and comes back with time.
+- **Its favourite food is snails.** With snails in the garden, the card offers one: worth far more than souls, and a big boost to its bond. (Then you have one snail fewer.) Now and then it goes and stares at one.
+- **Training** is of three kinds, and whichever it had most decides what it becomes as a wyvern:
+
+| Path | Trained in | What it does |
+|---|---|---|
+| **Hunter** | Hunt | Breathes on ghosts in hunts and catches them: two as a wyvern, three as an elder, more with Old blood. |
+| **Guardian** | Garden | Every sprout in the garden grows faster: a quarter as a wyvern, a half as an elder. |
+| **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
+
+- **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
+- **Ascension (prestige):** an elder with a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
+
+| Perk | Levels | What it does |
+|---|---|---|
+| **Old blood** | 5 | +20% growth a level, and a hunter breathes on one more ghost |
+| **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
+| **Gleam** | 3 | A glow, then an aura, then a blazing one |
+| **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
+
 ### Upgrades
 
 Souls also buy upgrades, which change the rules instead of adding diggers. Each level costs more than the one before.
@@ -427,6 +452,8 @@ npm run dist:linux
 | `github.js` | GitHub through the user's `gh` login: reading, and the changes the page asks about first |
 | `selfwork.js` | Working on himself: the Terminal script that runs a coding agent on a branch of its own |
 | `tools/build-info.mjs` | Records the commit and repository a build comes from, for working on himself |
+| `dragon.js` | The dragon's rules: hatching, growing, training, bond, ascension and its perks |
+| `renderer/dragon.js` | The dragon on screen and its card |
 | `crypt.js` | The Garden's rules (the Crypt, in the code): what deeds are worth, what workers cost and gather, upgrades and milestones |
 | `tools/pacing.mjs` | Plays the Garden for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |

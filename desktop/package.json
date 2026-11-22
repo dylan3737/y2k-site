@@ -8,8 +8,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs && node tests/github.mjs && node tests/launch.mjs",
-    "test:quick": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs && node tests/github.mjs",
+    "test": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs && node tests/github.mjs && node tests/dragon.mjs && node tests/launch.mjs",
+    "test:quick": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/reach.mjs && node tests/spotify.mjs && node tests/selfwork.mjs && node tests/github.mjs && node tests/dragon.mjs",
     "pacing": "node tools/pacing.mjs",
     "dist": "node tools/build-info.mjs && electron-builder",
     "dist:mac": "node tools/build-info.mjs && electron-builder --mac",
@@ -47,6 +47,7 @@
       "spotify.js",
       "selfwork.js",
       "github.js",
+      "dragon.js",
       "build-info.json"
     ],
     "mac": {

@@ -626,6 +626,8 @@ export function createCrypt(ctx) {
     const before = now;
     now = { ...now, ...next };
     paint();
+    // The dragon lives in the garden's state.
+    if (ctx.dragon && 'dragon' in next) ctx.dragon.update(next.dragon);
     // Souls for a deed pop over the reaper; what the garden gathered, over them.
     if (event.gained) ctx.pop('+' + event.gained, 'is-souls');
     else if (event.dug && next.souls > before.souls) unearthed(next.souls - before.souls);
@@ -661,6 +663,8 @@ export function createCrypt(ctx) {
     aim,
     diggerBox,
     diggerBoxes,
+    // Where a worker of a kind is (the dragon likes to watch the snails).
+    workerBox: (kind) => { const d = diggers.find((x) => x.kind === kind); return d ? d.node.getBoundingClientRect() : null; },
     near,
     swoop,
     // How many moths are about, not cocoons (each saves two ghosts a hunt).

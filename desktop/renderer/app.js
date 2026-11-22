@@ -5,6 +5,7 @@ import * as sound from './sound.js';
 import { createAbilities } from './abilities.js';
 import { createSpeak } from './speak.js';
 import { createCrypt } from './crypt.js';
+import { createDragon } from './dragon.js';
 
 const $ = (id) => document.getElementById(id);
 const reaper = $('reaper');
@@ -262,6 +263,8 @@ const ctx = {
 
 const crypt = createCrypt(ctx);
 ctx.crypt = crypt;
+ctx.dragon = createDragon(ctx);
+ctx.dragon.update(crypt.get().dragon);
 const speak = createSpeak(ctx);
 ctx.speak = speak;
 const abilities = createAbilities(ctx);
@@ -274,8 +277,9 @@ let ringAt = null;
 function openRing() {
   ring.replaceChildren();
   const list = abilities.list;
-  // Wide enough that the buttons don't overlap, however many there are.
-  const radius = Math.max(116, Math.round((list.length * 78) / (Math.PI * 2)));
+  // Wide enough that the buttons don't overlap, however many there are:
+  // about 92 pixels of the ring for each.
+  const radius = Math.max(116, Math.round((list.length * 92) / (Math.PI * 2)));
   ring.style.setProperty('--r', radius + 'px');
   const c = center();
   ringAt = { x: clamp(c.x, radius + 50, innerWidth - radius - 50), y: clamp(c.y, radius + 24, innerHeight - radius - 24) };
@@ -842,4 +846,4 @@ window.__reaper = {
   pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
   // Forget where he was going and choose again now.
   retarget() { target = null; waitUntil = 0; },
-  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, say };
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, say };
