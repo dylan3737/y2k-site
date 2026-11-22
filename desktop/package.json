@@ -80,6 +80,7 @@
       "category": "Utility"
     },
     "artifactName": "Reaper-${version}-${os}-${arch}.${ext}",
+    "afterPack": "tools/after-pack.cjs",
     "extraResources": [
       {
         "from": "vendor/llama/${platform}-${arch}",

@@ -386,6 +386,32 @@ Needs: macOS, the repository this app was built from (the build records where it
 
 ## Permissions
 
+### Keeping permissions across updates
+
+macOS ties the permissions you give the app (controlling Spotify, recording the screen) to its signature. Built without a certificate, every build looks like a new app and asks again. Sign builds with a certificate of your own and they keep them: make a free, self-made code-signing certificate called **Reaper Local Signing** once, and every build after that (`npm run dist:mac`, and the rebuild when he works on himself) is signed with it automatically (`tools/after-pack.cjs`). It never leaves your Mac.
+
+```bash
+cat > cert.cnf <<'EOF'
+[ req ]
+distinguished_name = dn
+prompt = no
+x509_extensions = ext
+[ dn ]
+CN = Reaper Local Signing
+[ ext ]
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, codeSigning
+EOF
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 3650 -config cert.cnf
+openssl pkcs12 -export -inkey key.pem -in cert.pem -out reaper.p12 -name "Reaper Local Signing" -passout pass:temp -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+security import reaper.p12 -k ~/Library/Keychains/login.keychain-db -P temp -T /usr/bin/codesign
+security add-trusted-cert -r trustRoot -p codeSign -k ~/Library/Keychains/login.keychain-db cert.pem   # asks for your password
+rm key.pem reaper.p12
+```
+
+The first build signed this way asks for Spotify (and screen) permission once more; after that, updates keep them.
+
 - **macOS:** Look and the screen effects (Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip) need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
 - **macOS:** the first time he controls Spotify, macOS asks whether Reaper may control it (Automation). If you said no, allow it in System Settings → Privacy & Security → Automation.
 - **Linux:** transparency needs a compositing window manager, which most desktops have.
