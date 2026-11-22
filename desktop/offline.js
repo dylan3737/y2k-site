@@ -275,6 +275,7 @@ function reaching(text, original) {
   if (/^(did (the )?ci pass|ci|ci status|how(('|’)s| is) ci|(show |list )?(ci )?runs)\??$/.test(text)) {
     return gh({ what: 'runs' }, (r) => list(r.runs, (x) => x.title + ': ' + (x.result || x.status) + (x.branch ? ' (' + x.branch + ')' : '')));
   }
+  if (/^(list |show )?(my )?(github )?repos(itories)?\??$/.test(text)) return gh({ what: 'repos' }, (r) => list(r.repositories, (x) => x.repo + (x.private ? ' (private)' : '')));
   if (/^(github )?notifications\??$/.test(text)) return gh({ what: 'notifications' }, (r) => list(r.notifications, (x) => x.repo + ': ' + x.title));
   // The user's own spelling of the last words, for what goes to a search.
   const words = (part) => original.trim().replace(/[!.?]+$/, '').replace(/\s+on spotify$/i, '').split(/\s+/).slice(-part.split(' ').length).join(' ');

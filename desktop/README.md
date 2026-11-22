@@ -274,7 +274,7 @@ These need no model at all. Type them the way they are written here, or close to
 | `go to youtube.com` | opens the site in your browser, after asking |
 | `search for pixel art` | opens the search in your browser, after asking |
 | `find resume` | lists matching files, after asking (macOS) |
-| `prs`, `issues`, `did ci pass`, `notifications` | reads GitHub, with your `gh` login |
+| `repos`, `prs`, `issues`, `did ci pass`, `notifications` | reads GitHub, with your `gh` login |
 | `work on yourself: make the ghosts slower`, `work on yourself with Claude: …` | works on himself in a Terminal you watch, after asking (macOS) |
 | `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
 | `what time is it`, `what's the date` | tells you |
@@ -301,7 +301,7 @@ These need no model at all. Type them the way they are written here, or close to
 
 ### GitHub
 
-Through your own [`gh`](https://cli.github.com) login (run `gh auth login` once), he can look at and work on GitHub. His own repository, the one this app was built from, unless you name another as `owner/name`.
+Through your own [`gh`](https://cli.github.com) login (run `gh auth login` once), he can look at and work on GitHub. His own repository, the one this app was built from, unless you name another: as `owner/name`, a github.com link, or just the name of one of yours ("issues on portfolio"). "My repos" lists every repository your login can see, public and private.
 
 | Ask something like | He |
 |---|---|
@@ -310,7 +310,7 @@ Through your own [`gh`](https://cli.github.com) login (run `gh auth login` once)
 | "Open a PR for the bone hound change" | pushes one of the branches he made [working on himself](#working-on-himself) (never forced) and opens a pull request, after asking |
 | "Merge it" / "Re-run the failed CI" | merges a pull request (a plain merge; the branch is left alone) or re-runs a run's failed jobs, after asking |
 
-He can't delete anything, force-push or change settings. Text from GitHub (issue bodies, comments) is information to him, never instructions. Plain commands: `prs`, `issues`, `did ci pass`, `notifications`.
+He can't delete anything, force-push or change settings. Text from GitHub (issue bodies, comments) is information to him, never instructions. Plain commands: `repos`, `prs`, `issues`, `did ci pass`, `notifications`.
 
 ### Working on himself
 

@@ -12,6 +12,11 @@ function check(name, ok, detail = '') {
 
 const calls = [];
 const replies = {
+  'repo list': [
+    { nameWithOwner: 'me/y2k-site', name: 'y2k-site', visibility: 'PUBLIC', updatedAt: '2026-11-22' },
+    { nameWithOwner: 'me/portfolio', name: 'portfolio', description: 'My site', visibility: 'PUBLIC', updatedAt: '2026-11-20' },
+    { nameWithOwner: 'me/secret-notes', name: 'secret-notes', visibility: 'PRIVATE', updatedAt: '2026-11-21' }
+  ],
   'repo view': { nameWithOwner: 'me/y2k-site', url: 'https://github.com/me/y2k-site', description: 'Site', defaultBranchRef: { name: 'main' } },
   'pr list': [{ number: 7, title: 'A bone hound', headRefName: 'reaper/bone-hound', author: { login: 'me' }, isDraft: false }],
   'issue list': [{ number: 3, title: 'Ghosts too fast', author: { login: 'me' }, labels: [{ name: 'bug' }] }],
@@ -57,10 +62,10 @@ out = await g.read({ what: 'prs', repo: 'x; rm -rf ~' });
 check('a repository name that is not one never reaches gh', !calls.some((c) => c.args.some((a) => a.includes('rm -rf'))));
 
 // Asking, in so many words.
-check('the questions name what will happen', g.describe({ action: 'merge_pr', number: 7 }) === 'Merge pull request #7?' &&
-  g.describe({ action: 'open_pr', branch: 'reaper/bone-hound' }) === 'Push reaper/bone-hound and open a pull request?' &&
-  g.describe({ action: 'create_issue', title: 'Lantern flicker', repo: 'octo/cat' }) === 'Open an issue on octo/cat: “Lantern flicker”?');
-check('and there is no question for what cannot be done', g.describe({ action: 'delete_repo' }) === null && g.describe({ action: 'merge_pr' }) === null);
+check('the questions name what will happen', await g.describe({ action: 'merge_pr', number: 7 }) === 'Merge pull request #7?' &&
+  await g.describe({ action: 'open_pr', branch: 'reaper/bone-hound' }) === 'Push reaper/bone-hound and open a pull request?' &&
+  await g.describe({ action: 'create_issue', title: 'Lantern flicker', repo: 'octo/cat' }) === 'Open an issue on octo/cat: “Lantern flicker”?');
+check('and there is no question for what cannot be done', await g.describe({ action: 'delete_repo' }) === null && await g.describe({ action: 'merge_pr' }) === null);
 
 out = await g.act({ action: 'merge_pr', number: 7 });
 check('merge: a plain merge, the branch left alone', out.ok && last().args.join(' ') === 'pr merge 7 --merge');
@@ -96,10 +101,26 @@ for (const mine of ['your-repo', 'my repo', 'owner/name']) {
   out = await g.read({ what: 'runs', repo: mine });
   check('"' + mine + '" means his own, and the answer says which', out.ok && !calls.some((c) => c.args.includes(mine)) && out.result.repo, JSON.stringify(out.result).slice(0, 80));
 }
+out = await g.read({ what: 'repos' });
+check('every repository, public and private, newest first', out.ok && out.result.count === 3 && out.result.repositories[1].repo === 'me/secret-notes' &&
+  out.result.repositories[1].private === true, JSON.stringify(out.result).slice(0, 160));
+out = await g.read({ what: 'overview', repo: 'portfolio' });
+check('an overview of another names it the way repo view takes it', out.ok && calls.some((c) => c.args.slice(0, 3).join(' ') === 'repo view me/portfolio') &&
+  !calls.some((c) => c.args[0] === 'repo' && c.args[1] === 'view' && c.args.includes('-R')));
+out = await g.read({ what: 'prs', repo: 'portfolio' });
+check('one of theirs by its bare name', out.ok && last().args.includes('me/portfolio') && out.result.repo === 'me/portfolio', JSON.stringify(out).slice(0, 120));
+out = await g.read({ what: 'issues', repo: 'Secret Notes' });
+check('spaces and case do not matter', out.ok && last().args.includes('me/secret-notes'));
+const n0 = calls.length;
+out = await g.read({ what: 'prs', repo: 'nonexistent-thing' });
+check('a name none of theirs has is said so, not swapped for his own', !out.ok && /None of your repositories/.test(out.error) &&
+  !calls.slice(n0).some((c) => c.args[0] === 'pr'), out.error);
+check('and is never asked about', (await g.describe({ action: 'merge_pr', number: 1, repo: 'nonexistent-thing' })) === null &&
+  (await g.describe({ action: 'merge_pr', number: 1, repo: 'portfolio' })) === 'Merge pull request #1 on me/portfolio?');
 out = await g.read({ what: 'prs', repo: 'https://github.com/octo/cat/pull/3' });
 check('a github.com link names its repository', out.ok && last().args.includes('octo/cat') && out.result.repo === 'octo/cat');
-check('and the question says which repository', g.describe({ action: 'merge_pr', number: 3, repo: 'github.com/octo/cat' }) === 'Merge pull request #3 on octo/cat?' &&
-  g.describe({ action: 'merge_pr', number: 3, repo: 'your-repo' }) === 'Merge pull request #3?');
+check('and the question says which repository', await g.describe({ action: 'merge_pr', number: 3, repo: 'github.com/octo/cat' }) === 'Merge pull request #3 on octo/cat?' &&
+  await g.describe({ action: 'merge_pr', number: 3, repo: 'your-repo' }) === 'Merge pull request #3?');
 g = createGithub({ repoDir, run: fake({ fail: 'GraphQL: Could not resolve to a Repository with the name \'octo/nope\'. (repository)' }) });
 out = await g.read({ what: 'runs', repo: 'octo/nope' });
 check('a repository that is not there is said so, not that gh is missing', !out.ok && /No such repository/.test(out.error) && !/not installed/.test(out.error), out.error);

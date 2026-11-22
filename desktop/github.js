@@ -14,7 +14,7 @@ const GH_PLACES = ['/opt/homebrew/bin/gh', '/usr/local/bin/gh', '/usr/bin/gh'];
 const GIT_PLACES = ['/usr/bin/git', '/opt/homebrew/bin/git', '/usr/local/bin/git'];
 const found = (places, name) => places.find((p) => fs.existsSync(p)) || name;
 
-export const READS = ['overview', 'issues', 'prs', 'issue', 'pr', 'runs', 'run', 'notifications', 'my_branches'];
+export const READS = ['repos', 'overview', 'issues', 'prs', 'issue', 'pr', 'runs', 'run', 'notifications', 'my_branches'];
 export const ACTS = ['create_issue', 'comment', 'close_issue', 'reopen_issue', 'open_pr', 'merge_pr', 'rerun_ci'];
 const BODY = 2000;      // characters of a body or comment kept for the model
 const COMMENTS = 6;     // the latest comments kept
@@ -52,6 +52,8 @@ export function named(raw) {
   return REPO.test(two) && !PLACEHOLDER.test(two) ? two : null;
 }
 
+// Bare words that mean his own repository, not one called that.
+const MEANS_OWN = /^(your|my|the|this|our|his)?[ _-]?(repo|repository|project|app|code|source)$|^(user|owner|you|me)$/i;
 // What small models put in when they mean "the user's own".
 const PLACEHOLDER = /^(user|owner|username|your-?username|me|my|example|you)\/(repo|name|repository|my-?repo|project)$/i;
 
@@ -60,11 +62,36 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   const gh = found(GH_PLACES, 'gh');
   const git = found(GIT_PLACES, 'git');
 
-  function where(input) {
-    const other = named(input.repo);
+  // Which repository: one named as owner/name or a github.com link; one of the
+  // user's own by its bare name ("portfolio"); or, for a placeholder or
+  // nothing, his own. A name that matches none of theirs is said so, never
+  // quietly swapped for his own.
+  async function where(input) {
+    const raw = String(input.repo || '').trim();
+    let other = named(raw);
+    if (!other && raw && !raw.includes('/') && !MEANS_OWN.test(raw)) {
+      other = await byName(raw);
+      if (!other) return { error: 'None of your repositories is called "' + raw.slice(0, 60) + '". Ask me to list your repositories.' };
+    }
     if (other) return { args: ['-R', other], cwd: repoDir || undefined, name: other };
     if (!repoDir || !fs.existsSync(repoDir)) return { error: "I don't know which repository: name one as owner/name." };
     return { args: [], cwd: repoDir, name: null };
+  }
+  // The user's repositories (and their organisations'), kept for a few minutes.
+  let mine = null;
+  async function theirs() {
+    if (mine && Date.now() - mine.at < 5 * 60000) return mine.list;
+    const out = await ghJson(['repo', 'list', '--limit', '200', '--json', 'nameWithOwner,name,description,visibility,updatedAt,isFork']);
+    if (!out.ok || !Array.isArray(out.data)) return [];
+    mine = { at: Date.now(), list: out.data };
+    return mine.list;
+  }
+  async function byName(name) {
+    const flat = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const want = flat(name);
+    const list = await theirs();
+    const hit = list.find((r) => flat(r.name) === want) || (want.length > 3 ? list.filter((r) => flat(r.name).includes(want)) : []).find((_, k, all) => all.length === 1);
+    return hit ? hit.nameWithOwner : null;
   }
   // His own repository's name, asked once, so every answer can say which it was.
   let own = null;
@@ -85,8 +112,9 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   async function read(input = {}) {
     const out = await reading(input);
     // Say which repository the answer is about.
-    if (out.ok && input.what !== 'notifications' && out.result && !out.result.repo) {
-      const name = named(input.repo) || (repoDir ? await ownName() : null);
+    if (out.ok && !['notifications', 'repos'].includes(input.what) && out.result && !out.result.repo) {
+      const at = await where(input);
+      const name = at.name || (repoDir ? await ownName() : null);
       if (name) out.result = { repo: name, ...out.result };
     }
     return out;
@@ -95,17 +123,24 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   async function reading(input = {}) {
     const what = input.what;
     if (!READS.includes(what)) return { ok: false, error: 'what must be one of ' + READS.join(', ') };
+    if (what === 'repos') {
+      const list = await theirs();
+      if (!list.length) return { ok: false, error: 'GitHub listed no repositories for this login.' };
+      return { ok: true, result: { count: list.length, repositories: [...list].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 40)
+        .map((r) => ({ repo: r.nameWithOwner, private: r.visibility === 'PRIVATE', fork: r.isFork || undefined, about: clip(r.description, 120) || undefined })) } };
+    }
     if (what === 'notifications') {
       const out = await ghJson(['api', 'notifications?per_page=15']);
       if (!out.ok) return out;
       return { ok: true, result: { notifications: (out.data || []).map((n) => ({ repo: n.repository && n.repository.full_name, title: n.subject && n.subject.title, type: n.subject && n.subject.type, reason: n.reason, updated: n.updated_at })) } };
     }
-    const at = where(input);
+    const at = await where(input);
     if (at.error) return { ok: false, error: at.error };
     const { args: R, cwd } = at;
     switch (what) {
       case 'overview': {
-        const repo = await ghJson(['repo', 'view', ...R, '--json', 'nameWithOwner,description,url,defaultBranchRef'], cwd);
+        // repo view names its repository as an argument, not with -R.
+        const repo = await ghJson(['repo', 'view', ...(at.name ? [at.name] : []), '--json', 'nameWithOwner,description,url,defaultBranchRef'], cwd);
         if (!repo.ok) return repo;
         const [prs, issues, runs] = await Promise.all([
           ghJson(['pr', 'list', ...R, '--limit', '5', '--json', 'number,title,headRefName,isDraft'], cwd),
@@ -176,9 +211,10 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   }
 
   // A sentence for the page to ask with, before anything is changed; null if the input is wrong.
-  function describe(input = {}) {
-    const other = named(input.repo);
-    const on = other ? ' on ' + other : '';
+  async function describe(input = {}) {
+    const at = await where(input);
+    if (at.error) return null;
+    const on = at.name ? ' on ' + at.name : '';
     switch (input.action) {
       case 'create_issue': return input.title ? 'Open an issue' + on + ': “' + String(input.title).slice(0, 80) + '”?' : null;
       case 'comment': return number(input.number) && input.body ? 'Comment on #' + input.number + on + ': “' + String(input.body).slice(0, 80) + '”?' : null;
@@ -195,7 +231,7 @@ export function createGithub({ repoDir = null, run = exec } = {}) {
   async function act(input = {}) {
     const action = input.action;
     if (!ACTS.includes(action)) return { ok: false, error: 'action must be one of ' + ACTS.join(', ') };
-    const at = where(input);
+    const at = await where(input);
     if (at.error) return { ok: false, error: at.error };
     const { args: R, cwd } = at;
     const n = number(input.number);
