@@ -94,7 +94,7 @@ When it's low, he fades.
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 25 | Fifteen seconds of ghosts drifting across your whole desktop. Click them to catch them; they don't dodge, and a near miss counts. Golden ones are worth three. Your best catch is saved. |
+| **Summon** | 40 | He raises a skeleton for the [Crypt](#the-crypt) from his own soul. About one time in four a **wraith** rises instead: strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a skeleton rises anyway. If it escapes, nothing. |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
 | **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
@@ -109,7 +109,7 @@ You earn souls by using him:
 
 | Deed | Souls |
 |---|---|
-| A ghost caught in Summon | 1 (3 for a golden one) |
+| A ghost caught in a hunt | 10 (30 for a golden one) |
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
@@ -118,6 +118,29 @@ Souls raise **skeletons**. The first costs 25, and each one after costs 25% more
 - When you come back to the computer, he tells you what they dug up while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
 - Up to eight skeletons dig along the bottom of your screen. Clicks pass through them, and each fades almost away while your cursor is over it.
+
+### Reaping and the hunt
+
+Skeletons **ripen** as they dig: each holds one ghost, and one more for every hour it has dug, up to six. The riper one glows brighter.
+
+**Drag him onto a skeleton** (it lights up under his feet) and let go: he reaps it. It stops digging and bursts into its ghosts, and a short hunt begins (6 seconds, and 1.5 more for each ghost). Click the ghosts to catch them:
+
+- Each caught banks 10 souls (30 for a golden one) and scores 10 points (30 golden), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
+- Ghosts that get away are lost.
+- Slash during a hunt catches every ghost still loose.
+
+Points add up to a **score** that climbs ranks. Each new rank pays souls once:
+
+| Rank | Score | Pays |
+|---|---|---|
+| Gravekeeper | 0 | |
+| Ghost catcher | 100 | 30 |
+| Soul warden | 400 | 80 |
+| Shade hunter | 1,200 | 200 |
+| Wraith lord | 3,000 | 500 |
+| The Reaper's hand | 8,000 | 1,200 |
+
+Reaping trades a skeleton's digging for a hunt: a ripe one is worth more, but it has to be raised again. **Summon** raises skeletons from his own soul, so the two feed each other.
 
 ### Upgrades
 
@@ -128,7 +151,7 @@ Souls also buy upgrades, which change the rules instead of adding diggers. Each 
 | **Sharper shovels** | 10 | Every skeleton digs 25% faster | 60 |
 | **Deeper graves** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
 | **Finer sand** | 3 | A finished Hourglass is worth 1.5, then 2, then 3 souls a minute | 120 |
-| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in Summon are golden (10% without it) | 80 |
+| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in a hunt are golden (10% without it) | 80 |
 
 ### Milestones
 
@@ -136,7 +159,7 @@ There are 17 milestones, such as raising your first skeleton, catching 100 ghost
 
 ### Using it
 
-Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
+Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
 
 ### Tuning the numbers
 

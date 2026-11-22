@@ -76,9 +76,11 @@ try {
   check('a raven is saved by the main process', saved.ravens.some((r) => r.text === 'Test raven'));
 
   // Tray abilities reach the page.
+  // Summon, with the dice set so a wraith rises: that leaves the crypt as it was.
+  await page.evaluate(() => { Math.random = () => 0.1; });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('command', 'cast:summon'));
   await page.waitForTimeout(200);
-  check('a tray command casts an ability', (await page.$$('.ghost')).length > 0);
+  check('a tray command casts an ability', (await page.$$('.wraith')).length > 0);
 
   // Speak with nothing downloaded offers the free mind rather than failing silently.
   const reply = await page.evaluate(() => new Promise((resolve) => {

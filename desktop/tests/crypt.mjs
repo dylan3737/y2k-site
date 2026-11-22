@@ -102,6 +102,8 @@ check('a damaged save is made safe', bad.souls === 0 && bad.skeletons === crypt.
 const old = crypt.clean({ souls: 40, skeletons: 2, total: 90, at: T0 }, T0);
 check('a save from before upgrades still loads', old.souls === 40 && old.skeletons === 2 && old.upgrades.shovels === 0 && old.done.length === 0);
 check('and is paid for milestones it already met', crypt.reach(old).some((r) => r.name === 'It moves'));
+// The count was set by hand above; any action gives each skeleton its start time.
+crypt.act(u, {}, u.at);
 check('a round trip through JSON changes nothing', JSON.stringify(crypt.clean(JSON.parse(JSON.stringify(u)), u.at)) === JSON.stringify(u));
 
 // --- The plain commands that reach it ------------------------------------------------------
@@ -130,6 +132,45 @@ got = await heard('my name is Sam, remember that', { ok: true, result: { id: 'm1
 check('"..., remember that" keeps the note', got && got.name === 'remember' && got.note === 'My name is Sam' && got.reply === 'Kept.', JSON.stringify(got));
 got = await heard('summon', { ok: true, result: 'cast' });
 check('"summon" is still the ghost game', got && got.name === 'cast' && got.ability === 'summon');
+
+// Reaping: skeletons ripen as they dig, and burst into their ghosts.
+const r = crypt.fresh(T0);
+r.souls = 1000;
+crypt.act(r, { raise: 3 }, T0);
+check('a new skeleton holds one ghost', crypt.ripeness(r.born[0], r.born[0]) === 1);
+check('and one more for every hour it digs', crypt.ripeness(r.born[0], r.born[0] + 3.5 * HOUR) === 4);
+check('six at most', crypt.ripeness(r.born[0], r.born[0] + 100 * HOUR) === crypt.MAX_RIPE);
+const second = r.born[1];
+out = crypt.act(r, { reap: 0 }, r.born[0] + 2 * HOUR);
+check('reaping a skeleton lets its ghosts loose', out.ok && out.ghosts === 3 && r.loose === 3 && r.skeletons === 2, JSON.stringify(out));
+check('and only that one stops digging', r.born[0] === second && crypt.view(r).bones.length === 2);
+check('reaping one that is not there is refused', !crypt.act(r, { reap: 7 }).ok && r.skeletons === 2);
+const before = r.souls;
+out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, r.born[0] + 2 * HOUR);
+check('ghosts caught bank souls, golden ones three times as much', out.caught === 2 && out.gained === 40 && Math.round(r.souls - before) >= 40, JSON.stringify(out));
+check('the rest are lost', r.loose === 0);
+check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Gravekeeper' && crypt.view(r).nextRank.at === 100);
+out = crypt.act(r, { hunt: { caught: 5, points: 999 } });
+check('a hunt cannot claim ghosts that were never loose', out.caught === 0 && out.points === 0 && r.score === 60, JSON.stringify(out));
+crypt.act(r, { reap: 0 });
+out = crypt.act(r, { hunt: { caught: 1, points: 50 } });
+check('a new rank pays once', out.ranked.length === 1 && out.ranked[0].name === 'Ghost catcher' && out.ranked[0].reward === 30 && crypt.view(r).rank === 'Ghost catcher', JSON.stringify(out));
+crypt.act(r, { reap: 0 });
+crypt.act(r, { hunt: { caught: 0 } });
+check('reaping with none left says to raise one', r.skeletons === 0 && !crypt.act(r, { reap: 0 }).ok && /No skeletons/.test(crypt.reap(crypt.fresh(T0)).error));
+
+// Summon: a skeleton for his own soul, and the wraith.
+const souls0 = r.souls;
+out = crypt.act(r, { summon: true });
+check('Summon raises a skeleton without banked souls', out.ok && r.skeletons === 1 && r.souls === souls0);
+out = crypt.act(r, { wraith: { won: true } });
+check('a beaten wraith pays by rank, and a skeleton rises', out.won && out.gained === crypt.WRAITH_SOULS + crypt.WRAITH_PER_RANK && out.raised === 1 && r.skeletons === 2, JSON.stringify(out));
+const souls1 = r.souls;
+out = crypt.act(r, { wraith: { won: false } });
+check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 2);
+check('every skeleton is known by its own start time', new Set(r.born).size === r.born.length);
+const legacy = crypt.clean({ skeletons: 3, souls: 5 }, T0);
+check('skeletons from before ripening start ripening on load', legacy.born.length === 3 && legacy.born[0] === T0 && legacy.loose === 0);
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll crypt checks passed');
 process.exit(failures ? 1 : 0);

@@ -63,7 +63,7 @@ export const UPGRADES = [
     effect: (level) => [1, 1.5, 2, 3][level] + ' a minute'
   },
   {
-    id: 'lure', name: 'Ghost lure', blurb: 'More of the ghosts in Summon are golden.',
+    id: 'lure', name: 'Ghost lure', blurb: 'More of the ghosts you hunt are golden.',
     costs: [80, 300, 1200],
     effect: (level) => [10, 16, 22, 30][level] + '% golden'
   }

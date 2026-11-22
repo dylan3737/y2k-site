@@ -196,6 +196,9 @@ export function createAbilities(ctx) {
   // a quick run (the combo), and banks souls; those that get away are lost.
   const COMBO_MS = 1200;
   const COMBO_MAX = 5;
+  // Hunted things fly above him: ghosts burst out right where he stands.
+  const huntLayer = el('div', 'hunt-layer');
+  document.body.appendChild(huntLayer);
   let hunt = null;
   let best = 0;
   let scoreEl = null;
@@ -218,7 +221,7 @@ export function createAbilities(ctx) {
       e.stopPropagation();
       catchGhost(ghost);
     });
-    field.appendChild(g);
+    huntLayer.appendChild(g);
     hunt.ghosts.push(ghost);
   }
 
@@ -249,7 +252,7 @@ export function createAbilities(ctx) {
     const pop = el('div', 'soul-pop ' + kind, text);
     pop.style.left = (x - 8) + 'px';
     pop.style.top = (y - 6) + 'px';
-    field.appendChild(pop);
+    huntLayer.appendChild(pop);
     setTimeout(() => pop.remove(), 900);
   }
 
@@ -386,7 +389,7 @@ export function createAbilities(ctx) {
       vx: (Math.random() < 0.5 ? -1 : 1) * 0.16, vy: -0.08, phase: 0
     };
     node.addEventListener('pointerdown', (e) => { e.stopPropagation(); hitWraith(1); });
-    field.appendChild(node);
+    huntLayer.appendChild(node);
     hunt = { wraith: w, ends: Date.now() + WRAITH_MS, length: WRAITH_MS, last: performance.now(), lastTurn: performance.now() };
     scoreEl = el('div', 'score is-wraith', '');
     field.appendChild(scoreEl);

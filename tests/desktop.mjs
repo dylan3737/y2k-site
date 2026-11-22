@@ -92,38 +92,73 @@ try {
   await castFromRing(page, 'hum');
   check('casting Hum again stops it for free', !(await humming()) && (await soul(page)) >= 95);
 
-  // Summon
-  await castFromRing(page, 'summon');
-  await page.waitForTimeout(1500);
-  const ghosts = await page.$$('.ghost:not(.is-caught)');
-  check('Summon releases ghosts', ghosts.length >= 6, String(ghosts.length));
+  // Reaping: drop him on a skeleton, and hunt what bursts out
+  page = await open({ wander: false, muted: true, soul: 80,
+    crypt: { souls: 0, skeletons: 1, born: [Date.now() - 3.5 * 3600000], total: 0, at: Date.now() } });
+  check('a skeleton that dug 3.5 hours holds 4 ghosts', (await page.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)) === 4);
+  const bone = await page.locator('.field .digger').boundingBox();
+  const from = await bodyCenter(page);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  // His feet are half his height below his middle; land them on the skeleton.
+  for (let i = 1; i <= 12; i++) {
+    await page.mouse.move(from.x + (bone.x + bone.width / 2 - from.x) * i / 12, from.y + (bone.y + bone.height / 2 - 57 - from.y) * i / 12);
+    await page.waitForTimeout(20);
+  }
+  await page.waitForTimeout(150);
+  check('the skeleton under him lights up', await page.$eval('.field .digger', (n) => n.classList.contains('is-aimed')));
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  check('dropping him on it reaps it: its 4 ghosts burst out', (await page.$$('.ghost:not(.is-caught)')).length === 4 &&
+    (await page.$$('.field .digger')).length === 0, String((await page.$$('.ghost')).length));
+  check('he says so', (await page.textContent('#bubble')).includes('4 ghosts'), await page.textContent('#bubble'));
   const before = await soul(page);
-  // Click one once it has drifted fully onto the screen, where it is now.
-  // (They drift slowly and don't dodge the cursor.)
-  const ghostOnScreen = () => Array.from(document.querySelectorAll('.ghost:not(.is-caught)'), (n) => n.getBoundingClientRect())
-    .some((b) => b.left > 0 && b.right < innerWidth);
-  await page.waitForFunction(ghostOnScreen, null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(600);
   const at = await page.evaluate(() => {
     const r = Array.from(document.querySelectorAll('.ghost:not(.is-caught)'), (n) => n.getBoundingClientRect())
-      .find((b) => b.left > 0 && b.right < innerWidth);
+      .find((b) => b.left > 0 && b.right < innerWidth && b.top > 0 && b.bottom < innerHeight);
     return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   });
   if (at) await page.mouse.click(at.x, at.y);
   await page.waitForTimeout(100);
-  check('clicking a ghost catches it', /SOULS [1-9]/.test(await page.textContent('.score')));
+  check('clicking a ghost catches it for points', /SCORE [1-9]/.test(await page.textContent('.score')), await page.textContent('.score'));
   check('a caught ghost gives soul back', (await soul(page)) > before);
-  // Slash during a hunt reaps every ghost
+  // Slash during a hunt catches every ghost still loose, which ends the hunt.
   await castFromRing(page, 'slash');
   await page.waitForTimeout(150);
   check('Slash draws the cut', !!(await page.$('.slash-line')));
-  await page.waitForTimeout(1200);
-  // New ghosts keep coming every 0.7 seconds; at most two can arrive since.
-  check('Slash reaps every loose ghost', (await page.$$('.ghost:not(.is-caught)')).length <= 2);
-  // A fresh crypt's hunt lasts 15 seconds.
-  await page.waitForTimeout(14000);
-  check('the hunt ends and ghosts leave', (await page.$$('.ghost')).length === 0);
+  await page.waitForTimeout(1400);
+  check('Slash catches every loose ghost, and the hunt ends', (await page.$$('.ghost:not(.is-caught)')).length === 0 &&
+    !(await page.evaluate(() => window.__reaper.abilities.hunting)));
+  await page.waitForTimeout(400);
+  const after = await page.evaluate(() => window.__reaper.crypt.get());
+  check('the crypt pays for the catch and keeps the score', after.souls >= 40 && after.score >= 40 && after.skeletons === 0,
+    JSON.stringify({ souls: after.souls, score: after.score }));
   const best = await page.evaluate(() => window.__companion.read().best);
-  check('best catch is saved', best >= 1, String(best));
+  check('best score is saved', best >= 40, String(best));
+
+  // Summon raises the dead, and sometimes a wraith
+  await page.evaluate(() => { Math.random = () => 0.9; });
+  await castFromRing(page, 'summon');
+  await page.waitForTimeout(400);
+  check('Summon raises a skeleton for his own soul', (await page.evaluate(() => window.__reaper.crypt.get().skeletons)) === 1 &&
+    (await page.$$('.field .digger')).length === 1 && (await page.textContent('#bubble')).includes('Rise'), await page.textContent('#bubble'));
+  page = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 1, total: 0, at: Date.now() } });
+  await page.evaluate(() => { Math.random = () => 0.1; });
+  await castFromRing(page, 'summon');
+  await page.waitForTimeout(300);
+  check('sometimes a wraith rises instead', !!(await page.$('.wraith')) && (await page.textContent('.score')).startsWith('WRAITH'));
+  const soulsBefore = await page.evaluate(() => window.__reaper.crypt.get().souls);
+  for (let i = 0; i < 12; i++) {
+    const w = await page.$eval('.wraith', (n) => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
+    if (!w) break;
+    await page.mouse.click(w.x, w.y);
+    await page.waitForTimeout(40);
+  }
+  await page.waitForTimeout(500);
+  const won = await page.evaluate(() => window.__reaper.crypt.get());
+  check('struck 12 times, it is banished: souls, and a skeleton rises', (await page.textContent('#bubble')).includes('Banished') &&
+    won.souls >= soulsBefore + 60 && won.skeletons === 2, await page.textContent('#bubble'));
 
   // Hourglass
   page = await open({ wander: false });

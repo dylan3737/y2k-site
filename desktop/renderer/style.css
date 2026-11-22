@@ -483,6 +483,10 @@ body.is-capturing * { visibility: hidden !important; }
 .field { position: fixed; inset: 0; pointer-events: none; }
 .field > * { pointer-events: none; }
 .field .hit { pointer-events: auto; }
+/* What is hunted flies above him: ghosts burst out right where he stands. */
+.hunt-layer { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.hunt-layer > * { pointer-events: none; }
+.hunt-layer .hit { pointer-events: auto; }
 
 
 /* Scythe Slash */
