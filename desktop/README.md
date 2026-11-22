@@ -295,7 +295,7 @@ These need no model at all. Type them the way they are written here, or close to
 | "Open youtube.com" | **Browser**: opens a page in your browser, after asking |
 | "Open Spotify" / "Launch Notes" | **Apps**: opens an app by name, after asking (macOS) |
 | "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
-| "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, playlist or artist's Spotify link on the web and plays it in the Spotify app, or a song's radio (songs like it); pauses, skips, goes back, sets the volume, says what is playing (macOS). It can't change the output device: Spotify only allows that through its online API, which needs Premium and a developer app of your own. |
+| "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, artist or song radio and plays it in the Spotify app; pauses, skips, goes back, sets the volume, says what is playing (macOS). To find things it asks Apple's iTunes Search for the proper name, MusicBrainz for the Spotify link, and Spotify's public embed page for the track; none needs a key, and only playlists fall back to a web search. It can't play your **Liked Songs** or change the **output device**: Spotify only allows those through its online API, with you logged in (and Premium for devices). |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
 
 ### Working on himself
@@ -323,6 +323,7 @@ Needs: macOS, the repository this app was built from (the build records where it
 - **Look**, **reading the clipboard**, **opening an app, a page or a file** and **searching your files** ask your permission in the card every time, and do nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
 - Searching and reading the web need no asking: they read, and change nothing. What he reads on a page is told to the model as information, never as instructions, and anything a page could talk him into doing (opening something) still asks you first. He reads only public addresses: never files, `localhost` or machines on your own network, even through a redirect.
 - Web searches go to DuckDuckGo (or Bing) as a plain browser would send them, with nothing about you added.
+- To find music for Spotify he sends the name you asked for to Apple's iTunes Search and to MusicBrainz (which is told only that the Reaper app is asking), and reads Spotify's public embed page for that artist or album. Nothing about you goes with them.
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
 - With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
 - He can't read what is inside your files, move them, or click or type in other apps.

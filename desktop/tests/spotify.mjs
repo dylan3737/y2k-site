@@ -1,6 +1,6 @@
 // Spotify control (spotify.js) with stand-ins for osascript and the search:
 // nothing plays and nothing goes out to the web.
-import { spotify, spotifyUri, pickResult, tidyTitle, readQuery, searches } from '../spotify.js';
+import { spotify, spotifyUri, pickResult, tidyTitle, readQuery, searches, catalog, plain } from '../spotify.js';
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -37,7 +37,8 @@ const run = (state = {}) => async (script) => {
   return { ok: true, out: '' };
 };
 const find = async (q) => ({ ok: true, result: { query: q, results } });
-const opts = (state) => ({ platform: 'darwin', run: run(state), find, settle: 0 });
+// No catalog here (it is tested below), so these go by the web search stand-in.
+const opts = (state) => ({ platform: 'darwin', run: run(state), find, lookup: async () => null, settle: 0 });
 
 let out = await spotify({ action: 'play', query: 'blue monday new order' }, opts());
 check('play finds the song and plays it by its address', out.ok && out.result.uri === 'spotify:track:6gv02BqPCsOQz5QQ4jnNOY' &&
@@ -74,6 +75,46 @@ out = await spotify({ action: 'pause' }, opts({ refuse: true }));
 check('without macOS permission, he says where to give it', !out.ok && /Automation/.test(out.error), out.error);
 out = await spotify({ action: 'play', query: 'x' }, { platform: 'linux' });
 check('macOS only, for now', !out.ok && /macOS/.test(out.error));
+
+// The catalog: iTunes names it, MusicBrainz has its Spotify link, Spotify's embed page its tracks.
+check('titles compare plainly', plain('Hotline Bling (feat. X) - 2016 Remaster') === 'hotline bling' && plain('Fire & Desire') === 'fire and desire');
+const DRAKE = '3TVXtAsR1Inumwj472S9r4';
+const VIEWS = '40GMAhriYJRO1rsY4YdrZb';
+const embed = (tracks) => '<html><script id="__NEXT_DATA__" type="application/json">' +
+  JSON.stringify({ props: { pageProps: { state: { data: { entity: { trackList: tracks } } } } } }) + '</script></html>';
+const asked2 = [];
+let busy = 1;
+const agents = [];
+const fakeWeb = async (url, opts = {}) => {
+  asked2.push(url);
+  if (url.includes('musicbrainz')) agents.push(opts.headers && opts.headers['user-agent']);
+  const reply = (status, body) => ({ ok: status === 200, status, headers: { get: () => null }, json: async () => body, text: async () => body });
+  if (url.includes('musicbrainz') && busy-- > 0) return reply(503, '');
+  if (url.includes('entity=musicArtist')) return reply(200, { results: /drake/i.test(url) && !/bling/.test(url) ? [{ artistName: 'Drake' }] : [{ artistName: 'Someone Else' }] });
+  if (url.includes('entity=song')) return reply(200, { results: [{ trackName: 'Hotline Bling', artistName: 'Drake', collectionName: 'Views' }] });
+  if (url.includes('entity=album')) return reply(200, { results: [{ collectionName: 'Views', artistName: 'Drake' }] });
+  if (url.includes('ws/2/artist/?')) return reply(200, { artists: [{ id: 'mb-drake', name: 'Drake', score: 100 }] });
+  if (url.includes('ws/2/artist/mb-drake')) return reply(200, { relations: [{ url: { resource: 'https://www.youtube.com/x' } }, { url: { resource: 'https://open.spotify.com/artist/' + DRAKE } }] });
+  if (url.includes('ws/2/release-group/?')) return reply(200, { 'release-groups': [{ id: 'mb-views', title: 'Views', score: 100 }] });
+  if (url.includes('ws/2/release?')) return reply(200, { releases: [{ relations: [] }, { relations: [{ url: { resource: 'https://open.spotify.com/album/' + VIEWS } }] }] });
+  if (url.includes('embed/artist/')) return reply(200, embed([{ title: 'One Dance', uri: 'spotify:track:1zi7xx7UVEFkmKfv06H8x0' }]));
+  if (url.includes('embed/album/')) return reply(200, embed([{ title: 'Hotline Bling', uri: 'spotify:track:0wwPcA6wtMf6HUMpIRdeP7' }]));
+  return reply(404, null);
+};
+const look = catalog({ fetchImpl: fakeWeb, wait: async () => {} });
+let found = await look('drake', 'track');
+check('"play drake" is the artist, found through MusicBrainz, even after it says "slower" once', found && found.uri === 'spotify:artist:' + DRAKE &&
+  asked2.filter((u) => u.includes('ws/2/artist/?')).length === 2, JSON.stringify(found));
+found = await look('hotline bling', 'track');
+check('a song not among the top ten is found on its album', found && found.uri === 'spotify:track:0wwPcA6wtMf6HUMpIRdeP7' && found.title === 'Hotline Bling by Drake', JSON.stringify(found));
+found = await look('views', 'album');
+check('an album is found by its releases', found && found.uri === 'spotify:album:' + VIEWS);
+const before2 = asked2.length;
+found = await look('Drake', 'track');
+check('asked again, it remembers and asks nobody', found && found.uri === 'spotify:artist:' + DRAKE && asked2.length === before2);
+check('MusicBrainz is told the app asks, and nothing about the user', agents.length > 0 && agents.every((a) => a === 'ReaperCompanion/0.2 (desktop companion app)'), agents[0]);
+out = await spotify({ action: 'play', query: 'drake' }, { platform: 'darwin', run: run(), find: async () => { throw new Error('no web search needed'); }, lookup: look, settle: 0 });
+check('play drake plays Drake', out.ok && out.result.uri === 'spotify:artist:' + DRAKE && scripts.includes('tell application "Spotify" to play track "spotify:artist:' + DRAKE + '"'), JSON.stringify(out));
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll Spotify checks passed');
 process.exit(failures ? 1 : 0);
