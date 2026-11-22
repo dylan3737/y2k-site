@@ -98,11 +98,11 @@ body.is-capturing * { visibility: hidden !important; }
 .sprite { position: relative; image-rendering: pixelated; }
 .eyes {
   position: absolute;
-  left: 45px;
+  left: 50px;
   top: 21px;
   width: 9px;
-  height: 3px;
-  background: url('../assets/eyes.png') 0 0 / 27px 3px no-repeat;
+  height: 4px;
+  background: url('../assets/eyes.png') 0 0 / 27px 4px no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 0 1px rgba(190, 110, 255, 1)) drop-shadow(0 0 3px rgba(150, 70, 230, 0.9));
   animation: glance 11s steps(1, end) infinite;
