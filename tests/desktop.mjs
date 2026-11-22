@@ -500,7 +500,7 @@ try {
 
     // In a hunt, a moth takes ghosts that would get away (one that is about, not a cocoon).
     const skeletonAt = await page.evaluate(() => window.__reaper.crypt.get().bones.findIndex((b) => b.kind === 'digger'));
-    const scoreBefore = await page.evaluate(() => window.__reaper.crypt.get().score);
+    const caughtBefore = await page.evaluate(() => window.__companion.read().crypt.deeds.caught);
     await page.evaluate((i) => window.__reaper.abilities.reapAt(i), skeletonAt);
     // Until the hunt has run out (and the moth has been).
     await page.waitForTimeout(1000);
@@ -508,7 +508,9 @@ try {
     await page.waitForTimeout(600);
     const batted = await page.evaluate(() => window.__reaper.crypt.get());
     // Nobody clicks: every ghost would get away, but the moth takes two (10 points each, no combo).
-    check('when the hunt runs out, the moth catches two ghosts getting away', batted.score - scoreBefore === 20 && !(await page.$('.ghost:not(.is-caught)')), JSON.stringify({ score: batted.score, bubble: await page.textContent('#bubble') }));
+    // (Counted as ghosts, not points: a ladybug makes a spirit-light, worth three, likelier.)
+    const caughtAfter = await page.evaluate(() => window.__companion.read().crypt.deeds.caught);
+    check('when the hunt runs out, the moth catches two ghosts getting away', caughtAfter - caughtBefore === 2 && !(await page.$('.ghost:not(.is-caught)')), JSON.stringify({ score: batted.score, bubble: await page.textContent('#bubble') }));
     // Dropped on a moth, he reaps it: two spirit-lights, and a cocoon at the top.
     await page.evaluate(() => { const m = document.querySelector('.field .moth'); m.style.transitionDuration = '0s'; m.style.left = '300px'; m.style.top = '6px'; });
     await page.waitForTimeout(50);
