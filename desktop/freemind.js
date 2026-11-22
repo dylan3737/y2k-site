@@ -25,7 +25,10 @@ export const MODEL = {
   url: 'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf'
 };
 
-const CONTEXT = 6144;           // tokens of conversation it keeps in view
+// Tokens it keeps in view. His tools and instructions alone take about 4,400,
+// so this leaves room for a conversation and a web page read. Its working
+// memory is kept at 8 bits (below), about 1 GB at this length.
+const CONTEXT = 12288;
 const IDLE_MS = 10 * 60 * 1000; // unused this long, the server is stopped
 const MAX_ANSWER = 1200;        // tokens in one answer
 const MAX_TOOL_TURNS = 6;
@@ -150,6 +153,7 @@ export function createFreeMind({ dir, system, tools, server, model = MODEL, idle
         '-m', file(), '--host', '127.0.0.1', '--port', String(port),
         // The model's own chat template, which is what knows its tool calls.
         '--jinja', '-c', String(CONTEXT), '-np', '1',
+        '-fa', 'on', '--cache-type-k', 'q8_0', '--cache-type-v', 'q8_0',
         // As much as fits on the graphics card, if there is one.
         '-ngl', '99',
         '--no-webui'

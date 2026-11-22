@@ -56,6 +56,7 @@ function browserStandIn() {
     },
     async crypt(action = {}) {
       const { reached, ...out } = rules.act(crypt, action);
+      if (out.caught) stats.caught += out.caught;
       saveCrypt();
       emit('crypt', { crypt: rules.view(crypt), reached });
       return { ...out, crypt: rules.view(crypt) };
@@ -66,6 +67,21 @@ function browserStandIn() {
     capture: async () => window.__companion.shot || null,
     clipboardRead: async () => window.__companion.clipboard,
     clipboardWrite(text) { window.__companion.clipboard = text; },
+    // The web and the computer are the app's; the page records what it was asked to do.
+    async webSearch(query) { return (window.__companion.reach || {}).search || { ok: true, result: { query, results: [{ title: 'A page', url: 'https://example.com/', snippet: 'Words.' }] } }; },
+    async webRead(url) { return { ok: true, result: { url, title: 'A page', text: 'Words on ' + url } }; },
+    async openUrl(url) { (window.__companion.opened ||= []).push(url); return { ok: true, result: { opened: url } }; },
+    async openApp(name) { (window.__companion.opened ||= []).push('app:' + name); return { ok: true, result: { opened: name } }; },
+    async findFiles(query) { return { ok: true, result: { query, files: [{ path: '~/Documents/' + query + '.txt', kind: 'file', modified: '2026-01-01' }] } }; },
+    async github(mode, input) {
+      const g = window.__companion.github ||= { done: [] };
+      if (mode === 'describe') return input.action && (input.title || input.number || input.branch) ? 'Do ' + input.action + (input.number ? ' #' + input.number : '') + '?' : null;
+      if (mode === 'act') { g.done.push(input); return { ok: true, result: { done: input.action } }; }
+      return { ok: true, result: { pullRequests: [{ number: 7, title: 'A bone hound', branch: 'reaper/bone-hound' }] } };
+    },
+    async selfWork(input) { (window.__companion.selfWork ||= []).push(input); return { ok: true, result: { opened: 'Terminal', engine: input.engine === 'claude' ? 'Claude Code' : 'OpenCode on Qwen3-Coder 30B', branch: 'reaper/test' } }; },
+    async spotify(input) { (window.__companion.spotify ||= []).push(input); return { ok: true, result: input.action === 'pause' ? { paused: true } : { playing: input.query ? input.query + ' by Someone' : 'A song by Someone' } }; },
+    async openFile(file, reveal) { (window.__companion.opened ||= []).push((reveal ? 'show:' : 'file:') + file); return { ok: true, result: { opened: file } }; },
     trash: async (paths) => ({ ok: 0, failed: paths.length }),
     pathForFile: () => '',
     setAbilities() {},

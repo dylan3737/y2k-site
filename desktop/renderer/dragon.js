@@ -1,0 +1,320 @@
+// The reaper's dragon on the page: the egg in the garden, the dragon that
+// follows him about, and its card (growing, training, ascension). The rules
+// are in ../dragon.js and live in the garden's state; this draws what the
+// garden is told, and asks it to act.
+import { el, chip } from './dom.js';
+
+// On-screen size of each stage (its pixel art at twice the size).
+// (Frames of 40x38 and 46x46 art pixels for the young ones; the wyvern and
+// elder are 48x38 and 60x48.)
+const SIZE = {
+  egg: [40, 48], hatchling: [80, 76], drake: [92, 92], wyvern: [96, 76], elder: [120, 96], ancient: [120, 96]
+};
+const NAMES = { ember: 'Ember', frost: 'Frost', shadow: 'Shadow', storm: 'Storm' };
+const BRANCH = { hunter: 'Hunter: breathes on ghosts in hunts', guardian: 'Guardian: the garden grows faster', trickster: 'Trickster: its play is worth souls' };
+const TRAIN = [['hunt', 'Hunt'], ['garden', 'Garden'], ['tricks', 'Tricks']];
+const rand = (a, b) => a + Math.random() * (b - a);
+
+export function createDragon(ctx) {
+  const { companion, card, say, field, sound } = ctx;
+  const owner = {};
+  let now = null;           // the garden's view of the dragon, or null
+  let node = null;
+  let shown = '';           // what the node is drawn as: '<stage>-<element>'
+  let x = innerWidth * 0.72;
+  let y = innerHeight - 60;
+  let mode = 'follow';
+  let until = 0;
+
+  // --- What the garden says it is ---------------------------------------------
+  async function act(what) {
+    const out = await companion.crypt({ dragon: what });
+    if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    return out;
+  }
+
+  function update(view) {
+    const before = now;
+    now = view || null;
+    draw();
+    if (card.isOpen(owner)) paint();
+    if (!before || !now) return;
+    if (before.stage === 'egg' && now.stage !== 'egg') {
+      sound.bell();
+      say('The egg hatched.\nA ' + NAMES[now.element].toLowerCase() + ' hatchling.', 5000);
+    } else if (before.stage !== now.stage && now.stage !== 'egg') {
+      sound.bell();
+      say('Your dragon grew: ' + now.stage + '.' + (now.stage === 'wyvern' && now.branch ? '\n' + BRANCH[now.branch].split(':')[0] + '.' : ''), 5000);
+    }
+  }
+
+  // --- On screen -----------------------------------------------------------------
+  function place(seconds = 0) {
+    const [w, h] = SIZE[now.stage];
+    x = Math.max(4, Math.min(innerWidth - w - 4, x));
+    y = Math.max(4, Math.min(innerHeight - h, y));
+    node.style.transitionDuration = seconds.toFixed(2) + 's';
+    node.style.left = Math.round(x) + 'px';
+    node.style.top = Math.round(y) + 'px';
+  }
+
+  function draw() {
+    if (!now) {
+      if (node) { node.remove(); node = null; shown = ''; }
+      return;
+    }
+    const look = now.stage + '-' + now.element;
+    if (!node) {
+      node = el('div', 'dragon hit');
+      node.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        petted(e);
+      });
+      node.addEventListener('dblclick', (e) => { e.stopPropagation(); open(); });
+      field.appendChild(node);
+    }
+    if (look !== shown) {
+      shown = look;
+      const [w, h] = SIZE[now.stage];
+      node.style.width = w + 'px';
+      node.style.height = h + 'px';
+      node.style.backgroundImage = "url('../assets/dragon-" + now.stage.replace('ancient', 'elder') + '-' + now.element + ".png')";
+      node.style.backgroundSize = (w * 4) + 'px ' + h + 'px';
+      node.style.setProperty('--sheet-w', (w * 4) + 'px');
+      node.className = 'dragon hit is-' + now.stage + ' is-' + now.element + (now.aura ? ' has-aura-' + now.aura : '');
+      if (now.stage === 'egg') {
+        // The egg rests in the garden.
+        x = innerWidth * 0.72;
+        y = innerHeight - h;
+      }
+      place(0);
+    }
+    node.classList.toggle('is-cracking', now.stage === 'egg' && now.warmth >= 70);
+    node.title = now.stage === 'egg'
+      ? 'A ' + NAMES[now.element].toLowerCase() + ' egg, ' + now.warmth + '% warm. Click it to warm it; double-click for its card.'
+      : 'Your ' + NAMES[now.element].toLowerCase() + ' ' + now.stage + '. Click to pet; double-click for its card.';
+  }
+
+  async function petted(e) {
+    const out = await act({ pet: true });
+    const r = node.getBoundingClientRect();
+    for (let k = 0; k < (out.ok ? 3 : 1); k++) {
+      const p = el('div', 'dragon-heart', now && now.stage === 'egg' ? '✦' : '♥');
+      p.style.left = Math.round((e ? e.clientX : r.left + r.width / 2) + rand(-10, 10)) + 'px';
+      p.style.top = Math.round(r.top + rand(0, 10)) + 'px';
+      field.appendChild(p);
+      setTimeout(() => p.remove(), 1600);
+    }
+    if (out.ok && out.gained) ctx.pop('+' + out.gained, 'is-souls');
+  }
+
+  // Where it goes: after the reaper, a little behind him; now and then off to
+  // nap by the garden or to perch at the top of the screen.
+  function wander() {
+    if (!now || now.stage === 'egg' || document.hidden) return;
+    const t = performance.now();
+    const [w, h] = SIZE[now.stage];
+    if (t < until && mode !== 'follow') return;
+    const roll = Math.random();
+    // Now and then it goes and stares, hungrily, at a snail.
+    const snail = ctx.crypt.workerBox && ctx.crypt.workerBox('snail');
+    if (mode === 'follow' && t >= until && snail && roll < 0.12) {
+      mode = 'stare';
+      until = t + rand(8000, 15000);
+      x = snail.left + (snail.left > innerWidth / 2 ? -w - 6 : snail.width + 6);
+      y = innerHeight - h;
+      node.classList.toggle('is-right', x < snail.left);
+      place(2);
+      return;
+    }
+    if (mode === 'follow' && t >= until && roll < 0.25) {
+      mode = roll < 0.15 ? 'nap' : 'perch';
+      until = t + rand(20000, 50000);
+      x = mode === 'nap' ? rand(40, innerWidth - w - 40) : rand(40, innerWidth - w - 40);
+      y = mode === 'nap' ? innerHeight - h : 0;
+      node.classList.toggle('is-napping', mode === 'nap');
+      place(2.5);
+      return;
+    }
+    if (mode !== 'follow') {
+      mode = 'follow';
+      until = t + rand(15000, 40000);
+      node.classList.remove('is-napping');
+    }
+    const c = ctx.center();
+    const side = c.x > innerWidth / 2 ? -1 : 1;
+    const tx = c.x + side * (60 + w / 2) - w / 2;
+    const ty = c.y - h / 2 + 20;
+    const dist = Math.hypot(tx - x, ty - y);
+    if (dist > 30) {
+      node.classList.toggle('is-right', tx > x);
+      x = tx;
+      y = ty;
+      place(Math.min(2.2, dist / 300 + 0.9));
+    }
+  }
+  setInterval(wander, 900);
+
+  // --- In a hunt -------------------------------------------------------------------
+  // A hunter breathes on a ghost: a burst of its element from its mouth to it.
+  function breathe(tx, ty) {
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    // Its art faces left; turned (is-right), its mouth is on the right.
+    const fx = node.classList.contains('is-right') ? r.right - 10 : r.left + 10;
+    const fy = r.top + r.height * 0.3;
+    const len = Math.hypot(tx - fx, ty - fy);
+    const beam = el('div', 'dragon-breath is-' + now.element);
+    beam.style.left = fx + 'px';
+    beam.style.top = fy + 'px';
+    beam.style.width = len + 'px';
+    beam.style.rotate = Math.atan2(ty - fy, tx - fx) + 'rad';
+    field.appendChild(beam);
+    setTimeout(() => beam.remove(), 450);
+  }
+  // A dive at a wraith (the Lore perk): it swoops through it.
+  function dive(tx, ty) {
+    if (!node) return Promise.resolve();
+    const from = { x, y };
+    x = tx - SIZE[now.stage][0] / 2;
+    y = ty - SIZE[now.stage][1] / 2;
+    place(0.35);
+    return new Promise((resolve) => setTimeout(() => { x = from.x; y = from.y; place(0.6); resolve(); }, 380));
+  }
+
+  // Fireworks (the Lore perk, for a finished hourglass): bursts of its element above it.
+  function fireworks() {
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    for (let k = 0; k < 4; k++) {
+      setTimeout(() => {
+        const cx = r.left + r.width / 2 + rand(-120, 120);
+        const cy = Math.max(40, r.top - rand(60, 180));
+        for (let i = 0; i < 12; i++) {
+          const spark = el('div', 'dragon-spark is-' + now.element);
+          spark.style.left = cx + 'px';
+          spark.style.top = cy + 'px';
+          const a = (i / 12) * Math.PI * 2;
+          spark.style.setProperty('--dx', Math.round(Math.cos(a) * rand(30, 60)) + 'px');
+          spark.style.setProperty('--dy', Math.round(Math.sin(a) * rand(30, 60)) + 'px');
+          field.appendChild(spark);
+          setTimeout(() => spark.remove(), 1100);
+        }
+      }, k * 350);
+    }
+  }
+
+  // --- Its card ---------------------------------------------------------------------
+  const box = el('div', 'dragon-card');
+  const head = el('h2', null, 'DRAGON');
+  const close = el('button', 'card-x', '×');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close');
+  close.addEventListener('click', () => card.close(owner));
+  head.appendChild(close);
+  const page = el('div', 'dragon-page');
+  box.append(head, page);
+
+  const meter = (label, value, max, kind) => {
+    const row = el('div', 'dragon-meter');
+    const bar = el('div', 'dragon-bar ' + (kind || ''));
+    const fill = el('span');
+    fill.style.width = Math.max(0, Math.min(100, value / max * 100)).toFixed(1) + '%';
+    bar.appendChild(fill);
+    row.append(el('b', null, label), bar);
+    return row;
+  };
+
+  function paint() {
+    page.replaceChildren();
+    if (!now) {
+      const row = el('div', 'row end');
+      row.appendChild(chip('Take the egg', async () => {
+        const out = await act({ adopt: true });
+        if (out.ok) { sound.bell(); say('An egg. ' + NAMES[out.adopted] + ', by the look of it.', 4000); }
+      }, 'solid'));
+      page.append(el('p', 'muted', 'An egg has turned up in the garden, warm to the touch. Take it, keep it warm, and it will hatch: a dragon, to raise and train.'), row);
+      card.refit();
+      return;
+    }
+    const d = now;
+    page.appendChild(el('p', 'dragon-title', NAMES[d.element] + ' ' + d.stage + (d.lineage ? ' · lineage ' + (d.lineage + 1) : '')));
+    if (d.stage === 'egg') {
+      page.append(meter('Warmth', d.warmth, 100, 'is-warm'),
+        el('p', 'muted', 'It warms slowly on its own. Click it in the garden to warm it, and every finished hourglass warms it more.'));
+    } else {
+      page.append(meter(d.nextAt ? 'Growth' : 'Grown', d.nextAt ? d.xp : 1, d.nextAt || 1, 'is-xp'),
+        meter('Bond', d.bond, 100, 'is-bond'), meter('Energy', d.energy, 100, 'is-energy'));
+      if (d.branch) page.appendChild(el('p', 'dragon-branch', BRANCH[d.branch]));
+      else page.appendChild(el('p', 'muted', 'What you train it in most decides what it becomes when it grows into a wyvern.'));
+      const feed = el('div', 'row');
+      feed.append(el('span', 'muted', 'Feed:'), ...[10, 50, 200].map((n) => chip(n + ' souls', () => act({ feed: n }).then((o) => o.ok || say(o.error, 3000)))));
+      // Its favourite food: a snail from the garden.
+      const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
+      if (snails) {
+        const treat = chip('A snail ♥ · ' + snails, async () => {
+          const o = await act({ snail: true });
+          if (!o.ok) return say(o.error, 3000);
+          sound.bell();
+          say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
+        }, 'solid');
+        treat.dataset.feed = 'snail';
+        treat.title = 'Its favourite food: worth far more than souls, and it loves you for it';
+        feed.appendChild(treat);
+      }
+      const train = el('div', 'row');
+      train.append(el('span', 'muted', 'Train:'), ...TRAIN.map(([k, label]) => {
+        const c = chip(label + ' · ' + d.train[k], () => act({ train: k }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))));
+        c.disabled = !d.canTrain;
+        return c;
+      }));
+      page.append(feed, train);
+    }
+    // Ascension, and what the scales buy.
+    const asc = el('div', 'dragon-ascend');
+    if (d.ascend.scales) {
+      const go = chip('Ascend · +' + d.ascend.scales + ' scales', async () => {
+        const out = await act({ ascend: true });
+        if (out.ok) { sound.bell(); say('It ascends.\nA new egg: ' + NAMES[out.element].toLowerCase() + '. Lineage ' + (out.lineage + 1) + '.', 6000); }
+      }, 'solid');
+      asc.append(el('p', 'muted', 'Ascending returns it to an egg of a new element, a lineage higher, and leaves Dragon Scales, which you keep.'), go);
+    } else if (d.stage !== 'egg') {
+      asc.appendChild(el('p', 'muted', 'Ascension: ' + d.ascend.why));
+    }
+    page.appendChild(asc);
+    page.appendChild(el('p', 'dragon-scales', 'Dragon Scales: ' + d.scales));
+    for (const p of d.perks) {
+      const item = el('div', 'crypt-item');
+      const text = el('div');
+      text.append(el('b', null, p.name + ' ' + p.level + '/' + p.max), el('span', 'muted', p.blurb + ' Now: ' + p.now + '.'));
+      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))), 'solid');
+      get.dataset.perk = p.id;
+      get.disabled = p.cost === null || d.scales < p.cost;
+      item.append(text, get);
+      page.appendChild(item);
+    }
+    card.refit();
+  }
+
+  function open() {
+    paint();
+    card.open(box, 'spirit', owner);
+  }
+
+  return {
+    update,
+    open,
+    close() { card.close(owner); },
+    isOpen: () => card.isOpen(owner),
+    get: () => now,
+    breathe,
+    dive,
+    fireworks,
+    // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.
+    breaths: () => (now ? now.breaths : 0),
+    lore: () => (now ? (now.perks.find((p) => p.id === 'tricks') || { level: 0 }).level : 0),
+    // Where it is, for a breath or a dive to start from.
+    box: () => (node ? node.getBoundingClientRect() : null)
+  };
+}

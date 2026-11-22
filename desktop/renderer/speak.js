@@ -10,14 +10,25 @@ const TOOL_LINES = {
   cancel_raven: () => '✦ calls a raven back',
   cast: (i) => '✦ casts ' + (i.ability || 'something'),
   get_harvest: () => '✦ weighs the day',
-  get_crypt: () => '✦ counts the crypt',
-  raise_skeleton: () => '✦ raises the dead',
+  get_crypt: () => '✦ looks over the garden',
+  raise_worker: () => '✦ plants something',
   buy_upgrade: () => '✦ spends souls on his craft',
   look_at_screen: () => '✦ asks to look at your screen',
   read_clipboard: () => '✦ asks to read what you copied',
   copy_to_clipboard: () => '✦ copies it for you',
   remember: (i) => '✦ remembers' + (typeof i.note === 'string' ? ': ' + i.note : ''),
-  forget_memory: () => '✦ forgets something'
+  forget_memory: () => '✦ forgets something',
+  web_search: (i) => '✦ searches the web' + (typeof i.query === 'string' ? ': ' + i.query : ''),
+  read_webpage: (i) => '✦ reads ' + (typeof i.url === 'string' ? i.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48) : 'a page'),
+  open_url: () => '✦ asks to open a page',
+  open_app: (i) => '✦ asks to open ' + (typeof i.name === 'string' ? i.name : 'an app'),
+  find_files: () => '✦ asks to look through your files',
+  open_file: () => '✦ asks to open a file',
+  github_read: (i) => '✦ looks at GitHub' + (i.what ? ': ' + String(i.what).replace('_', ' ') + (i.number ? ' #' + i.number : '') : ''),
+  github_act: (i) => '✦ asks to ' + String(i.action || 'act').replace('_', ' ') + ' on GitHub',
+  work_on_myself: (i) => '✦ asks to work on himself' + (i.engine === 'claude' ? ', with Claude' : ''),
+  spotify: (i) => ({ pause: '✦ pauses Spotify', next: '✦ skips the song', previous: '✦ goes back a song', now_playing: '✦ listens', volume: '✦ turns Spotify ' + (i.volume ?? '') }[i.action] ||
+    '✦ plays ' + (typeof i.query === 'string' && i.query ? i.query : 'Spotify'))
 };
 
 export function createSpeak(ctx) {
@@ -148,7 +159,8 @@ export function createSpeak(ctx) {
         'Plain commands work meanwhile; say "help".'));
     }
     const row = el('div', 'row end');
-    row.append(chip('Use a key', useKey), chip('Commands only', useNone), chip('Download', fetchFree, 'solid'));
+    // No key here: Speak's mind is the free one. A key is in the tray's Mind menu.
+    row.append(chip('Commands only', useNone), chip('Download', fetchFree, 'solid'));
     keyForm.appendChild(row);
     card.refit();
   }

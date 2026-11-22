@@ -3,12 +3,13 @@
 import { el, chip } from './dom.js';
 import * as effects from './effects.js';
 
-const GHOST_SVG = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="M4 46 V20 A16 16 0 0 1 36 20 V46 L30 40 L24 46 L20 40 L16 46 L10 40 Z"/>' +
-  '<circle cx="14" cy="20" r="3"/><circle cx="26" cy="20" r="3"/></svg>';
-const RAVEN_SVG = '<svg class="raven" viewBox="0 0 64 40" aria-hidden="true"><path d="M2 21 C12 13 21 13 28 17 L33 6 L38 17 ' +
-  'C46 14 55 16 62 23 C52 21 45 23 39 27 L35 37 L31 27 C21 28 11 26 2 21 Z"/><circle cx="35" cy="20" r="1.4"/></svg>';
+// A ghost's size on screen; its look and swim are a sprite sheet in style.css.
+const GHOST_W = 54;
+const GHOST_H = 48;
+const GHOST_LOOP_S = 1.6;
 
-const HUNT_MS = 10000;
+// How fast hunted ghosts drift (1 is the base pace).
+const HUNT = { pace: 1 };
 const VANISH_MS = 30 * 60000;
 
 function cardHead(title, onClose) {
@@ -64,6 +65,8 @@ export function createAbilities(ctx) {
       return;
     }
     companion.notify('The sand has run out.', minutesText(minutes) + ' done. Stand up. Stretch. You are not dead yet.');
+    // A dragon of an ascended line (Lore, second level) lights up the sky for it.
+    if (ctx.dragon && ctx.dragon.lore() >= 2) ctx.dragon.fireworks();
     companion.stat('focus', 1, minutes);
     // A card the user is using is left alone; the bubble and bell are enough.
     if (card.isOpen()) {
@@ -128,7 +131,9 @@ export function createAbilities(ctx) {
       field.appendChild(flock);
     }
     const note = el('div', 'raven-note hit');
-    note.innerHTML = RAVEN_SVG;
+    const bird = el('div', 'raven');
+    bird.setAttribute('aria-hidden', 'true');
+    note.appendChild(bird);
     const body = el('div', 'raven-card');
     body.append(el('small', null, 'A RAVEN · ' + clock(raven.at)), el('div', null, raven.text));
     const row = el('div', 'row');
@@ -152,7 +157,7 @@ export function createAbilities(ctx) {
     input.placeholder = 'Remind me to…';
     let minutes = 15;
     const row = el('div', 'row');
-    const chips = [5, 15, 30, 60].map((m) => {
+    const chips = [1, 5, 15, 30, 60].map((m) => {
       const c = chip(m < 60 ? m + ' min' : '1 hour', () => {
         minutes = m;
         chips.forEach((x) => x.classList.toggle('is-on', x === c));
@@ -187,110 +192,350 @@ export function createAbilities(ctx) {
   }
   const ravenOwner = {};
 
-  // --- Summon: catch ghosts across the screen ---------------------------------------------
+  // --- Reaping and the hunt ---------------------------------------------------------------
+  // Dropped on a sprite, he reaps it: its ghosts (one, plus one for every hour
+  // it dug, up to six) burst out and scatter. Each caught scores points, more in
+  // a quick run (the combo), and banks souls; those that get away are lost.
+  const COMBO_MS = 1200;
+  const COMBO_MAX = 5;
+  // Hunted things fly above him: ghosts burst out right where he stands.
+  const huntLayer = el('div', 'hunt-layer');
+  document.body.appendChild(huntLayer);
   let hunt = null;
   let best = 0;
   let scoreEl = null;
 
-  function spawnGhost() {
-    // One in ten, or more with the Crypt's ghost lure.
-    const golden = Math.random() < (ctx.crypt.get().goldenChance || 0.1);
+  // `light` makes it a spirit-light for certain (a reaped moth's).
+  function spawnGhost(from, light = false) {
+    const golden = light || Math.random() < hunt.goldenChance;
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
-    g.innerHTML = GHOST_SVG;
-    const side = Math.random() < 0.5;
+    // Each starts at its own point in the swim, so they don't move in step.
+    g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
+    // Out of the sprite, upward and away, each its own way.
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+    const speed = (0.09 + Math.random() * 0.08) * HUNT.pace;
     const ghost = {
       node: g, golden,
-      x: side ? -40 : innerWidth + 10,
-      y: 40 + Math.random() * (innerHeight - 140),
-      vx: (side ? 1 : -1) * (0.08 + Math.random() * 0.16),
-      vy: (Math.random() - 0.5) * 0.14,
+      x: from.x - GHOST_W / 2, y: from.y - GHOST_H,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
       phase: Math.random() * 6
     };
     g.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       catchGhost(ghost);
     });
-    field.appendChild(g);
+    huntLayer.appendChild(g);
     hunt.ghosts.push(ghost);
   }
 
-  function catchGhost(ghost) {
-    if (!hunt || ghost.caught) return;
+  function paintScore() {
+    scoreEl.textContent = 'SCORE ' + hunt.points + (hunt.combo > 1 ? '  ×' + hunt.combo : '');
+  }
+
+  function catchGhost(ghost, { byMoth = false } = {}) {
+    if (!hunt || hunt.wraith || ghost.caught) return;
     ghost.caught = true;
-    hunt.score += ghost.golden ? 3 : 1;
+    const now = performance.now();
+    if (!byMoth) {
+      hunt.combo = now - hunt.lastCatch < COMBO_MS ? Math.min(COMBO_MAX, hunt.combo + 1) : 1;
+      hunt.lastCatch = now;
+    }
+    const points = (ghost.golden ? 3 : 1) * 10 * (byMoth ? 1 : hunt.combo);
+    hunt.points += points;
+    hunt.caught += 1;
+    if (ghost.golden) hunt.golden += 1;
     soul.gain(ghost.golden ? 8 : 3);
     sound.caught();
+    popAt(ghost.x + GHOST_W / 2, ghost.y, '+' + points);
     ghost.node.classList.add('is-caught');
     setTimeout(() => ghost.node.remove(), 320);
-    scoreEl.textContent = 'SOULS ' + hunt.score;
+    paintScore();
+  }
+
+  // A "+n" that floats up from a point on the screen.
+  function popAt(x, y, text, kind = 'is-souls') {
+    const pop = el('div', 'soul-pop ' + kind, text);
+    pop.style.left = (x - 8) + 'px';
+    pop.style.top = (y - 6) + 'px';
+    huntLayer.appendChild(pop);
+    setTimeout(() => pop.remove(), 900);
+  }
+
+  function drift(g, dt, now, w, h) {
+    g.x += g.vx * dt;
+    g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
+    if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - w && g.vx > 0)) g.vx = -g.vx;
+    if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - h && g.vy > 0)) g.vy = -g.vy;
+    const at = `translate(${Math.round(g.x)}px, ${Math.round(g.y)}px)`;
+    g.node.style.transform = at;
+    g.node.style.setProperty('--at', at);
   }
 
   function moveGhosts(now) {
-    if (!hunt) return;
+    if (!hunt || hunt.wraith) return;
     const dt = Math.min(50, now - hunt.last);
     hunt.last = now;
-    for (const g of hunt.ghosts) {
-      if (g.caught) continue;
-      // They shy away from the cursor.
-      const dx = g.x + 21 - cursor.x;
-      const dy = g.y + 25 - cursor.y;
-      const d = Math.hypot(dx, dy);
-      if (d < 120 && d > 0) {
-        g.vx += (dx / d) * 0.004 * dt;
-        g.vy += (dy / d) * 0.004 * dt;
-      }
-      const speed = Math.hypot(g.vx, g.vy);
-      if (speed > 0.35) { g.vx *= 0.35 / speed; g.vy *= 0.35 / speed; }
-      g.x += g.vx * dt;
-      g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
-      if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - 42 && g.vx > 0)) g.vx = -g.vx;
-      if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - 50 && g.vy > 0)) g.vy = -g.vy;
-      const at = `translate(${Math.round(g.x)}px, ${Math.round(g.y)}px)`;
-      g.node.style.transform = at;
-      g.node.style.setProperty('--at', at);
-    }
+    for (const g of hunt.ghosts) if (!g.caught && !g.held) drift(g, dt, now, GHOST_W, GHOST_H);
+    // A combo lapses when the next catch is too slow.
+    if (hunt.combo > 1 && now - hunt.lastCatch > COMBO_MS) { hunt.combo = 1; paintScore(); }
     const left = hunt.ends - Date.now();
-    huntRing.style.setProperty('--left', Math.max(0, left / HUNT_MS).toFixed(3));
+    huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 3000);
-    if (left <= 0) return endHunt();
-    if (now - hunt.lastSpawn > 900 && hunt.ghosts.filter((g) => !g.caught).length < 12) {
-      hunt.lastSpawn = now;
-      spawnGhost();
-    }
+    // Over when time runs out, or when every ghost has been caught. As time
+    // runs out, the moths swoop on ghosts that would get away.
+    if (hunt.ghosts.every((g) => g.caught)) return endHunt();
+    if (left <= 0) return mothsSwoop().then(() => { if (hunt) endHunt(); });
     requestAnimationFrame(moveGhosts);
   }
 
-  function startHunt() {
-    hunt = { ends: Date.now() + HUNT_MS, score: 0, ghosts: [], last: performance.now(), lastSpawn: performance.now() };
-    scoreEl = el('div', 'score', 'SOULS 0');
+  // Each moth catches MOTH_CATCHES of the ghosts still loose at the end, at
+  // base points (no combo): it flies from where it rests, takes one, flies back.
+  const MOTH_CATCHES = 2;
+  async function mothsSwoop() {
+    const moths = (ctx.crypt && ctx.crypt.moths && ctx.crypt.moths()) || 0;
+    if (!hunt || (!moths && !(ctx.dragon && ctx.dragon.lore() >= 3))) return;
+    hunt.swooping = true;
+    // (A dragon of the Lore perk's third level fetches one more.)
+    const fetches = moths * MOTH_CATCHES + (ctx.dragon && ctx.dragon.lore() >= 3 ? 1 : 0);
+    const loose = hunt.ghosts.filter((g) => !g.caught).slice(0, fetches);
+    for (const g of loose) {
+      // Held still while the moth comes for it.
+      g.held = true;
+      await ctx.crypt.swoop(g.x + GHOST_W / 2, g.y + GHOST_H / 2);
+      catchGhost(g, { byMoth: true });
+    }
+    if (loose.length) say(loose.length === 1 ? 'The moth took one.' : 'The moths took ' + loose.length + '.', 2500);
+    await new Promise((r) => setTimeout(r, loose.length ? 350 : 0));
+  }
+
+  // The hunt for `count` ghosts bursting out at `from`, a point or a list of
+  // them (a Gathering: out of every sprite). `after` runs when it is over.
+  function startHunt(count, from, after, lights = 0) {
+    // Six seconds, a second and a half for each of the first six ghosts, half
+    // a second for each after; never more than half a minute.
+    const length = Math.min(30000, 6000 + 1500 * Math.min(count, 6) + 500 * Math.max(0, count - 6));
+    const froms = Array.isArray(from) && from.length ? from : [from];
+    hunt = {
+      after,
+      ends: Date.now() + length, length,
+      // One in ten golden, or more with the Crypt's ghost lure.
+      goldenChance: (ctx.crypt && ctx.crypt.get().goldenChance) || 0.1,
+      caught: 0, golden: 0, points: 0, combo: 1, lastCatch: -Infinity,
+      ghosts: [], last: performance.now()
+    };
+    scoreEl = el('div', 'score', '');
     field.appendChild(scoreEl);
     huntRing.hidden = false;
-    for (let i = 0; i < 6; i++) spawnGhost();
+    for (let i = 0; i < count; i++) spawnGhost(froms[i % froms.length], i < lights);
+    paintScore();
     requestAnimationFrame(moveGhosts);
+    dragonHunts();
   }
 
-  function endHunt() {
-    const score = hunt.score;
-    hunt.ghosts.forEach((g) => g.node.remove());
+  // A hunter dragon breathes on ghosts through the hunt: one at a time, no
+  // combo, as many as it can (more with its stage and the Old blood perk).
+  function dragonHunts() {
+    const d = ctx.dragon;
+    let left = d ? d.breaths() : 0;
+    if (!left) return;
+    const mine = hunt;
+    const once = () => {
+      if (!hunt || hunt !== mine || hunt.wraith || !left) return;
+      const loose = hunt.ghosts.filter((g) => !g.caught && !g.held);
+      if (!loose.length) return;
+      const g = loose[Math.floor(Math.random() * loose.length)];
+      left -= 1;
+      g.held = true;
+      d.breathe(g.x + GHOST_W / 2, g.y + GHOST_H / 2);
+      setTimeout(() => { if (hunt === mine) catchGhost(g, { byMoth: true }); }, 260);
+      setTimeout(once, 1700);
+    };
+    setTimeout(once, 1200);
+  }
+
+  async function endHunt() {
+    const { caught, golden, points, after } = hunt;
+    const lost = hunt.ghosts.filter((g) => !g.caught).length;
+    hunt.ghosts.forEach((g) => { if (!g.caught) g.node.remove(); });
     hunt = null;
     huntRing.hidden = true;
     const board = scoreEl;
     setTimeout(() => board.remove(), 2500);
-    companion.stat('caught', score);
-    if (score > best) {
-      best = score;
+    // The crypt pays for what was caught and keeps the score.
+    const out = await companion.crypt({ hunt: { caught, golden, points } });
+    if (out && out.crypt && ctx.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    const lines = [];
+    if (points > best) {
+      best = points;
       companion.save({ best });
-      say(score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.', 5000);
+      lines.push(points ? 'New best: ' + points + ' points.' : 'None. Shameful.');
     } else {
-      say(score + ' souls.\nBest: ' + best + '.', 5000);
+      lines.push(points + ' points. Best: ' + best + '.');
     }
+    if (lost) lines.push(lost + (lost === 1 ? ' got away.' : ' got away.'));
+    for (const r of (out && out.ranked) || []) lines.push('Rank: ' + r.name + '. +' + r.reward + ' souls.');
+    if (out && out.ranked && out.ranked.length) sound.bell();
+    say(lines.join('\n'), 6000);
+    if (after) after();
   }
 
+  // Dropped on the sprite at `index` (among the garden's): reap it.
+  async function reapAt(index) {
+    if (hunt) return { ok: false, error: 'Already hunting.' };
+    const box = ctx.crypt.diggerBox(index);
+    const out = await companion.crypt({ reap: index });
+    if (out.crypt) ctx.crypt.update(out.crypt);
+    if (!out.ok) {
+      say(out.error, 3000);
+      return out;
+    }
+    const from = box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : ctx.center();
+    ctx.swing();
+    ctx.puff(from.x, from.y);
+    sound.caught();
+    say(out.lights ? 'Spirit-lights. Catch them.' : out.ghosts === 1 ? 'One ghost. Catch it.' : out.ghosts + ' ghosts. Catch them.', 2500);
+    startHunt(out.ghosts, from, null, out.lights || 0);
+    return out;
+  }
+
+  // Slash during a hunt catches every ghost still loose, and wounds a wraith.
   function reapAll() {
     if (!hunt) return 0;
+    if (hunt.wraith) { hitWraith(4); return 1; }
     const loose = hunt.ghosts.filter((g) => !g.caught);
     loose.forEach((g, i) => setTimeout(() => catchGhost(g), 80 + i * 50));
     return loose.length;
+  }
+
+  // --- Summon: the Gathering ------------------------------------------------------------------
+  // He calls every sprite at once: all of them burst into their ghosts (and
+  // one more for each past the first) for one big hunt, then claw back up
+  // empty. Reaping one is the snack; this is the feast. About one Gathering in
+  // four, something else answers the call as well: a wraith, once the hunt is
+  // over. Never more than four in a row without one. With no sprites yet,
+  // the soil gives him a first one.
+  const WRAITH_CHANCE = 0.25;
+  const WRAITH_HP = 12;
+  const WRAITH_MS = 20000;
+  const WRAITH_W = 120;
+  const WRAITH_H = 106;
+  let sinceWraith = 0;
+
+  async function gathering() {
+    // Where each sprite stands, before they burst.
+    const froms = ctx.crypt.diggerBoxes().map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 }));
+    const out = await companion.crypt({ gather: true });
+    if (out.crypt) ctx.crypt.update(out.crypt);
+    if (!out.ok) {
+      say(out.error, 3000);
+      return out;
+    }
+    if (!out.gathered) {
+      sound.bell();
+      say('The soil stirs.\nGrow.', 3000);
+      return out;
+    }
+    const c = ctx.center();
+    const points = froms.length ? froms : [{ x: c.x, y: c.y + 40 }];
+    ctx.swing();
+    points.forEach((p, i) => setTimeout(() => ctx.puff(p.x, p.y), i * 90));
+    sound.caught();
+    say(out.gathered === 1 ? 'Come.\n' + out.ghosts + (out.ghosts === 1 ? ' ghost.' : ' ghosts.')
+      : 'The garden answers.\n' + out.ghosts + ' ghosts!', 3000);
+    const wraith = Math.random() < WRAITH_CHANCE || sinceWraith >= 4;
+    sinceWraith = wraith ? 0 : sinceWraith + 1;
+    startHunt(out.ghosts, points, wraith ? () => setTimeout(() => {
+      if (hunt) return;
+      startWraith();
+      say('Something else answered the call.\nStrike it ' + WRAITH_HP + ' times.', 3500);
+    }, 1800) : null);
+    return out;
+  }
+
+  function startWraith() {
+    const c = ctx.center();
+    const node = el('div', 'wraith hit');
+    const w = {
+      node, hp: WRAITH_HP,
+      x: c.x - WRAITH_W / 2, y: Math.max(20, c.y - WRAITH_H - 40),
+      vx: (Math.random() < 0.5 ? -1 : 1) * 0.16, vy: -0.08, phase: 0
+    };
+    node.addEventListener('pointerdown', (e) => { e.stopPropagation(); hitWraith(1); });
+    huntLayer.appendChild(node);
+    hunt = { wraith: w, ends: Date.now() + WRAITH_MS, length: WRAITH_MS, last: performance.now(), lastTurn: performance.now() };
+    scoreEl = el('div', 'score is-wraith', '');
+    field.appendChild(scoreEl);
+    paintWraith();
+    huntRing.hidden = false;
+    sound.caught();
+    requestAnimationFrame(moveWraith);
+    // A dragon of an ascended line (the Lore perk) dives at it.
+    if (ctx.dragon && ctx.dragon.lore() >= 1) {
+      setTimeout(async () => {
+        if (!hunt || !hunt.wraith) return;
+        await ctx.dragon.dive(hunt.wraith.x + WRAITH_W / 2, hunt.wraith.y + WRAITH_H / 2);
+        if (hunt && hunt.wraith) hitWraith(3);
+      }, 900);
+    }
+    return { ok: true, wraith: true };
+  }
+
+  function paintWraith() {
+    scoreEl.textContent = 'WRAITH ' + '♥'.repeat(Math.max(0, hunt.wraith.hp));
+  }
+
+  function hitWraith(n) {
+    if (!hunt || !hunt.wraith) return;
+    const w = hunt.wraith;
+    w.hp -= n;
+    sound.caught();
+    popAt(w.x + WRAITH_W / 2, w.y + 10, '−' + n, 'is-cost');
+    w.node.classList.remove('is-hit');
+    void w.node.offsetWidth;
+    w.node.classList.add('is-hit');
+    // Struck, it lurches away and speeds up a little.
+    w.vx = -w.vx * 1.05;
+    w.vy = (Math.random() - 0.5) * 0.3;
+    if (w.hp <= 0) return endWraith(true);
+    paintWraith();
+  }
+
+  function moveWraith(now) {
+    if (!hunt || !hunt.wraith) return;
+    const w = hunt.wraith;
+    const dt = Math.min(50, now - hunt.last);
+    hunt.last = now;
+    // Now and then it veers.
+    if (now - hunt.lastTurn > 1400) {
+      hunt.lastTurn = now;
+      w.vy = (Math.random() - 0.5) * 0.24;
+      if (Math.random() < 0.4) w.vx = -w.vx;
+    }
+    drift(w, dt, now, WRAITH_W, WRAITH_H);
+    const left = hunt.ends - Date.now();
+    huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
+    huntRing.classList.toggle('is-late', left < 5000);
+    if (left <= 0) return endWraith(false);
+    requestAnimationFrame(moveWraith);
+  }
+
+  async function endWraith(won) {
+    const w = hunt.wraith;
+    hunt = null;
+    huntRing.hidden = true;
+    w.node.classList.add(won ? 'is-banished' : 'is-gone');
+    setTimeout(() => w.node.remove(), 600);
+    const board = scoreEl;
+    setTimeout(() => board.remove(), 1500);
+    const out = await companion.crypt({ wraith: { won } });
+    if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    if (won) {
+      sound.bell();
+      say('Banished.\n+' + out.gained + ' souls' + (out.raised ? ', and a moss sprite sprouts.' : '.'), 5000);
+    } else {
+      say('It got away.', 3000);
+    }
+    return out;
   }
 
   // --- Scythe Slash: the screen is cut in two for a moment ----------------------------------------
@@ -468,9 +713,9 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'Ten seconds. Catch the ghosts.',
+      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'The Gathering: every moss sprite bursts into its ghosts at once, for one big hunt. Sometimes a wraith answers too.',
       ready: () => (hunt ? 'Already hunting.' : null),
-      cast: () => { startHunt(); say('Ten seconds. Catch them.', 3000); }
+      cast: () => { gathering(); }
     },
     {
       id: 'hourglass', name: 'Hourglass', cost: 10, school: 'time', blurb: 'A focus timer. He rings when the sand runs out.',
@@ -486,7 +731,14 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
-      id: 'crypt', name: 'Crypt', cost: 0, school: 'soul', blurb: 'Your banked souls, and the skeletons they raise.',
+      id: 'dragon', name: 'Dragon', cost: 0, school: 'spirit', blurb: 'Your dragon: its egg, raising and training it, and ascension.',
+      free: true,
+      active: () => ctx.dragon.isOpen(),
+      stop: () => ctx.dragon.close(),
+      cast: () => ctx.dragon.open()
+    },
+    {
+      id: 'crypt', name: 'Garden', cost: 0, school: 'soul', blurb: 'Your banked souls, and the garden they grow.',
       free: true,
       active: () => ctx.crypt.isOpen(),
       stop: () => ctx.crypt.close(),
@@ -590,12 +842,13 @@ export function createAbilities(ctx) {
         const out = await ctx.crypt.buy(input.upgrade);
         return out.ok ? { ok: true, result: { bought: out.name, level: out.level, souls: out.crypt.souls } } : { ok: false, error: out.error };
       }
-      case 'raise_skeleton': {
+      case 'raise_worker': {
         const count = input.count === undefined ? 1 : input.count;
         if (!Number.isInteger(count) || count < 1 || count > 50) return { ok: false, error: 'count must be a whole number from 1 to 50' };
-        const out = await ctx.crypt.raise(count);
+        const kind = input.kind === undefined ? 'digger' : input.kind;
+        const out = await ctx.crypt.raise(count, kind);
         return out.ok
-          ? { ok: true, result: { raised: out.raised, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
+          ? { ok: true, result: { raised: out.raised, kind: out.kind, souls: out.crypt.souls, skeletons: out.crypt.skeletons, perHour: out.crypt.perHour, nextCost: out.crypt.nextCost } }
           : { ok: false, error: out.error };
       }
       case 'look_at_screen': {
@@ -613,6 +866,62 @@ export function createAbilities(ctx) {
         if (typeof input.text !== 'string' || !input.text) return { ok: false, error: 'text must be a non-empty string' };
         companion.clipboardWrite(input.text);
         return { ok: true, result: { copied: input.text.length + ' characters' } };
+      }
+      // The web: read freely; anything that opens something asks first.
+      case 'web_search': {
+        if (typeof input.query !== 'string' || !input.query.trim()) return { ok: false, error: 'query must be a non-empty string' };
+        return companion.webSearch(input.query);
+      }
+      case 'read_webpage': {
+        if (typeof input.url !== 'string' || !input.url) return { ok: false, error: 'url must be a string' };
+        return companion.webRead(input.url);
+      }
+      case 'open_url': {
+        if (typeof input.url !== 'string' || !/^https?:\/\//.test(input.url)) return { ok: false, error: 'url must start with http:// or https://' };
+        if (!(await ctx.speak.ask('Open ' + input.url.replace(/^https?:\/\//, '').slice(0, 60) + ' in your browser?'))) return { ok: false, error: 'The user said no.' };
+        return companion.openUrl(input.url);
+      }
+      case 'open_app': {
+        if (typeof input.name !== 'string' || !input.name.trim()) return { ok: false, error: 'name must be a non-empty string' };
+        if (!(await ctx.speak.ask('Open ' + input.name.slice(0, 40) + '?'))) return { ok: false, error: 'The user said no.' };
+        return companion.openApp(input.name);
+      }
+      case 'find_files': {
+        if (typeof input.query !== 'string' || !input.query.trim()) return { ok: false, error: 'query must be a non-empty string' };
+        if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
+        return companion.findFiles(input.query);
+      }
+      // GitHub: reading is free; any change is asked, in the words the app gives.
+      case 'github_read':
+        return companion.github('read', input);
+      case 'github_act': {
+        const question = await companion.github('describe', input);
+        if (!question) return { ok: false, error: 'That is not something I can do on GitHub, or a field is missing.' };
+        if (!(await ctx.speak.ask(question))) return { ok: false, error: 'The user said no.' };
+        return companion.github('act', input);
+      }
+      // Working on himself: a coding agent in a Terminal the user watches.
+      case 'work_on_myself': {
+        if (typeof input.request !== 'string' || !input.request.trim()) return { ok: false, error: 'request must say what to change' };
+        const engine = input.engine === 'claude' || input.model ? 'claude' : 'local';
+        const model = ['haiku', 'sonnet', 'opus'].includes(input.model) ? input.model : undefined;
+        const who = engine === 'claude' ? 'Claude Code' + (model ? ' (' + model[0].toUpperCase() + model.slice(1) + ')' : '') : 'his own coding mind';
+        if (!(await ctx.speak.ask('Let him work on himself with ' + who + '? “' + input.request.trim().slice(0, 80) + '”. A Terminal window opens; you watch and approve.'))) {
+          return { ok: false, error: 'The user said no.' };
+        }
+        return companion.selfWork({ request: input.request.trim(), engine, model });
+      }
+      // Playing music is his to do when asked; it opens nothing and reads nothing private.
+      case 'spotify': {
+        const actions = ['play', 'pause', 'next', 'previous', 'now_playing', 'volume'];
+        if (input.action !== undefined && !actions.includes(input.action)) return { ok: false, error: 'action must be one of ' + actions.join(', ') };
+        return companion.spotify({ action: input.action || 'play', query: input.query, kind: input.kind, volume: input.volume });
+      }
+      case 'open_file': {
+        if (typeof input.path !== 'string' || !input.path) return { ok: false, error: 'path must be a string' };
+        const shown = input.path.split('/').pop().slice(0, 40);
+        if (!(await ctx.speak.ask((input.reveal ? 'Show ' + shown + ' in Finder?' : 'Open ' + shown + '?')))) return { ok: false, error: 'The user said no.' };
+        return companion.openFile(input.path, !!input.reveal);
       }
       default:
         return { ok: false, error: 'Unknown tool ' + name };
@@ -642,6 +951,7 @@ export function createAbilities(ctx) {
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },
+    reapAt,
     dueToday() {
       const end = new Date();
       end.setHours(23, 59, 59, 999);

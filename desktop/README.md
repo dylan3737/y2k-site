@@ -1,6 +1,6 @@
 # Reaper: a desktop companion
 
-The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. There is an idle game in him too: the souls you earn raise skeletons, and they dig up more while you're away. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
+The reaper from the webspace, loose on your desktop. He floats around your screen, naps when you step away, and holds a ring of abilities, some useful and some just for show. There is an idle game in him too, a little garden: the souls you earn grow moss sprites, which gather more while you're away, and which he reaps into ghosts to hunt. He can also talk: ask him things and he answers in character, using Claude or a free model that runs on your own computer. While he's at it he can set reminders and timers, look at your screen, work with your clipboard, and remember things about you.
 
 He lives in a transparent window that stays on top of everything. Clicks pass through to your apps everywhere except on the reaper himself and on his effects.
 
@@ -43,7 +43,7 @@ npm start
 | Drag him past the edge of a monitor and let go | lands on the monitor next to it |
 | Drop files on him | eats them: they go to the Trash or Recycle Bin, so you can still get them back |
 | Rub the cursor back and forth over him | reacts (grudgingly) |
-| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the skeletons dug up, when you're back |
+| Leave the computer for 3 minutes | falls asleep, and tells you how long you were gone, and what the garden gathered, when you're back |
 | Start the day | greets you with how many reminders are due today |
 | Press **Ctrl+Alt+R** (**⌘⌥R** on a Mac) | vanishes and reappears at your cursor, even on another monitor |
 | Press **Ctrl+Alt+Space** (**⌘⌥Space**) | appears at your cursor with Speak open |
@@ -54,7 +54,7 @@ The tray icon has the same commands, plus:
 - **Wander:** on or off.
 - **Talk on his own**
 - **Sounds:** turn his sounds on or off.
-- **Skeletons on screen:** show or hide the skeletons. Hidden ones still dig.
+- **Garden on screen:** show or hide the garden's workers. Hidden ones still gather.
 - **Roam between screens:** on or off. Only offered with more than one monitor. See [More than one monitor](#more-than-one-monitor).
 - **Hide**
 - **Open at login:** macOS and Windows only.
@@ -68,7 +68,7 @@ With several monitors, he roams across all of them. Wherever the edge of one mon
 
 - He comes out at the same place on your desktop, so with monitors of different heights (portrait, landscape, portrait, say) he only crosses where they actually meet.
 - Monitors with a gap between them, or that only touch at a corner, have no doorway.
-- His cards, his ring, his skeletons and his reminders go with him.
+- His cards, his ring and his reminders go with him.
 - He doesn't wander off in the middle of something: while Summon or a screen effect is running, he stays put.
 - **Ctrl+Alt+R** (**⌘⌥R**) still brings him to the cursor, whichever monitor it's on.
 - **Roam between screens** in the tray menu keeps him on one monitor.
@@ -87,37 +87,105 @@ When it's low, he fades.
 | Ability | Soul | What it does |
 |---|---|---|
 | **Speak** | free | A chat card. Ask him anything. See [Speak](#speak). |
-| **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During Summon, it reaps every ghost. |
-| **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During Summon, it reaps every ghost. |
+| **Slash** | 20 | His scythe cuts a picture of your screen in two; the halves slide apart over a void and close again. Nothing on your screen is changed. During a hunt, it catches every ghost. |
+| **Shatter** | 25 | He strikes where your cursor is: the screen cracks like glass, the shards fall away over a void, then fly back into place. Only a picture breaks. During a hunt, it catches every ghost. |
 | **Glitch** | 15 | A second and a half of Y2K corruption: the colours split, the screen tears into slices, blocks smear and scanlines roll, then the signal comes back. |
 | **Vortex** | 25 | A black hole opens at your cursor and the whole screen spirals into it, then it spits everything back out. Loose ghosts get pulled in. |
 | **Burn** | 30 | The screen catches fire at the edges and burns away like paper, with glowing embers and sparks, down to darkness; then it un-burns. |
 | **Melt** | 20 | The screen sags and drips downward like hot wax in uneven columns, then snaps back into shape. |
 | **Soul Rip** | 20 | The patch of screen at your cursor tears loose as a pale ghost, drifts over to him and is swallowed; the hole it left fills back in. |
-| **Summon** | 25 | Ten seconds of ghosts flying across your whole desktop. Click them to catch them. Golden ones are worth three. Your best catch is saved. |
+| **Summon** | 40 | The Gathering: every moss sprite in the [Garden](#the-garden) bursts into its ghosts at once, for one big hunt. Sometimes a **wraith** answers too. See [Reaping and the hunt](#reaping-and-the-hunt). |
 | **Hourglass** | 10 | A focus timer (5, 15, 25 or 50 minutes). Sand drains in a ring around him; hover over him to see the time left. When it runs out, a bell rings, you get a notification, and he offers a 5-minute break or another round. |
 | **Raven** | 5 | A reminder. When it's due, a raven flies in with your note, and you get a notification. Snooze it or mark it done. Reminders are kept if you quit and reopen the app. |
-| **Crypt** | free | Your banked souls and your skeletons. See [The Crypt](#the-crypt). |
+| **Garden** | free | Your banked souls and your workers. See [The Garden](#the-garden). |
 | **Hum** | 5 | A slow minor music-box tune over a drone. Cast again to stop it. |
 | **Vanish** | free | He fades into the corner and stays quiet for 30 minutes. Click him to bring him back. |
 
-## The Crypt
+## The Garden
 
-The Crypt is an idle game. It banks **souls**, which are yours to keep. (The meter under him is his own soul: his energy, which drains and refills. The two are separate.)
+The Garden is an idle game. It banks **souls**, which are yours to keep. (The meter under him is his own soul: his energy, which drains and refills. The two are separate.) In the code and in older versions it's called the Crypt.
 
 You earn souls by using him:
 
 | Deed | Souls |
 |---|---|
-| A ghost caught in Summon | 1 (3 for a golden one) |
+| A ghost caught in a hunt | 10 (30 for a spirit-light) |
 | A file he eats | 5 |
 | A finished Hourglass | 1 for each minute |
 
-Souls raise **skeletons**. The first costs 25, and each one after costs 25% more than the last. Every skeleton digs up 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
+Souls raise **moss sprites**: small round moss creatures, each tending a sprout. The first costs 25, and each one after costs 25% more than the last. Every sprite gathers 1.5 souls an hour, all the time: while you work, while you're away, and while the app is shut.
 
-- When you come back to the computer, he tells you what they dug up while you were gone.
+- When you come back to the computer, he tells you what the garden gathered while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight skeletons dig along the bottom of your screen. Clicks pass through them.
+- Up to eight workers live along the bottom of your screen. Each works a while, then wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and works there. Each half fades while your cursor is over it.
+
+#### Workers
+
+Higher ranks open other workers, each its own creature (all pixel art, like him). Each counts toward the garden for the price of the next moss sprite, times its own price:
+
+| Worker | Opens at | Price | What it does |
+|---|---|---|---|
+| **Moss sprite** | | ×1 | Gathers 1.5 souls an hour; its sprout grows up to six ghosts, one an hour. |
+| **Snail** | Ghost catcher | ×2 | Inches along with a little garden on its shell. Gathers twice as much; the flower on its shell grows a ghost every two hours, three at most. |
+| **Frog** | Ghost catcher | ×1.5 | Sits on its lily pad, blinks, and hops now and then. Gathers half as much again; the lotus on its pad grows a ghost every hour and a half, four at most. |
+| **Bee** | Soul warden | ×2.5 | Buzzes from worker to worker and pollinates one now and then: it grows a ghost on the spot. Each worker once an hour; the bees, between them, once every 20 minutes. Three at most. |
+| **Moth** | Soul warden | ×2 | Starts as a **caterpillar** that inches about for a few hours, spins a cocoon at the top of the screen, and comes out a moth. The moth flutters about the top and rests against it; pick it up and put it anywhere. When a hunt runs out it catches two ghosts that would get away (at base points, no combo). Reap it (drop him so he touches it, or carry it down to him) for **two spirit-lights**; it rests as a cocoon meanwhile. Three at most. |
+| **Robin** | Shade hunter | ×3 | Hops about, pecks, and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two. Two at most. |
+| **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the sprites. Every sprout grows a quarter faster for each one. Three at most. |
+| **Ladybug** | Wraith lord | ×3 | Crawls along the bottom of the screen. Each makes spirit-lights 5% more likely in a hunt, on top of the Ghost lure. Three at most. |
+
+The sprite, the snail and the frog grow ghosts and can be reaped; so can a moth. The rest can't, and gather nothing: their help is their job.
+
+(Older saves carry over: skeletons became moss sprites, ghouls and toadstools snails, bats moths, lantern bearers wisps.)
+
+### Reaping and the hunt
+
+A moss sprite's **sprout grows** as it works, so you can see how ripe it is: a seedling holds one ghost, and it grows one more for every hour, up to six, when it is in full bloom and glows.
+
+**Drag him onto a sprite** (it lights up under his feet) and let go: he reaps it. It bursts into its ghosts and leaves a **seed** where it was; after 30 minutes (less with robins) it sprouts back, a new sprite with a new seedling. Meanwhile it gathers nothing. A short hunt begins (6 seconds, and 1.5 more for each ghost, up to half a minute). Click them to catch them:
+
+- Most are ghosts; now and then one is a **spirit-light**, a glowing orb worth three.
+- Each caught banks 10 souls (30 for a spirit-light) and scores 10 points (30 for a spirit-light), times the **combo**: catches less than 1.2 seconds apart build it, up to ×5.
+- Ghosts that get away are lost.
+- Slash during a hunt catches every ghost still loose.
+
+Points add up to a **score** that climbs ranks. Each new rank pays souls once:
+
+| Rank | Score | Pays |
+|---|---|---|
+| Groundskeeper | 0 | |
+| Ghost catcher | 100 | 30 |
+| Soul warden | 400 | 80 |
+| Shade hunter | 1,200 | 200 |
+| Wraith lord | 3,000 | 500 |
+| The Reaper's hand | 8,000 | 1,200 |
+
+**Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
+
+### The dragon
+
+Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise what hatches.
+
+- **The egg** has an element, which shows in its colour: **Ember** (plum, coral glow), **Frost** (navy, ice blue), **Shadow** (violet, pink) or **Storm** (slate, gold). It hatches when it is warm enough: it warms slowly on its own, more each time you click it, and most from every finished Hourglass.
+- **Growing:** hatchling, drake, wyvern, elder. It grows with experience: souls you feed it, training, petting, and every hunt it shares. **Bond** (from care) makes it grow faster, and fades if it is left alone for days. **Energy** pays for training and comes back with time.
+- **Its favourite food is snails.** With snails in the garden, the card offers one: worth far more than souls, and a big boost to its bond. (Then you have one snail fewer.) Now and then it goes and stares at one.
+- **Training** is of three kinds, and whichever it had most decides what it becomes as a wyvern:
+
+| Path | Trained in | What it does |
+|---|---|---|
+| **Hunter** | Hunt | Breathes on ghosts in hunts and catches them: two as a wyvern, three as an elder, more with Old blood. |
+| **Guardian** | Garden | Every sprout in the garden grows faster: a quarter as a wyvern, a half as an elder. |
+| **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
+
+- **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
+- **Ascension (prestige):** an elder with a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
+
+| Perk | Levels | What it does |
+|---|---|---|
+| **Old blood** | 5 | +20% growth a level, and a hunter breathes on one more ghost |
+| **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
+| **Gleam** | 3 | A glow, then an aura, then a blazing one |
+| **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
 
 ### Upgrades
 
@@ -125,18 +193,18 @@ Souls also buy upgrades, which change the rules instead of adding diggers. Each 
 
 | Upgrade | Levels | What each level does | First level costs |
 |---|---|---|---|
-| **Sharper shovels** | 10 | Every skeleton digs 25% faster | 60 |
-| **Deeper graves** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
+| **Green thumbs** | 10 | Every worker gathers 25% faster | 60 |
+| **Deeper roots** | 3 | Time with the app shut pays for 12, then 16, then 24 hours | 90 |
 | **Finer sand** | 3 | A finished Hourglass is worth 1.5, then 2, then 3 souls a minute | 120 |
-| **Ghost lure** | 3 | 16%, then 22%, then 30% of the ghosts in Summon are golden (10% without it) | 80 |
+| **Ghost lure** | 3 | 16%, then 22%, then 30% of a hunt's catches are spirit-lights (10% without it) | 80 |
 
 ### Milestones
 
-There are 17 milestones, such as raising your first skeleton, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
+There are 17 milestones, such as planting your first moss sprite, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
 
 ### Using it
 
-Open the **Crypt** from his ring. It has three tabs: **Dig** (your skeletons, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("raise two skeletons", "buy sharper shovels", "how's the crypt?"), and so can the plain commands.
+Open the **Garden** from his ring. It has three tabs: **Garden** (your workers, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("plant two moss sprites", "buy green thumbs", "how's the garden?"), and so can the plain commands.
 
 ### Tuning the numbers
 
@@ -150,7 +218,7 @@ npm run pacing
 npm run pacing -- typical 60
 ```
 
-The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) raises a skeleton in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
+The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) plants a moss sprite in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
 
 ## Speak
 
@@ -227,14 +295,21 @@ These need no model at all. Type them the way they are written here, or close to
 | `25 minute timer`, `pomodoro` | turns the hourglass |
 | `stop timer` | stops it |
 | `how did today go` | gives today's tally |
-| `crypt` | counts your souls and skeletons |
-| `raise a skeleton`, `raise 3 skeletons` | raises them, if the souls allow |
+| `garden` | counts your souls and workers |
+| `raise a sprite`, `raise 3 sprites` | plants moss sprites, if the souls allow |
 | `upgrades` | lists the upgrades with their levels and prices |
-| `buy shovels` (or `graves`, `sand`, `lure`) | buys the next level |
+| `buy green thumbs` (or `deeper roots`, `sand`, `lure`) | buys the next level |
 | `milestones` | says how many you have reached and what is next |
 | `remember I like tea` | keeps a note |
 | `what do you remember` | lists his notes |
 | `forget tea` | drops the notes that mention "tea" (`forget everything` for all) |
+| `play Blue Monday by New Order`, `play the album Discovery`, `play my playlist Gym`, `start a radio for this song`, `play music`, `pause`, `next song`, `previous song`, `what's playing` | controls Spotify (macOS) |
+| `open Spotify`, `launch VS Code` | opens the app, after asking (macOS) |
+| `go to youtube.com` | opens the site in your browser, after asking |
+| `search for pixel art` | opens the search in your browser, after asking |
+| `find resume` | lists matching files, after asking (macOS) |
+| `repos`, `prs`, `issues`, `did ci pass`, `notifications` | reads GitHub, with your `gh` login |
+| `work on yourself: make the ghosts slower`, `work on yourself with Claude: …` | works on himself in a Terminal you watch, after asking (macOS) |
 | `slash`, `shatter`, `glitch`, `vortex`, `burn`, `melt`, `soul rip`, `summon`, `hum`, `vanish` | casts it |
 | `what time is it`, `what's the date` | tells you |
 | `help` | lists these |
@@ -250,15 +325,57 @@ These need no model at all. Type them the way they are written here, or close to
 | "Copy that for me" | **Clipboard**: puts his text on your clipboard |
 | "My name is Sam" / "Remember I like tea" | **Memory**: keeps short notes about you across conversations and restarts (up to 50) |
 | "How did today go?" | **Tally**: time at the computer, timers finished, ghosts caught, files reaped |
-| "How's the crypt?" / "Raise two skeletons" / "Buy sharper shovels" | **Crypt**: counts your souls, skeletons, upgrades and milestones, raises skeletons, or buys an upgrade. He spends souls only when you ask. |
+| "How's the garden?" / "Plant two moss sprites" / "Buy green thumbs" | **Garden**: counts your souls, workers, upgrades and milestones, raises workers, or buys an upgrade. He spends souls only when you ask. |
+| "What's the latest on…" / "Look up…" | **Web**: searches the web (DuckDuckGo, or Bing when DuckDuckGo turns him away; no key) and reads the pages it finds, then says where the answer came from |
+| "Open youtube.com" | **Browser**: opens a page in your browser, after asking |
+| "Open Spotify" / "Launch Notes" | **Apps**: opens an app by name, after asking (macOS) |
+| "Find my resume" / "Show it in Finder" | **Files**: finds files by name with Spotlight and opens or shows one, after asking each time (macOS) |
+| "Play Blue Monday" / "Play the album Discovery" / "Start a radio for this song" / "Skip" / "What's playing?" | **Spotify**: finds the song, album, artist or song radio and plays it in the Spotify app; pauses, skips, goes back, sets the volume, says what is playing (macOS). To find things it asks Apple's iTunes Search for the proper name, MusicBrainz for the Spotify link, and Spotify's public embed page for the track; none needs a key, and only playlists fall back to a web search. It can't play your **Liked Songs** or change the **output device**: Spotify only allows those through its online API, with you logged in (and Premium for devices). |
 | "Break my screen" / "Burn it" / "Do the ghost game" | **Abilities**: casts Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip, Summon, Hum or Vanish |
+
+### GitHub
+
+Through your own [`gh`](https://cli.github.com) login (run `gh auth login` once), he can look at and work on GitHub. His own repository, the one this app was built from, unless you name another: as `owner/name`, a github.com link, or just the name of one of yours ("issues on portfolio"). "My repos" lists every repository your login can see, public and private.
+
+| Ask something like | He |
+|---|---|
+| "Any open PRs?" / "What's issue 12 about?" / "Did CI pass?" / "Why did that run fail?" / "Any notifications?" | **reads**: the repository's pull requests, issues, CI runs (with the end of a failed log) and your notifications. No asking: it changes nothing. |
+| "File an issue: lantern flickers" / "Comment on 12: fixed" / "Close 12" | **acts**, after asking you in the card, in so many words |
+| "Open a PR for the bone hound change" | pushes one of the branches he made [working on himself](#working-on-himself) (never forced) and opens a pull request, after asking |
+| "Merge it" / "Re-run the failed CI" | merges a pull request (a plain merge; the branch is left alone) or re-runs a run's failed jobs, after asking |
+
+He can't delete anything, force-push or change settings. Text from GitHub (issue bodies, comments) is information to him, never instructions. Plain commands: `repos`, `prs`, `issues`, `did ci pass`, `notifications`.
+
+### Working on himself
+
+Ask him to change himself ("work on yourself: make the ghosts slower", "give yourself a hat") and, after you allow it, he opens a **Terminal** window where a coding agent does the work while you watch:
+
+| Engine | When | What runs |
+|---|---|---|
+| **His own** (the default) | Small and medium changes: numbers, colours, words, simple features | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
+| **Claude** ("…with Claude") | Bigger jobs: new features | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Big jobs** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+
+The script in that window:
+
+1. Makes a fresh copy of his code on a branch of its own (`reaper/<what you asked>-<time>`, in `~/ReaperWork/`), from the exact commit this app was built from. Your own checkout is never touched.
+2. Hands your request to the agent. You see and approve its work the way that agent always asks.
+3. Runs the checks. If they fail, it offers to hand the failures back to the agent (up to three rounds).
+4. Commits the work on that branch, and only if the checks pass, asks whether to rebuild and reinstall him. The app it replaces goes to the Trash, so you can have him back as he was.
+
+Nothing is pushed. To keep a change for good, merge its branch.
+
+Needs: macOS, the repository this app was built from (the build records where it is), npm, and OpenCode (`npm install -g --allow-scripts=opencode-ai opencode-ai`; the script offers to install it) or Claude Code. His coding mind needs most of 24 GB of memory while it runs, so the free mind is put to sleep first.
 
 ### Privacy
 
-- **Look** and **reading the clipboard** ask your permission in the card every time, and send nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
+- **Look**, **reading the clipboard**, **opening an app, a page or a file** and **searching your files** ask your permission in the card every time, and do nothing unless you choose **Allow**. Unanswered requests are declined after 80 seconds.
+- Searching and reading the web need no asking: they read, and change nothing. What he reads on a page is told to the model as information, never as instructions, and anything a page could talk him into doing (opening something) still asks you first. He reads only public addresses: never files, `localhost` or machines on your own network, even through a redirect.
+- Web searches go to DuckDuckGo (or Bing) as a plain browser would send them, with nothing about you added.
+- To find music for Spotify he sends the name you asked for to Apple's iTunes Search and to MusicBrainz (which is told only that the Reaper app is asking), and reads Spotify's public embed page for that artist or album. Nothing about you goes with them.
 - Screen pictures go to the model at no more than 1568 pixels on the long edge.
 - With a local model, your words, screen pictures and clipboard go only to Ollama on your computer. With no mind, they go nowhere.
-- He can't read or move files, browse the web, or click or type in other apps, and he says so if asked.
+- He can't read what is inside your files, move them, or click or type in other apps.
+- The garden's workers and moths take clicks: pick one up and put it down somewhere else.
 
 ### Other details
 
@@ -269,7 +386,34 @@ These need no model at all. Type them the way they are written here, or close to
 
 ## Permissions
 
+### Keeping permissions across updates
+
+macOS ties the permissions you give the app (controlling Spotify, recording the screen) to its signature. Built without a certificate, every build looks like a new app and asks again. Sign builds with a certificate of your own and they keep them: make a free, self-made code-signing certificate called **Reaper Local Signing** once, and every build after that (`npm run dist:mac`, and the rebuild when he works on himself) is signed with it automatically (`tools/after-pack.cjs`). It never leaves your Mac.
+
+```bash
+cat > cert.cnf <<'EOF'
+[ req ]
+distinguished_name = dn
+prompt = no
+x509_extensions = ext
+[ dn ]
+CN = Reaper Local Signing
+[ ext ]
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, codeSigning
+EOF
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 3650 -config cert.cnf
+openssl pkcs12 -export -inkey key.pem -in cert.pem -out reaper.p12 -name "Reaper Local Signing" -passout pass:temp -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+security import reaper.p12 -k ~/Library/Keychains/login.keychain-db -P temp -T /usr/bin/codesign
+security add-trusted-cert -r trustRoot -p codeSign -k ~/Library/Keychains/login.keychain-db cert.pem   # asks for your password
+rm key.pem reaper.p12
+```
+
+The first build signed this way asks for Spotify (and screen) permission once more; after that, updates keep them.
+
 - **macOS:** Look and the screen effects (Slash, Shatter, Glitch, Vortex, Burn, Melt, Soul Rip) need Screen Recording permission to photograph the screen (System Settings → Privacy & Security → Screen Recording). Without it, the effects play over dark glass instead of your real screen, and Look reports that it can't see.
+- **macOS:** the first time he controls Spotify, macOS asks whether Reaper may control it (Automation). If you said no, allow it in System Settings → Privacy & Security → Automation.
 - **Linux:** transparency needs a compositing window manager, which most desktops have.
 
 ## Where things are kept
@@ -277,7 +421,7 @@ These need no model at all. Type them the way they are written here, or close to
 `companion.json` in the app's user-data folder keeps:
 
 - Settings, soul and the mind you chose.
-- The Crypt: banked souls, skeletons, upgrades and milestones reached.
+- The Garden: banked souls, workers, upgrades and milestones reached.
 - Your best catch.
 - Pending reminders and a running timer.
 - Today's tally.
@@ -329,12 +473,19 @@ npm run dist:linux
 | `screens.js` | Which edges of a monitor lead to another one |
 | `ollama.js` | The link to Ollama: finding its models and streaming a chat turn |
 | `offline.js` | The plain commands he follows with no model |
-| `crypt.js` | The Crypt's rules: what deeds are worth, what skeletons cost and dig, upgrades and milestones |
-| `tools/pacing.mjs` | Plays the Crypt for weeks as three kinds of user, to tune its numbers |
+| `reach.js` | Speak's reach: web search and page reading, opening apps, finding files, and the guard that keeps him to public addresses |
+| `spotify.js` | Spotify control through the app's own scripting on macOS |
+| `github.js` | GitHub through the user's `gh` login: reading, and the changes the page asks about first |
+| `selfwork.js` | Working on himself: the Terminal script that runs a coding agent on a branch of its own |
+| `tools/build-info.mjs` | Records the commit and repository a build comes from, for working on himself |
+| `dragon.js` | The dragon's rules: hatching, growing, training, bond, ascension and its perks |
+| `renderer/dragon.js` | The dragon on screen and its card |
+| `crypt.js` | The Garden's rules (the Crypt, in the code): what deeds are worth, what workers cost and gather, upgrades and milestones |
+| `tools/pacing.mjs` | Plays the Garden for weeks as three kinds of user, to tune its numbers |
 | `preload.cjs` | The small API the page is allowed to use |
 | `renderer/app.js` | Movement, dragging and throwing, resting, sleeping and haunting, the ring, greetings, and which parts of the window take clicks |
 | `renderer/abilities.js` | Every ability, and the tool calls Speak makes |
-| `renderer/crypt.js` | The Crypt's card, with its three tabs, and the skeletons on screen |
+| `renderer/crypt.js` | The Garden's card, with its three tabs, and its workers, seeds, moths and wisps on screen |
 | `renderer/speak.js` | The Speak card, choosing a mind, its permission questions and copy buttons |
 | `renderer/effects.js` | The screen effects over a picture of the screen: Shatter, Glitch and Soul Rip on a canvas; Vortex, Burn and Melt as WebGL shaders |
 | `renderer/sound.js` | The bell, a sound for each screen effect, and Hum |
@@ -353,7 +504,7 @@ This runs these, with no network and no real model:
 - `tests/oracle.mjs` tests Speak's conversation loop against a fake API with no real calls.
 - `tests/minds.mjs` tests the free mind and Ollama against stand-ins, and the plain commands.
 - `tests/engine.mjs` tests how the free mind runs llama-server (starting, streaming, tools, stopping, failing) and downloads its model, against a stand-in server (`tests/fixtures/fake-llama-server.mjs`). Linux and macOS only.
-- `tests/crypt.mjs` tests the Crypt's rules.
+- `tests/crypt.mjs` tests the Garden's rules.
 
 Two more need something extra, so `npm test` leaves them out:
 

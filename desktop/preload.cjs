@@ -22,6 +22,17 @@ contextBridge.exposeInMainWorld('companion', {
   capture: (opts) => ipcRenderer.invoke('capture', opts),
   clipboardRead: () => ipcRenderer.invoke('clipboard-read'),
   clipboardWrite: (text) => ipcRenderer.send('clipboard-write', text),
+  // Speak's reach: the web, apps and files. The page asks the user first for
+  // anything that opens something or looks through their files.
+  webSearch: (query) => ipcRenderer.invoke('web-search', query),
+  webRead: (url) => ipcRenderer.invoke('web-read', url),
+  openUrl: (url) => ipcRenderer.invoke('open-url', url),
+  openApp: (name) => ipcRenderer.invoke('open-app', name),
+  findFiles: (query) => ipcRenderer.invoke('find-files', query),
+  openFile: (file, reveal) => ipcRenderer.invoke('open-file', { file, reveal }),
+  spotify: (input) => ipcRenderer.invoke('spotify', input),
+  selfWork: (input) => ipcRenderer.invoke('self-work', input),
+  github: (mode, input) => ipcRenderer.invoke('github', { mode, input }),
   trash: (paths) => ipcRenderer.invoke('trash', paths),
   pathForFile: (file) => webUtils.getPathForFile(file),
   setAbilities: (list) => ipcRenderer.send('abilities', list),

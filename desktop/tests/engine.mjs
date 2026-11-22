@@ -134,7 +134,7 @@ try {
   check('and the hushed exchange is not kept', !requests().at(-1).messages.some((x) => x.content === 'tell me a long story'));
 
   // A conversation grown too long for the model starts afresh.
-  script([{ say: ['Long.'], usage: 5000 }, { say: ['Fresh.'] }]);
+  script([{ say: ['Long.'], usage: 10000 }, { say: ['Fresh.'] }]);
   await ask(m, 'one');
   out = await ask(m, 'two');
   check('past most of its context, the conversation starts afresh, and says so', out.full === true && requests()[1].messages.length === 2);

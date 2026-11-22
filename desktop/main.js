@@ -10,6 +10,10 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createOracle, SYSTEM, SMALL_MODEL_NOTE, TOOL_DEFS, FREE_TOOLS_EXCLUDE } from './oracle.js';
 import { createFreeMind, serverPath } from './freemind.js';
+import * as reach from './reach.js';
+import { spotify } from './spotify.js';
+import * as selfwork from './selfwork.js';
+import { createGithub } from './github.js';
 import { listModels } from './ollama.js';
 import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
@@ -35,6 +39,8 @@ const state = {
   // Whose mind Speak borrows: 'free' (built in, on this computer), 'claude' (an
   // API key), 'ollama' (the user's own Ollama) or 'offline' (plain commands only).
   brain: 'free', localModel: null,
+  // Which Claude Code model big self-work jobs use: haiku, sonnet or opus.
+  bigJobModel: 'haiku',
   // The idle game: banked souls and the skeletons that dig for more.
   crypt: crypt.fresh(), minions: true,
   // Whether he walks (and can be flung) from one monitor to the next.
@@ -374,6 +380,14 @@ function rebuildMenu() {
         { label: 'Claude (your API key)', type: 'radio', checked: getBrain().kind === 'claude', click: () => setBrain({ kind: 'claude' }) },
         { label: 'Your own Ollama', type: 'radio', checked: getBrain().kind === 'ollama', click: () => setBrain({ kind: 'ollama' }) },
         { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
+        { type: 'separator' },
+        {
+          label: 'Big jobs (working on himself with Claude)',
+          submenu: Object.entries(selfwork.CLAUDE_MODELS).map(([id, name]) => ({
+            label: name, type: 'radio', checked: selfwork.pickClaudeModel(state.bigJobModel) === id,
+            click: () => { state.bigJobModel = id; writeState(); }
+          }))
+        },
         ...(getBrain().kind === 'ollama' && localModels.length ? [
           { type: 'separator' },
           { label: 'Pick the model for me', type: 'radio', checked: !localModels.includes(state.localModel), click: () => setBrain({ model: null }) },
@@ -402,7 +416,7 @@ function rebuildMenu() {
       click: (item) => { state.roam = item.checked; writeState(); send('settings', { roam: state.roam }); send('doors', doors()); }
     },
     {
-      label: 'Skeletons on screen', type: 'checkbox', checked: state.minions,
+      label: 'Garden on screen', type: 'checkbox', checked: state.minions,
       click: (item) => { state.minions = item.checked; writeState(); send('settings', { minions: state.minions }); }
     },
     { label: 'Hide', type: 'checkbox', checked: hidden, click: () => toggleHidden() }
@@ -441,7 +455,9 @@ const pendingTools = new Map();
 let toolSeq = 0;
 
 // Tools that wait for the user to allow them get longer to answer.
-const ASKS_FIRST = ['look_at_screen', 'read_clipboard'];
+const ASKS_FIRST = ['look_at_screen', 'read_clipboard', 'open_url', 'open_app', 'find_files', 'open_file', 'work_on_myself', 'github_act'];
+// Tools that go out to the web get longer too.
+const SLOW = ['web_search', 'read_webpage', 'spotify', 'github_read', 'github_act'];
 
 function runTool(name, input, signal) {
   return new Promise((resolve) => {
@@ -450,7 +466,7 @@ function runTool(name, input, signal) {
     send('tool-call', { id, name, input });
     const timer = setTimeout(() => {
       if (pendingTools.delete(id)) resolve({ ok: false, error: 'No answer from the user or the reaper in time.' });
-    }, ASKS_FIRST.includes(name) ? 90000 : 10000);
+    }, ASKS_FIRST.includes(name) ? 90000 : SLOW.includes(name) ? 40000 : 10000);
     // Hush or ↺: stop waiting, and withdraw any question the page is asking.
     if (signal) {
       signal.addEventListener('abort', () => {
@@ -519,6 +535,8 @@ function wireIpc() {
 
   ipcMain.handle('crypt', (_e, action = {}) => {
     const { reached, ...out } = crypt.act(state.crypt, action);
+    // Ghosts caught in a hunt count toward today's tally too.
+    if (out.caught) today().caught += out.caught;
     // The page hears too, so the skeletons on screen always match the crypt,
     // and that is where it learns of milestones.
     tendCrypt({ reached });
@@ -544,6 +562,58 @@ function wireIpc() {
   ipcMain.on('clipboard-write', async (_e, text) => {
     if (typeof text !== 'string') return;
     try { await clipboard.writeText(text.slice(0, 100000)); } catch {}
+  });
+
+  // Speak's reach. Reading the web needs no asking; opening things and looking
+  // through files are asked in the page before these are called.
+  ipcMain.handle('web-search', (_e, query) => reach.search(query));
+  ipcMain.handle('web-read', (_e, url) => reach.read(url));
+  ipcMain.handle('open-url', async (_e, url) => {
+    const u = reach.publicUrl(url);
+    if (!u) return { ok: false, error: 'Only public http or https addresses can be opened.' };
+    await shell.openExternal(u.href);
+    return { ok: true, result: { opened: u.href } };
+  });
+  ipcMain.handle('open-app', (_e, name) => reach.openApp(name));
+  ipcMain.handle('spotify', (_e, input) => spotify(input && typeof input === 'object' ? input : {}));
+  // GitHub through the user's own gh login (github.js): his own repository
+  // unless another is named. The page asks before anything is changed, with
+  // the sentence 'describe' gives it.
+  const github = createGithub({ repoDir: (selfwork.readBuildInfo(path.join(app.getAppPath(), 'build-info.json')) || {}).repo || null });
+  ipcMain.handle('github', (_e, { mode, input } = {}) => {
+    const i = input && typeof input === 'object' ? input : {};
+    if (mode === 'describe') return github.describe(i);
+    if (mode === 'act') return github.act(i);
+    return github.read(i);
+  });
+  // Working on himself: a script in Terminal the user watches (selfwork.js).
+  // Asked in the page first. The local coding mind needs the memory, so the
+  // free mind is put to sleep first.
+  ipcMain.handle('self-work', (_e, input = {}) => {
+    const engine = input.engine === 'claude' ? 'claude' : 'local';
+    if (engine === 'local') freeMind.unload();
+    return selfwork.start({
+      request: input.request,
+      engine,
+      // Named for this job, or the one chosen in the tray.
+      claudeModel: selfwork.pickClaudeModel(input.model || state.bigJobModel),
+      info: selfwork.readBuildInfo(path.join(app.getAppPath(), 'build-info.json')),
+      dataDir: app.getPath('userData'),
+      server: process.env.REAPER_LLAMA_SERVER || serverPath({ packaged: app.isPackaged, resources: process.resourcesPath, here }),
+      // The .app this is, to put the rebuilt one in its place.
+      appPath: app.isPackaged ? path.resolve(process.execPath, '..', '..', '..') : '/Applications/Reaper.app'
+    });
+  });
+  ipcMain.handle('find-files', (_e, query) => reach.findFiles(query));
+  ipcMain.handle('open-file', async (_e, { file, reveal } = {}) => {
+    const p = reach.realPath(file);
+    if (!p) return { ok: false, error: 'No such file: ' + file };
+    if (reveal) {
+      shell.showItemInFolder(p);
+      return { ok: true, result: { shown: p } };
+    }
+    const err = await shell.openPath(p);
+    return err ? { ok: false, error: err } : { ok: true, result: { opened: p } };
   });
 
   // A picture of this display's work area, for Scythe Slash. On macOS this

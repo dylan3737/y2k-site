@@ -31,7 +31,7 @@ const CASES = [
   { ask: "let's play the ghost game", tool: 'cast', ok: (i) => i.ability === 'summon' },
   { ask: 'my name is Sam, remember that', tool: 'remember', ok: (i) => /sam/i.test(i.note) },
   { ask: "how's my crypt doing?", tool: 'get_crypt', ok: () => true },
-  { ask: 'raise two skeletons', tool: 'raise_skeleton', ok: (i) => i.count === 2 },
+  { ask: 'raise two skeletons', tool: 'raise_worker', ok: (i) => i.count === 2 },
   { ask: 'buy the sharper shovels upgrade', tool: 'buy_upgrade', ok: (i) => i.upgrade === 'shovels' },
   { ask: 'summarize what I copied', tool: 'read_clipboard', ok: () => true },
   { ask: 'what is the capital of France?', tool: null, ok: (text) => /paris/i.test(text) },
@@ -49,7 +49,7 @@ const reachesModel = (c) => !parseCommand(c.ask, new Date(), { withModel: true }
 const ANSWERS = {
   send_raven: { id: 'r1', due: '3:00 PM' }, set_hourglass: { minutes: 25, endsAt: '2:25 PM' }, stop_hourglass: { stopped: true },
   cast: 'cast', remember: { id: 'm1' }, get_crypt: { souls: 140, skeletons: 3, perHour: 4.5, nextCost: 49 },
-  raise_skeleton: { raised: 2, souls: 12 }, buy_upgrade: { bought: 'Sharper shovels', level: 1, souls: 80 },
+  raise_worker: { raised: 2, souls: 12 }, buy_upgrade: { bought: 'Sharper shovels', level: 1, souls: 80 },
   read_clipboard: { text: 'Meeting moved to Thursday at 10. Bring the Q3 numbers.' }
 };
 

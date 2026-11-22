@@ -5,6 +5,7 @@ import * as sound from './sound.js';
 import { createAbilities } from './abilities.js';
 import { createSpeak } from './speak.js';
 import { createCrypt } from './crypt.js';
+import { createDragon } from './dragon.js';
 
 const $ = (id) => document.getElementById(id);
 const reaper = $('reaper');
@@ -262,9 +263,12 @@ const ctx = {
 
 const crypt = createCrypt(ctx);
 ctx.crypt = crypt;
+ctx.dragon = createDragon(ctx);
+ctx.dragon.update(crypt.get().dragon);
 const speak = createSpeak(ctx);
 ctx.speak = speak;
 const abilities = createAbilities(ctx);
+ctx.abilities = abilities;
 
 companion.setAbilities(abilities.list.map((a) => ({ id: a.id, name: a.name })));
 
@@ -273,8 +277,9 @@ let ringAt = null;
 function openRing() {
   ring.replaceChildren();
   const list = abilities.list;
-  // Wide enough that the buttons don't overlap, however many there are.
-  const radius = Math.max(116, Math.round((list.length * 78) / (Math.PI * 2)));
+  // Wide enough that the buttons don't overlap, however many there are:
+  // about 92 pixels of the ring for each.
+  const radius = Math.max(116, Math.round((list.length * 92) / (Math.PI * 2)));
   ring.style.setProperty('--r', radius + 'px');
   const c = center();
   ringAt = { x: clamp(c.x, radius + 50, innerWidth - radius - 50), y: clamp(c.y, radius + 24, innerHeight - radius - 24) };
@@ -325,7 +330,8 @@ let dragging = null;
 
 function hitTest() {
   const el = cursor.x > -999 ? document.elementFromPoint(cursor.x, cursor.y) : null;
-  const want = !!dragging || !!(el && el.closest('.hit'));
+  // A skeleton in the hand keeps the mouse too, even when the cursor slips off it.
+  const want = !!dragging || crypt.holding() || !!(el && el.closest('.hit'));
   if (want !== interactive) {
     interactive = want;
     companion.interactive(want);
@@ -392,7 +398,26 @@ body.addEventListener('pointermove', (e) => {
   pos.y = e.clientY - dragging.offY;
   keepOnScreen();
   place();
+  // Light up the skeleton he would reap if let go here.
+  crypt.aim(feet(), figure());
 });
+
+// Where his feet are: what touches a skeleton when he is dropped on one.
+const feet = () => ({ x: pos.x + W / 2, y: pos.y + H });
+// All of him: what a moth up high touches when he is dropped on it.
+const figure = () => ({ left: pos.x, top: pos.y, right: pos.x + W, bottom: pos.y + H });
+
+// Dropped on a skeleton: he reaps it, and its ghosts burst out to be hunted.
+function reapHere() {
+  const index = crypt.diggerAt(feet(), figure());
+  crypt.aim(null);
+  if (index < 0 || abilities.hunting) return false;
+  setMode('wander');
+  target = null;
+  waitUntil = performance.now() + 6000;
+  abilities.reapAt(index);
+  return true;
+}
 
 function endDrag(e) {
   if (!dragging) return;
@@ -401,6 +426,8 @@ function endDrag(e) {
   try { body.releasePointerCapture(e.pointerId); } catch {}
   if (d.moved < 6) {
     clicked(d.was);
+  } else if (reapHere()) {
+    // Dropped on a skeleton: reaped.
   } else if (dropThrough(d)) {
     // Carried off the edge onto another monitor.
   } else {
@@ -425,6 +452,7 @@ function endDrag(e) {
       waitUntil = performance.now() + 5000;
     }
   }
+  crypt.aim(null);
   hitTest();
 }
 
@@ -687,6 +715,8 @@ function frame(now) {
   const dt = Math.min(50, now - lastFrame);
   lastFrame = now;
   step(dt, now);
+  // The skeletons by his feet hop out of his way (they look a few times a second).
+  crypt.near(feet());
   requestAnimationFrame(frame);
 }
 
@@ -816,4 +846,4 @@ window.__reaper = {
   pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
   // Forget where he was going and choose again now.
   retarget() { target = null; waitUntil = 0; },
-  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, say };
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, say };

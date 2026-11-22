@@ -2,3 +2,5 @@ node_modules/
 dist/
 # llama-server builds, fetched by tools/fetch-llama-server.mjs
 vendor/
+# Written at build time by tools/build-info.mjs
+build-info.json

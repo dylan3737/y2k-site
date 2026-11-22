@@ -14,9 +14,15 @@ export const HELP = [
   '• reminders / cancel reminder oven',
   '• 25 minute timer / stop timer',
   '• how did today go',
-  '• crypt / raise a skeleton / raise 3 skeletons',
+  '• garden / raise a sprite / raise 3 sprites',
   '• upgrades / buy shovels (or graves, sand, lure) / milestones',
   '• remember I like tea / what do you remember / forget tea',
+  '• play Blue Monday by New Order / play the album Discovery / start a radio for this song',
+  '• pause / next song / what\'s playing',
+  '• open Spotify / go to youtube.com / search for pixel art',
+  '• find resume',
+  '• prs / issues / did ci pass / notifications (GitHub)',
+  '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
 
@@ -171,18 +177,19 @@ function tally(text) {
 const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
 
 function cryptwork(text) {
-  const rise = new RegExp('^(raise|summon|buy|wake)\\s+(?:' + NUMBER + '\\s+)?(more\\s+)?skeletons?$').exec(text);
+  // (Skeletons were the workers once; the words still work.)
+  const rise = new RegExp('^(raise|plant|grow|buy|wake)\\s+(?:' + NUMBER + '\\s+)?(more\\s+)?(moss\\s+)?(sprites?|workers?|skeletons?)$').exec(text);
   if (rise) {
     const count = rise[2] ? Math.round(number(rise[2])) : 1;
     return async ({ tool }) => {
-      const out = await tool('raise_skeleton', { count: Math.max(1, Math.min(50, count)) });
-      if (!out.ok) return out.error || 'They would not rise.';
-      return plural(out.result.raised, 'skeleton') + ' risen. ' + plural(out.result.souls, 'soul') + ' left.';
+      const out = await tool('raise_worker', { count: Math.max(1, Math.min(50, count)) });
+      if (!out.ok) return out.error || 'Nothing would grow.';
+      return plural(out.result.raised, 'moss sprite') + ' planted. ' + plural(out.result.souls, 'soul') + ' left.';
     };
   }
-  const shop = /^(buy|upgrade|get|sharpen|deepen)\s+(the\s+|my\s+|a\s+)?(sharper\s+|deeper\s+|finer\s+|ghost\s+)?(shovels?|graves?|sand|lures?)$/.exec(text);
+  const shop = /^(buy|upgrade|get|sharpen|deepen)\s+(the\s+|my\s+|a\s+)?(sharper\s+|deeper\s+|finer\s+|ghost\s+|green\s+)?(shovels?|graves?|thumbs?|roots?|sand|lures?)$/.exec(text);
   if (shop) {
-    const upgrade = { sh: 'shovels', gr: 'graves', sa: 'sand', lu: 'lure' }[shop[4].slice(0, 2)];
+    const upgrade = { sh: 'shovels', th: 'shovels', gr: 'graves', ro: 'graves', sa: 'sand', lu: 'lure' }[shop[4].slice(0, 2)];
     return async ({ tool }) => {
       const out = await tool('buy_upgrade', { upgrade });
       if (!out.ok) return out.error || 'It could not be bought.';
@@ -201,14 +208,14 @@ function cryptwork(text) {
       return c.upgrades.map((u) => '• ' + u.name + ' ' + u.level + '/' + u.max + (u.cost === null ? ' (done)' : ': ' + u.cost + ' souls for ' + u.next)).join('\n');
     };
   }
-  if (!/^((show|open)\s+)?(my\s+|the\s+)?(crypt|horde|souls|skeletons|minions)\??$|^how many (souls|skeletons)\b/.test(text)) return null;
+  if (!/^((show|open)\s+)?(my\s+|the\s+)?(garden|crypt|souls|sprites|workers|skeletons|minions)\??$|^how many (souls|sprites|workers|skeletons)\b/.test(text)) return null;
   return async ({ tool }) => {
     const out = await tool('get_crypt', {});
     if (!out.ok) return failed(out);
     const c = out.result;
     return [
-      'The crypt holds ' + plural(c.souls, 'soul') + '.',
-      c.skeletons ? plural(c.skeletons, 'skeleton') + ' digging: ' + c.perHour + ' souls an hour.' : 'No skeletons yet.',
+      'The garden holds ' + plural(c.souls, 'soul') + '.',
+      c.skeletons ? plural(c.skeletons, 'worker') + ' gathering: ' + c.perHour + ' souls an hour.' : 'Nothing grows here yet.',
       'The next one costs ' + c.nextCost + '.'
     ].join('\n');
   };
@@ -246,6 +253,87 @@ function remembering(text, original) {
   return null;
 }
 
+// The computer and the web: open an app or a site, search, find a file. With
+// no mind to read a search, he opens it in the browser instead.
+const NOT_APPS = /^(the )?(crypt|speak|ring|hourglass|raven|menu|card)$/;
+function reaching(text, original) {
+  const self = /^(?:work on|improve|change|upgrade|fix) (?:yourself|your code)(?: with (claude(?: code)?)(?: (haiku|sonnet|opus))?)?[:,]?\s+(.+)$/.exec(text);
+  if (self) {
+    const request = original.trim().replace(/^[^:,]*?(yourself|your code)(\s+with\s+claude(\s+code)?(\s+(haiku|sonnet|opus))?)?[:,]?\s+/i, '');
+    return async ({ tool }) => {
+      const out = await tool('work_on_myself', { request, engine: self[1] ? 'claude' : 'local', ...(self[2] ? { model: self[2] } : {}) });
+      return out.ok ? 'A Terminal opens. Watch me work, on ' + out.result.branch + '.' : out.error || 'I could not.';
+    };
+  }
+  // GitHub, read only: anything that changes it goes through a mind, and asks.
+  const gh = (input, line) => async ({ tool }) => {
+    const out = await tool('github_read', input);
+    return out.ok ? line(out.result) : out.error || 'GitHub would not answer.';
+  };
+  const list = (items, show) => (items.length ? items.slice(0, 8).map((x) => '• ' + show(x)).join('\n') : 'None.');
+  if (/^(any |show |list |my )?(open )?(prs|pull requests)\??$/.test(text)) return gh({ what: 'prs' }, (r) => list(r.pullRequests, (p) => '#' + p.number + ' ' + p.title));
+  if (/^(any |show |list |my )?(open )?issues\??$/.test(text)) return gh({ what: 'issues' }, (r) => list(r.issues, (i) => '#' + i.number + ' ' + i.title));
+  if (/^(did (the )?ci pass|ci|ci status|how(('|’)s| is) ci|(show |list )?(ci )?runs)\??$/.test(text)) {
+    return gh({ what: 'runs' }, (r) => list(r.runs, (x) => x.title + ': ' + (x.result || x.status) + (x.branch ? ' (' + x.branch + ')' : '')));
+  }
+  if (/^(list |show )?(my )?(github )?repos(itories)?\??$/.test(text)) return gh({ what: 'repos' }, (r) => list(r.repositories, (x) => x.repo + (x.private ? ' (private)' : '')));
+  if (/^(github )?notifications\??$/.test(text)) return gh({ what: 'notifications' }, (r) => list(r.notifications, (x) => x.repo + ': ' + x.title));
+  // The user's own spelling of the last words, for what goes to a search.
+  const words = (part) => original.trim().replace(/[!.?]+$/, '').replace(/\s+on spotify$/i, '').split(/\s+/).slice(-part.split(' ').length).join(' ');
+  const music = (input, line) => async ({ tool }) => {
+    const out = await tool('spotify', input);
+    if (!out.ok) return out.error || 'Spotify would not answer.';
+    return line(out.result);
+  };
+  if (/^(pause|stop)( the)?( music| song| spotify)?$/.test(text)) return music({ action: 'pause' }, () => 'Silence.');
+  if (/^(next|skip)( song| track| this)?$/.test(text)) return music({ action: 'next' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Skipped.'));
+  if (/^(previous|go back)( a)?( song| track)?$|^last song$/.test(text)) return music({ action: 'previous' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Back one.'));
+  if (/^what('|’)?s (playing|this song)\??$|^what (song )?is (playing|this)\??$/.test(text)) return music({ action: 'now_playing' }, (r) => r.playing);
+  if (/^(play|resume)( (the|some))?( music| spotify)?$/.test(text)) return music({ action: 'play' }, (r) => (r.playing ? 'Now: ' + r.playing + '.' : 'Playing.'));
+  const radio = /^(?:start|play|put on)\s+(?:a\s+|the\s+)?(?:song\s+)?radio\s+(?:for|of|from|like)\s+(.+)$/.exec(text);
+  if (radio) return music({ action: 'play', query: words(radio[1]), kind: 'radio' }, (r) => 'A radio of ' + r.radio + '.');
+  const play = /^play\s+(.+?)(?:\s+on spotify)?$/.exec(text);
+  if (play && !/^(a |your |me a )?(tune|song for me)$/.test(play[1])) {
+    const query = words(play[1]);
+    return music({ action: 'play', query }, (r) => (r.radio ? 'A radio of ' + r.radio + '.' : 'Now: ' + r.playing + '.'));
+  }
+  const search = /^(?:search(?: the web| online)?(?: for)?|google|look up|bing)\s+(.+)$/.exec(text);
+  if (search) {
+    const q = original.trim().replace(/[!.]+$/, '').split(/\s+/).slice(original.trim().split(/\s+/).length - search[1].split(' ').length).join(' ');
+    return async ({ tool }) => {
+      const out = await tool('open_url', { url: 'https://duckduckgo.com/?q=' + encodeURIComponent(q) });
+      return out.ok ? 'Searching for ' + q + '.' : out.error || 'I could not.';
+    };
+  }
+  const site = /^(?:go to|open|visit|show me)\s+((?:https?:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/\S*)?)$/.exec(text);
+  if (site) {
+    const url = /^https?:/.test(site[1]) ? site[1] : 'https://' + site[1];
+    return async ({ tool }) => {
+      const out = await tool('open_url', { url });
+      return out.ok ? 'There.' : out.error || 'I could not.';
+    };
+  }
+  const app = /^(?:open|launch|start|run)\s+(?:the\s+)?(?:app\s+)?(.+?)(?:\s+app)?$/.exec(text);
+  if (app && !NOT_APPS.test(app[1]) && app[1].split(' ').length <= 4) {
+    const name = original.trim().replace(/[!.]+$/, '').split(/\s+/).slice(-app[1].split(' ').length).join(' ').replace(/\s+app$/i, '');
+    return async ({ tool }) => {
+      const out = await tool('open_app', { name });
+      return out.ok ? out.result.opened + ', open.' : out.error || 'I could not.';
+    };
+  }
+  const find = /^(?:find|where(?: is|'s|’s)|locate)\s+(?:my\s+|the\s+)?(?:file\s+)?(.+?)\??$/.exec(text);
+  if (find) {
+    return async ({ tool }) => {
+      const out = await tool('find_files', { query: find[1] });
+      if (!out.ok) return out.error || 'I could not look.';
+      const files = out.result.files;
+      if (!files.length) return 'Nothing called ' + find[1] + '.';
+      return ['Found:', ...files.slice(0, 6).map((f) => '• ' + f.path)].join('\n');
+    };
+  }
+  return null;
+}
+
 // Longest names first, so "soul rip" is not read as something shorter.
 const CASTS = [
   [/\bsoul ?rip\b|\brip\b/, 'soulrip', 'A piece of it is mine now.'],
@@ -255,7 +343,7 @@ const CASTS = [
   [/\bglitch\b|\bcorrupt\b/, 'glitch', 'Bad signal.'],
   [/\bburn\b|\bfire\b/, 'burn', 'Ashes, briefly.'],
   [/\bmelt\b|\bdrip\b/, 'melt', 'Everything sags in the end.'],
-  [/\bsummon\b|\bghosts?\b/, 'summon', 'Catch them if you can.'],
+  [/\bsummon\b|\braise the dead\b/, 'summon', 'The grave stirs.'],
   [/\bhum\b|\bsing\b|\bmusic\b|\btune\b/, 'hum', 'Mm.'],
   [/\bvanish\b|\bhide\b|\bgo away\b|\bdisappear\b/, 'vanish', 'Gone.']
 ];
@@ -290,5 +378,5 @@ export function parseCommand(input, now = new Date(), { withModel = false } = {}
   if (!text) return null;
   if (!withModel && /^(help|commands|\?|what can you do\??)$/.test(text)) return async () => HELP;
   return reminder(original, now) || reminders(text) || timer(text) || tally(text) || cryptwork(text) ||
-    remembering(text, original) || clockwork(text, now) || (withModel ? null : casting(text));
+    remembering(text, original) || clockwork(text, now) || (withModel ? null : reaching(text, original) || casting(text));
 }
