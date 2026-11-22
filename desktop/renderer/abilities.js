@@ -8,8 +8,8 @@ const GHOST_W = 54;
 const GHOST_H = 48;
 const GHOST_LOOP_S = 1.6;
 
-// How long a hunt lasts, and how fast its ghosts drift (1 is the base pace).
-const HUNT = { seconds: 15, pace: 1 };
+// How fast hunted ghosts drift (1 is the base pace).
+const HUNT = { pace: 1 };
 const VANISH_MS = 30 * 60000;
 
 function cardHead(title, onClose) {
@@ -190,23 +190,28 @@ export function createAbilities(ctx) {
   }
   const ravenOwner = {};
 
-  // --- Summon: catch ghosts across the screen ---------------------------------------------
+  // --- Reaping and the hunt ---------------------------------------------------------------
+  // Dropped on a skeleton, he reaps it: its ghosts (one, plus one for every hour
+  // it dug, up to six) burst out and scatter. Each caught scores points, more in
+  // a quick run (the combo), and banks souls; those that get away are lost.
+  const COMBO_MS = 1200;
+  const COMBO_MAX = 5;
   let hunt = null;
   let best = 0;
   let scoreEl = null;
 
-  function spawnGhost() {
-    const golden = Math.random() < hunt.golden;
+  function spawnGhost(from) {
+    const golden = Math.random() < hunt.goldenChance;
     const g = el('div', 'ghost hit' + (golden ? ' is-golden' : ''));
     // Each starts at its own point in the swim, so they don't move in step.
     g.style.animationDelay = -(Math.random() * GHOST_LOOP_S).toFixed(2) + 's';
-    const side = Math.random() < 0.5;
+    // Out of the skeleton, upward and away, each its own way.
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+    const speed = (0.09 + Math.random() * 0.08) * HUNT.pace;
     const ghost = {
       node: g, golden,
-      x: side ? -GHOST_W : innerWidth + 10,
-      y: 40 + Math.random() * (innerHeight - 140),
-      vx: (side ? 1 : -1) * (0.05 + Math.random() * 0.09) * hunt.pace,
-      vy: (Math.random() - 0.5) * 0.09 * hunt.pace,
+      x: from.x - GHOST_W / 2, y: from.y - GHOST_H,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
       phase: Math.random() * 6
     };
     g.addEventListener('pointerdown', (e) => {
@@ -217,79 +222,238 @@ export function createAbilities(ctx) {
     hunt.ghosts.push(ghost);
   }
 
+  function paintScore() {
+    scoreEl.textContent = 'SCORE ' + hunt.points + (hunt.combo > 1 ? '  ×' + hunt.combo : '');
+  }
+
   function catchGhost(ghost) {
-    if (!hunt || ghost.caught) return;
+    if (!hunt || hunt.wraith || ghost.caught) return;
     ghost.caught = true;
-    hunt.score += ghost.golden ? 3 : 1;
+    const now = performance.now();
+    hunt.combo = now - hunt.lastCatch < COMBO_MS ? Math.min(COMBO_MAX, hunt.combo + 1) : 1;
+    hunt.lastCatch = now;
+    const points = (ghost.golden ? 3 : 1) * 10 * hunt.combo;
+    hunt.points += points;
+    hunt.caught += 1;
+    if (ghost.golden) hunt.golden += 1;
     soul.gain(ghost.golden ? 8 : 3);
     sound.caught();
+    popAt(ghost.x + GHOST_W / 2, ghost.y, '+' + points);
     ghost.node.classList.add('is-caught');
     setTimeout(() => ghost.node.remove(), 320);
-    scoreEl.textContent = 'SOULS ' + hunt.score;
+    paintScore();
+  }
+
+  // A "+n" that floats up from a point on the screen.
+  function popAt(x, y, text, kind = 'is-souls') {
+    const pop = el('div', 'soul-pop ' + kind, text);
+    pop.style.left = (x - 8) + 'px';
+    pop.style.top = (y - 6) + 'px';
+    field.appendChild(pop);
+    setTimeout(() => pop.remove(), 900);
+  }
+
+  function drift(g, dt, now, w, h) {
+    g.x += g.vx * dt;
+    g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
+    if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - w && g.vx > 0)) g.vx = -g.vx;
+    if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - h && g.vy > 0)) g.vy = -g.vy;
+    const at = `translate(${Math.round(g.x)}px, ${Math.round(g.y)}px)`;
+    g.node.style.transform = at;
+    g.node.style.setProperty('--at', at);
   }
 
   function moveGhosts(now) {
-    if (!hunt) return;
+    if (!hunt || hunt.wraith) return;
     const dt = Math.min(50, now - hunt.last);
     hunt.last = now;
-    for (const g of hunt.ghosts) {
-      if (g.caught) continue;
-      // They drift at their own pace; the cursor doesn't scare them.
-      g.x += g.vx * dt;
-      g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
-      if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - GHOST_W && g.vx > 0)) g.vx = -g.vx;
-      if ((g.y < 0 && g.vy < 0) || (g.y > innerHeight - GHOST_H && g.vy > 0)) g.vy = -g.vy;
-      const at = `translate(${Math.round(g.x)}px, ${Math.round(g.y)}px)`;
-      g.node.style.transform = at;
-      g.node.style.setProperty('--at', at);
-    }
+    for (const g of hunt.ghosts) if (!g.caught) drift(g, dt, now, GHOST_W, GHOST_H);
+    // A combo lapses when the next catch is too slow.
+    if (hunt.combo > 1 && now - hunt.lastCatch > COMBO_MS) { hunt.combo = 1; paintScore(); }
     const left = hunt.ends - Date.now();
     huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 3000);
-    if (left <= 0) return endHunt();
-    if (now - hunt.lastSpawn > 700 && hunt.ghosts.filter((g) => !g.caught).length < 14) {
-      hunt.lastSpawn = now;
-      spawnGhost();
-    }
+    // Over when time runs out, or when every ghost has been caught.
+    if (left <= 0 || hunt.ghosts.every((g) => g.caught)) return endHunt();
     requestAnimationFrame(moveGhosts);
   }
 
-  function startHunt() {
-    const length = HUNT.seconds * 1000;
+  // The hunt for `count` ghosts bursting out at `from`.
+  function startHunt(count, from) {
+    // Six seconds, and a second and a half for each ghost.
+    const length = 6000 + 1500 * count;
     hunt = {
+      ends: Date.now() + length, length,
       // One in ten golden, or more with the Crypt's ghost lure.
-      ends: Date.now() + length, length, pace: HUNT.pace, golden: (ctx.crypt && ctx.crypt.get().goldenChance) || 0.1,
-      score: 0, ghosts: [], last: performance.now(), lastSpawn: performance.now()
+      goldenChance: (ctx.crypt && ctx.crypt.get().goldenChance) || 0.1,
+      caught: 0, golden: 0, points: 0, combo: 1, lastCatch: -Infinity,
+      ghosts: [], last: performance.now()
     };
-    scoreEl = el('div', 'score', 'SOULS 0');
+    scoreEl = el('div', 'score', '');
     field.appendChild(scoreEl);
     huntRing.hidden = false;
-    for (let i = 0; i < 6; i++) spawnGhost();
+    for (let i = 0; i < count; i++) spawnGhost(from);
+    paintScore();
     requestAnimationFrame(moveGhosts);
   }
 
-  function endHunt() {
-    const score = hunt.score;
-    hunt.ghosts.forEach((g) => g.node.remove());
+  async function endHunt() {
+    const { caught, golden, points } = hunt;
+    const lost = hunt.ghosts.filter((g) => !g.caught).length;
+    hunt.ghosts.forEach((g) => { if (!g.caught) g.node.remove(); });
     hunt = null;
     huntRing.hidden = true;
     const board = scoreEl;
     setTimeout(() => board.remove(), 2500);
-    companion.stat('caught', score);
-    if (score > best) {
-      best = score;
+    // The crypt pays for what was caught and keeps the score.
+    const out = await companion.crypt({ hunt: { caught, golden, points } });
+    if (out && out.crypt && ctx.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    const lines = [];
+    if (points > best) {
+      best = points;
       companion.save({ best });
-      say(score ? 'New mark: ' + score + ' souls.' : 'None. Shameful.', 5000);
+      lines.push(points ? 'New best: ' + points + ' points.' : 'None. Shameful.');
     } else {
-      say(score + ' souls.\nBest: ' + best + '.', 5000);
+      lines.push(points + ' points. Best: ' + best + '.');
     }
+    if (lost) lines.push(lost + (lost === 1 ? ' got away.' : ' got away.'));
+    for (const r of (out && out.ranked) || []) lines.push('Rank: ' + r.name + '. +' + r.reward + ' souls.');
+    if (out && out.ranked && out.ranked.length) sound.bell();
+    say(lines.join('\n'), 6000);
   }
 
+  // Dropped on the skeleton at `index` (among the crypt's): reap it.
+  async function reapAt(index) {
+    if (hunt) return { ok: false, error: 'Already hunting.' };
+    const box = ctx.crypt.diggerBox(index);
+    const out = await companion.crypt({ reap: index });
+    if (out.crypt) ctx.crypt.update(out.crypt);
+    if (!out.ok) {
+      say(out.error, 3000);
+      return out;
+    }
+    const from = box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : ctx.center();
+    ctx.swing();
+    ctx.puff(from.x, from.y);
+    sound.caught();
+    say(out.ghosts === 1 ? 'One ghost. Catch it.' : out.ghosts + ' ghosts. Catch them.', 2500);
+    startHunt(out.ghosts, from);
+    return out;
+  }
+
+  // Slash during a hunt catches every ghost still loose, and wounds a wraith.
   function reapAll() {
     if (!hunt) return 0;
+    if (hunt.wraith) { hitWraith(4); return 1; }
     const loose = hunt.ghosts.filter((g) => !g.caught);
     loose.forEach((g, i) => setTimeout(() => catchGhost(g), 80 + i * 50));
     return loose.length;
+  }
+
+  // --- Summon: raise the dead, and sometimes a wraith ---------------------------------------
+  // Summon raises a skeleton for his own soul instead of banked souls. About one
+  // time in four the grave holds a wraith instead: hit it 12 times in 20
+  // seconds and it pays souls, and a skeleton rises anyway. Never more than four
+  // summons in a row without one.
+  const WRAITH_CHANCE = 0.25;
+  const WRAITH_HP = 12;
+  const WRAITH_MS = 20000;
+  const WRAITH_W = 120;
+  const WRAITH_H = 106;
+  let sinceWraith = 0;
+
+  async function summonDead() {
+    const c = ctx.center();
+    ctx.puff(c.x, c.y + 40);
+    if (Math.random() < WRAITH_CHANCE || sinceWraith >= 4) {
+      sinceWraith = 0;
+      return startWraith();
+    }
+    sinceWraith += 1;
+    const out = await companion.crypt({ summon: true });
+    if (out.crypt) ctx.crypt.update(out.crypt);
+    say(out.ok ? 'Rise.' : out.error, 2500);
+    if (out.ok) sound.bell();
+    return out;
+  }
+
+  function startWraith() {
+    const c = ctx.center();
+    const node = el('div', 'wraith hit');
+    const w = {
+      node, hp: WRAITH_HP,
+      x: c.x - WRAITH_W / 2, y: Math.max(20, c.y - WRAITH_H - 40),
+      vx: (Math.random() < 0.5 ? -1 : 1) * 0.16, vy: -0.08, phase: 0
+    };
+    node.addEventListener('pointerdown', (e) => { e.stopPropagation(); hitWraith(1); });
+    field.appendChild(node);
+    hunt = { wraith: w, ends: Date.now() + WRAITH_MS, length: WRAITH_MS, last: performance.now(), lastTurn: performance.now() };
+    scoreEl = el('div', 'score is-wraith', '');
+    field.appendChild(scoreEl);
+    paintWraith();
+    huntRing.hidden = false;
+    sound.caught();
+    say('A wraith!\nStrike it ' + WRAITH_HP + ' times.', 3000);
+    requestAnimationFrame(moveWraith);
+    return { ok: true, wraith: true };
+  }
+
+  function paintWraith() {
+    scoreEl.textContent = 'WRAITH ' + '♥'.repeat(Math.max(0, hunt.wraith.hp));
+  }
+
+  function hitWraith(n) {
+    if (!hunt || !hunt.wraith) return;
+    const w = hunt.wraith;
+    w.hp -= n;
+    sound.caught();
+    popAt(w.x + WRAITH_W / 2, w.y + 10, '−' + n, 'is-cost');
+    w.node.classList.remove('is-hit');
+    void w.node.offsetWidth;
+    w.node.classList.add('is-hit');
+    // Struck, it lurches away and speeds up a little.
+    w.vx = -w.vx * 1.05;
+    w.vy = (Math.random() - 0.5) * 0.3;
+    if (w.hp <= 0) return endWraith(true);
+    paintWraith();
+  }
+
+  function moveWraith(now) {
+    if (!hunt || !hunt.wraith) return;
+    const w = hunt.wraith;
+    const dt = Math.min(50, now - hunt.last);
+    hunt.last = now;
+    // Now and then it veers.
+    if (now - hunt.lastTurn > 1400) {
+      hunt.lastTurn = now;
+      w.vy = (Math.random() - 0.5) * 0.24;
+      if (Math.random() < 0.4) w.vx = -w.vx;
+    }
+    drift(w, dt, now, WRAITH_W, WRAITH_H);
+    const left = hunt.ends - Date.now();
+    huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
+    huntRing.classList.toggle('is-late', left < 5000);
+    if (left <= 0) return endWraith(false);
+    requestAnimationFrame(moveWraith);
+  }
+
+  async function endWraith(won) {
+    const w = hunt.wraith;
+    hunt = null;
+    huntRing.hidden = true;
+    w.node.classList.add(won ? 'is-banished' : 'is-gone');
+    setTimeout(() => w.node.remove(), 600);
+    const board = scoreEl;
+    setTimeout(() => board.remove(), 1500);
+    const out = await companion.crypt({ wraith: { won } });
+    if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    if (won) {
+      sound.bell();
+      say('Banished.\n+' + out.gained + ' souls' + (out.raised ? ', and a skeleton rises.' : '.'), 5000);
+    } else {
+      say('It got away.', 3000);
+    }
+    return out;
   }
 
   // --- Scythe Slash: the screen is cut in two for a moment ----------------------------------------
@@ -467,9 +631,9 @@ export function createAbilities(ctx) {
     wrecker('soulrip', 'Soul Rip', 20, 'spirit', 'He tears loose the patch of screen at your cursor and swallows it as a ghost.',
       'Delicious.', 'Swallowed a shadow.\n(Give me screen access for a real soul.)'),
     {
-      id: 'summon', name: 'Summon', cost: 25, school: 'spirit', blurb: 'A ghost hunt. Catch the ghosts.',
+      id: 'summon', name: 'Summon', cost: 40, school: 'spirit', blurb: 'He raises a skeleton for his own soul. Sometimes the grave holds a wraith.',
       ready: () => (hunt ? 'Already hunting.' : null),
-      cast: () => { startHunt(); say(Math.round(hunt.length / 1000) + ' seconds. Catch them.', 3000); }
+      cast: () => { summonDead(); }
     },
     {
       id: 'hourglass', name: 'Hourglass', cost: 10, school: 'time', blurb: 'A focus timer. He rings when the sand runs out.',
@@ -641,6 +805,7 @@ export function createAbilities(ctx) {
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },
+    reapAt,
     dueToday() {
       const end = new Date();
       end.setHours(23, 59, 59, 999);

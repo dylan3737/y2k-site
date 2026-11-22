@@ -393,7 +393,24 @@ body.addEventListener('pointermove', (e) => {
   pos.y = e.clientY - dragging.offY;
   keepOnScreen();
   place();
+  // Light up the skeleton he would reap if let go here.
+  crypt.aim(feet());
 });
+
+// Where his feet are: what touches a skeleton when he is dropped on one.
+const feet = () => ({ x: pos.x + W / 2, y: pos.y + H });
+
+// Dropped on a skeleton: he reaps it, and its ghosts burst out to be hunted.
+function reapHere() {
+  const index = crypt.diggerAt(feet());
+  crypt.aim(null);
+  if (index < 0 || abilities.hunting) return false;
+  setMode('wander');
+  target = null;
+  waitUntil = performance.now() + 6000;
+  abilities.reapAt(index);
+  return true;
+}
 
 function endDrag(e) {
   if (!dragging) return;
@@ -402,6 +419,8 @@ function endDrag(e) {
   try { body.releasePointerCapture(e.pointerId); } catch {}
   if (d.moved < 6) {
     clicked(d.was);
+  } else if (reapHere()) {
+    // Dropped on a skeleton: reaped.
   } else if (dropThrough(d)) {
     // Carried off the edge onto another monitor.
   } else {
@@ -426,6 +445,7 @@ function endDrag(e) {
       waitUntil = performance.now() + 5000;
     }
   }
+  crypt.aim(null);
   hitTest();
 }
 

@@ -519,6 +519,8 @@ function wireIpc() {
 
   ipcMain.handle('crypt', (_e, action = {}) => {
     const { reached, ...out } = crypt.act(state.crypt, action);
+    // Ghosts caught in a hunt count toward today's tally too.
+    if (out.caught) today().caught += out.caught;
     // The page hears too, so the skeletons on screen always match the crypt,
     // and that is where it learns of milestones.
     tendCrypt({ reached });

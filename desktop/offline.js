@@ -255,7 +255,7 @@ const CASTS = [
   [/\bglitch\b|\bcorrupt\b/, 'glitch', 'Bad signal.'],
   [/\bburn\b|\bfire\b/, 'burn', 'Ashes, briefly.'],
   [/\bmelt\b|\bdrip\b/, 'melt', 'Everything sags in the end.'],
-  [/\bsummon\b|\bghosts?\b/, 'summon', 'Catch them if you can.'],
+  [/\bsummon\b|\braise the dead\b/, 'summon', 'The grave stirs.'],
   [/\bhum\b|\bsing\b|\bmusic\b|\btune\b/, 'hum', 'Mm.'],
   [/\bvanish\b|\bhide\b|\bgo away\b|\bdisappear\b/, 'vanish', 'Gone.']
 ];

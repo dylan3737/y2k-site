@@ -56,6 +56,7 @@ function browserStandIn() {
     },
     async crypt(action = {}) {
       const { reached, ...out } = rules.act(crypt, action);
+      if (out.caught) stats.caught += out.caught;
       saveCrypt();
       emit('crypt', { crypt: rules.view(crypt), reached });
       return { ...out, crypt: rules.view(crypt) };

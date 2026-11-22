@@ -11,7 +11,7 @@ const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
 export function createCrypt(ctx) {
   const { companion, card, say, field, sound } = ctx;
   const owner = {};
-  let now = { souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [] };
+  let now = { souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [], bones: [], score: 0, rank: 'Gravekeeper', nextRank: null };
   let shown = true;
   let tab = 'dig';
   const diggers = [];
@@ -40,13 +40,16 @@ export function createCrypt(ctx) {
     const horde = el('p', 'muted', now.skeletons
       ? now.skeletons + (now.skeletons === 1 ? ' skeleton digs up ' : ' skeletons dig up ') + now.perHour + ' souls an hour.'
       : 'No skeletons yet. The first costs ' + now.nextCost + ' souls.');
-    const how = el('p', 'muted', 'Souls come from ghosts caught, files reaped and finished hourglasses. Skeletons dig for more, even while you are away (up to ' +
-      now.awayCapHours + ' hours with the app shut).');
+    const how = el('p', 'muted', 'Skeletons dig souls, even while you are away (up to ' + now.awayCapHours +
+      ' hours with the app shut), and ripen as they dig: a ghost, and one more each hour, up to six. Drop him on a skeleton to reap it and hunt its ghosts. Summon raises one for his own soul.');
     const raiseOne = chip('Raise a skeleton · ' + now.nextCost, () => raise(1), 'solid');
     raiseOne.disabled = now.souls < now.nextCost;
     const row = el('div', 'row end');
     row.appendChild(raiseOne);
-    page.append(horde, how, row);
+    const next = now.nextRank;
+    const rank = el('p', 'crypt-rank', 'Rank: ' + (now.rank || 'Gravekeeper') + ' · ' + (now.score || 0) + ' points' +
+      (next ? '. ' + next.name + ' at ' + next.at + ' (+' + next.reward + ' souls).' : '. The highest rank.'));
+    page.append(horde, rank, how, row);
   }
 
   function upgradesPage() {
@@ -88,25 +91,66 @@ export function createCrypt(ctx) {
   }
 
   // --- The skeletons ----------------------------------------------------------
+  // Each drawn skeleton keeps its own spot along the bottom while it lives, so
+  // reaping one leaves the others where they are. They glow brighter the riper
+  // they are (the more ghosts they hold).
+  const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90];
   function crew() {
-    const want = shown ? Math.min(SHOWN, now.skeletons) : 0;
-    while (diggers.length > want) diggers.pop().remove();
-    while (diggers.length < want) {
-      const i = diggers.length;
-      const node = el('div', 'digger');
-      // Spread along the bottom edge, each a little out of step with the next.
-      node.style.left = (6 + ((i * 37) % 88)) + '%';
-      node.style.animationDelay = (-(i * 0.37) % 1.2) + 's';
-      if (i % 2) node.classList.add('is-flipped');
-      field.appendChild(node);
-      diggers.push(node);
+    const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
+    const ids = new Set(want.map((b) => b.id));
+    for (let i = diggers.length - 1; i >= 0; i--) {
+      if (!ids.has(diggers[i].id)) diggers.splice(i, 1)[0].node.remove();
     }
+    for (const bone of want) {
+      let d = diggers.find((x) => x.id === bone.id);
+      if (!d) {
+        const taken = new Set(diggers.map((x) => x.spot));
+        const spot = SPOTS.findIndex((_, k) => !taken.has(k));
+        const node = el('div', 'digger');
+        node.style.left = SPOTS[spot] + '%';
+        node.style.animationDelay = (-(spot * 0.37) % 1.2) + 's';
+        if (spot % 2) node.classList.add('is-flipped');
+        field.appendChild(node);
+        d = { id: bone.id, node, spot };
+        diggers.push(d);
+      }
+      d.node.style.setProperty('--ripe', bone.ripe);
+      d.node.classList.toggle('is-ripe', bone.ripe >= 6);
+      d.node.title = bone.ripe === 1 ? 'Holds a ghost' : 'Holds ' + bone.ripe + ' ghosts';
+    }
+  }
+
+  // Which drawn skeleton is under a point (the reaper's feet), as its place
+  // among the crypt's skeletons, or -1.
+  function diggerAt(p) {
+    if (!p) return -1;
+    const PAD = 18;
+    const hit = diggers.find(({ node }) => {
+      const r = node.getBoundingClientRect();
+      return p.x >= r.left - PAD && p.x <= r.right + PAD && p.y >= r.top - PAD && p.y <= r.bottom + PAD;
+    });
+    return hit ? (now.bones || []).findIndex((b) => b.id === hit.id) : -1;
+  }
+
+  // Light up the skeleton under a point; null puts the light out.
+  function aim(p) {
+    const i = diggerAt(p);
+    const id = i >= 0 ? now.bones[i].id : null;
+    for (const d of diggers) d.node.classList.toggle('is-aimed', d.id === id);
+    return i;
+  }
+
+  // Where a drawn skeleton is on screen, by its place among the crypt's.
+  function diggerBox(index) {
+    const bone = (now.bones || [])[index];
+    const d = bone && diggers.find((x) => x.id === bone.id);
+    return d ? d.node.getBoundingClientRect() : null;
   }
 
   // A small "+n" over one of the diggers when they bring something up.
   function unearthed(n) {
     if (!diggers.length || n < 1) return;
-    const from = diggers[Math.floor(Math.random() * diggers.length)].getBoundingClientRect();
+    const from = diggers[Math.floor(Math.random() * diggers.length)].node.getBoundingClientRect();
     const pop = el('div', 'soul-pop is-souls', '+' + n);
     pop.style.left = (from.left + 14) + 'px';
     pop.style.top = (from.top - 8) + 'px';
@@ -168,7 +212,7 @@ export function createCrypt(ctx) {
   // ignores the mouse here, so this goes by the cursor position the app sends.
   const SLACK = 6;
   companion.onCursor((p) => {
-    for (const node of diggers) {
+    for (const { node } of diggers) {
       const r = node.getBoundingClientRect();
       const over = p.x >= r.left - SLACK && p.x <= r.right + SLACK && p.y >= r.top - SLACK && p.y <= r.bottom + SLACK;
       node.classList.toggle('is-faded', over);
@@ -186,6 +230,9 @@ export function createCrypt(ctx) {
     update,
     raise,
     buy,
+    diggerAt,
+    aim,
+    diggerBox,
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
     // "The skeletons dug up 12 souls." for the away report, or '' for nothing.
