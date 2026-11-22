@@ -53,10 +53,14 @@ const bodyCenter = (page) => page.evaluate(() => {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 });
 
+// Open his ring and cast. During a hunt a ghost can be flying over him, and a
+// click there catches it instead (as it should), so try until the ring is open.
 async function castFromRing(page, id) {
-  if (!(await visible(page, '#ring'))) await page.click('#body', { force: true });
-  await page.waitForTimeout(260);
-  await page.click(`.ring-btn[data-id="${id}"]`, { force: true });
+  for (let i = 0; i < 6 && !(await visible(page, '#ring')); i++) {
+    await page.click('#body', { force: true });
+    await page.waitForTimeout(260);
+  }
+  await page.click(`.ring-btn[data-id="${id}"]`, { force: true, timeout: 5000 });
   await page.waitForTimeout(150);
 }
 
