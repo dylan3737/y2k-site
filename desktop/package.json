@@ -8,7 +8,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/launch.mjs",
+    "test": "node tests/packaged.mjs && node tests/oracle.mjs && node tests/minds.mjs && node tests/engine.mjs && node tests/crypt.mjs && node tests/launch.mjs",
     "pacing": "node tools/pacing.mjs",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
@@ -34,6 +34,7 @@
       "main.js",
       "oracle.js",
       "offline.js",
+      "ollama.js",
       "crypt.js",
       "screens.js",
       "preload.cjs",
