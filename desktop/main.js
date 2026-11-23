@@ -387,7 +387,7 @@ function rebuildMenu() {
         { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
         { type: 'separator' },
         {
-          label: 'Big jobs (working on himself with Claude)',
+          label: 'Working on himself (Claude model)',
           submenu: Object.entries(selfwork.CLAUDE_MODELS).map(([id, name]) => ({
             label: name, type: 'radio', checked: selfwork.pickClaudeModel(state.bigJobModel) === id,
             click: () => { state.bigJobModel = id; writeState(); }
@@ -597,7 +597,9 @@ function wireIpc() {
   // Asked in the page first. The local coding mind needs the memory, so the
   // free mind is put to sleep first.
   ipcMain.handle('self-work', (_e, input = {}) => {
-    const engine = input.engine === 'claude' ? 'claude' : 'local';
+    // Claude Code unless his own coding mind is asked for by name: the local
+    // model proved unreliable on code this size.
+    const engine = input.engine === 'local' ? 'local' : 'claude';
     if (engine === 'local') freeMind.unload();
     return selfwork.start({
       request: input.request,

@@ -1073,3 +1073,13 @@ body.is-capturing * { visibility: hidden !important; }
 .guide .row { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 @keyframes guide-in { from { translate: -50% -12px; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .guide { animation: none; } }
+
+/* The dragon's card, kept small: meters two by two, one row to feed, one to train. */
+.dragon-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin-bottom: 6px; }
+.dragon-meters .dragon-meter { grid-template-columns: 44px 1fr; margin: 2px 0; }
+.dragon-row { flex-wrap: nowrap; gap: 5px; margin: 6px 0 0; align-items: center; }
+.dragon-row > .muted { flex: none; width: 34px; font-size: 8px; }
+.dragon-row .chip { padding-left: 7px; padding-right: 7px; white-space: nowrap; }
+.dragon-hint { margin: 2px 0 4px; font-size: 8px; }
+.dragon-perk { margin: 5px 0; }
+.dragon-perk .muted { font-size: 8px; }

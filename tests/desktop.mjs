@@ -640,15 +640,16 @@ try {
   await page.evaluate(() => window.__reaper.dragon.open());
   await page.waitForTimeout(150);
   check('the card shows how hungry it is', /Hunger/.test(await page.textContent('#card')));
-  await page.click('#card .chip:has-text("A bite")');
+  await page.click('#card .chip[data-feed="bite"]');
   await page.waitForTimeout(250);
   check('fed a bite, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
-  await page.click('#card .chip:has-text("Fill it up")');
+  await page.click('#card .chip[data-feed="fill"]');
   await page.waitForTimeout(250);
-  check('filled up, it is full till tomorrow, and offers no more', /Full till tomorrow/.test(await page.textContent('#card')) &&
-    !(await page.$('#card .chip:has-text("A bite")')), await page.textContent('#card'));
+  check('filled up, it is full till tomorrow, and offers no more', /full till tomorrow/i.test(await page.textContent('#card')) &&
+    !(await page.$('#card .chip[data-feed="bite"]')), await page.textContent('#card'));
+  check('the card is small: no scrolling to reach training', await page.$eval('#card', (n) => n.scrollHeight <= n.clientHeight + 1 && n.getBoundingClientRect().height < 320));
   // Training starts its drill (a flight lesson); left alone, it still learns a little.
-  await page.click('#card .chip:has-text("Garden ·")');
+  await page.click('#card .chip[data-train="garden"]');
   check('training starts a drill', !!(await page.waitForSelector('.drill-ring', { timeout: 2000 }).catch(() => null)));
   await page.waitForTimeout(11800);
   check('trained, it learns, and tires', (await page.evaluate(() => window.__reaper.dragon.get().train.garden)) === 1 &&
@@ -684,7 +685,10 @@ try {
   check('an elder is drawn as one', !!(await page.$('.field .dragon.is-elder')));
   await page.evaluate(() => window.__reaper.dragon.open());
   await page.waitForTimeout(150);
-  await page.click('#card .chip:has-text("Ascend")');
+  check('ascension and perks are on their own tab', !(await page.$('#card .chip[data-perk]')));
+  await page.click('#card .chip[data-tab="ascend"]');
+  await page.waitForTimeout(150);
+  await page.click('#card .chip:has-text("Ascend ·")');
   await page.waitForTimeout(300);
   const ascended = await page.evaluate(() => window.__reaper.dragon.get());
   check('it ascends: an egg of a new element, a lineage higher, and scales kept', ascended.stage === 'egg' && ascended.element !== wasElement &&

@@ -355,8 +355,8 @@ Ask him to change himself ("work on yourself: make the ghosts slower", "give you
 
 | Engine | When | What runs |
 |---|---|---|
-| **His own** (the default) | Small and medium changes: numbers, colours, words, simple features | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
-| **Claude** ("…with Claude") | Bigger jobs: new features | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Big jobs** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+| **Claude** (the default) | Any change | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Working on himself** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+| **His own** ("…with your own mind") | Only when asked for: it is free, but not reliable on code this size (it has lost track of long files and claimed work it had not done; the checks stop that from being installed) | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
 
 The script in that window:
 

@@ -60,6 +60,10 @@ for (const [asked, want] of [[undefined, 'haiku'], ['opus', 'opus'], ['sonnet', 
 const cfg = JSON.parse(fs.readFileSync(path.join(tmp, 'data', 'self-work', 'opencode.json'), 'utf8'));
 check('OpenCode is pointed at his own engine', cfg.provider.reaper.options.baseURL === 'http://127.0.0.1:8791/v1' && cfg.model === 'reaper/qwen3-coder' && cfg.share === 'disabled');
 
+opened.length = 0;
+const plain = await selfwork.start({ request: 'make the ghosts slower', info, dataDir: path.join(tmp, 'data'), server, appPath: '/Applications/Reaper.app', open,
+  now: Date.UTC(2026, 10, 22, 15, 5), workRoot: path.join(tmp, 'work') });
+check('with no engine named, Claude Code does the job', plain.ok && /Claude Code/.test(plain.result.engine) && /claude --model/.test(fs.readFileSync(opened[0], 'utf8')), JSON.stringify(plain));
 let out = await selfwork.start({ request: 'x', engine: 'local', info: null, dataDir: tmp, server, open, workRoot: tmp });
 check('without knowing his source, he says so', !out.ok && /source/.test(out.error));
 out = await selfwork.start({ request: '  ', engine: 'local', info, dataDir: tmp, server, open });

@@ -4,7 +4,7 @@
 //   local  : OpenCode, on Qwen3-Coder run by his own engine (llama-server).
 //            Free, on this computer; fine for small and medium changes.
 //   claude : Claude Code, for big jobs: Haiku 5.5 by default, or Sonnet or
-//            Opus (the tray's Mind > Big jobs, or named in the request).
+//            Opus (the tray's Mind > Working on himself, or named in the request).
 //
 // The work happens in a fresh git worktree on its own branch, started from
 // the commit the running app was built from, so the user's own checkout is
@@ -141,7 +141,7 @@ export OPENCODE_CONFIG=${q(configFile)}
 agent() { opencode "$WORK" -m reaper/qwen3-coder --prompt "$1"; }
 ` : `
 command -v claude >/dev/null || fail "Claude Code is not installed: see https://claude.com/claude-code"
-# The model chosen in the tray (Mind > Big jobs), or for this job. /model in Claude Code changes it mid-job.
+# The model chosen in the tray (Mind > Working on himself), or for this job. /model in Claude Code changes it mid-job.
 agent() { claude --model ${claudeModel} "$1"; }
 `}
 say "Handing over to ${local ? 'OpenCode on ' + CODER.name : 'Claude Code on ' + CLAUDE_MODELS[claudeModel]}. Quit it when the work is done."
@@ -230,7 +230,7 @@ export function readBuildInfo(file) {
 }
 
 // Write the script and its files, and open it in Terminal.
-export async function start({ request, engine = 'local', claudeModel = 'haiku', info, dataDir, server, appPath, port = 8791, open = openInTerminal, now = Date.now(), workRoot = path.join(os.homedir(), 'ReaperWork') }) {
+export async function start({ request, engine = 'claude', claudeModel = 'haiku', info, dataDir, server, appPath, port = 8791, open = openInTerminal, now = Date.now(), workRoot = path.join(os.homedir(), 'ReaperWork') }) {
   const text = String(request || '').trim().slice(0, 2000);
   if (!text) return { ok: false, error: 'request must say what to change' };
   if (!ENGINES.includes(engine)) return { ok: false, error: 'engine must be local or claude' };
