@@ -3,7 +3,7 @@
 //   tests/plp-desktop.sh node tests/roam.mjs
 // With one monitor (plain xvfb-run, or a laptop) the app part is skipped.
 import { _electron as electron } from 'playwright';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +55,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // Its own data folder on every system (XDG_CONFIG_HOME alone is Linux only).
 const scratch = mkdtempSync(path.join(tmpdir(), 'reaper-roam-'));
 const env = { ...process.env, XDG_CONFIG_HOME: scratch, REAPER_USER_DATA: path.join(scratch, 'Reaper'), OLLAMA_HOST: '127.0.0.1:1' };
+// A returning user: walking is what is tested here, not the first-run guide.
+mkdirSync(env.REAPER_USER_DATA, { recursive: true });
+writeFileSync(path.join(env.REAPER_USER_DATA, 'companion.json'), JSON.stringify({ guided: true }));
 delete env.ANTHROPIC_API_KEY;
 const app = await electron.launch({ executablePath: createRequire(import.meta.url)('electron'), args: [path.join(here, '..')], env });
 try {
