@@ -15,6 +15,8 @@ function check(name, ok, detail = '') {
 check('a branch name from the request', selfwork.slug('Make the ghosts slower!') === 'make-the-ghosts-slower' && selfwork.slug('???') === 'work' &&
   selfwork.slug('x'.repeat(80)).length === 32);
 const b = selfwork.brief('Give the lantern a blue flame');
+check('the brief says to search, then read small parts, never whole long files', /grep -n/.test(b) && /offset and limit/.test(b) &&
+  /Never read a whole file/.test(b) && /function openRing/.test(b) && /git diff --stat/.test(b));
 check('the brief carries the request, and the rules', b.includes('The user asked for this:\nGive the lantern a blue flame\n') && /Do not push/.test(b) && /npm run test:quick/.test(b));
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'reaper-self-'));
@@ -35,6 +37,9 @@ for (const engine of ['local', 'claude']) {
     /^reaper\/make-it-rm-rf-whoami-[a-z-]+-202611221405$/.test(out.result.branch) && out.result.folder.startsWith(path.join(tmp, 'work')), JSON.stringify(out));
   const text = fs.readFileSync(opened[0], 'utf8');
   check(engine + ': the script is valid bash', (() => { try { execFileSync('bash', ['-n', opened[0]]); return true; } catch { return false; } })());
+  check(engine + ': no changes is said plainly, never taken as done', /Nothing changed: the agent made no edits/.test(text));
+  check(engine + ': only a local job is offered to Claude when it changes nothing',
+    /OpenCode made no changes/.test(text) === (engine === 'local') && /Hand the job to Claude Code/.test(text) === (engine === 'local'));
   check(engine + ': the request never enters the script itself', !text.includes('$(rm') && !text.includes('`whoami`') && !text.includes('"quoted"'));
   check(engine + ': paths with quotes are quoted safely', text.includes("REPO='" + repo.replace(/'/g, "'\\''") + "'"));
   check(engine + ': it is executable', (fs.statSync(opened[0]).mode & 0o111) !== 0);
