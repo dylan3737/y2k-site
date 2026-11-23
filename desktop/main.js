@@ -36,6 +36,8 @@ app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const state = {
   soul: 100, best: 0, wander: true, chatty: true, muted: false,
   ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null,
+  // Whether the first-run guide has been seen (finished or skipped).
+  guided: false,
   // Whose mind Speak borrows: 'free' (built in, on this computer), 'claude' (an
   // API key), 'ollama' (the user's own Ollama) or 'offline' (plain commands only).
   brain: 'free', localModel: null,
@@ -496,6 +498,7 @@ function wireIpc() {
     chatty: state.chatty,
     muted: state.muted,
     greeted: state.greeted,
+    guided: state.guided,
     ravens: state.ravens,
     hourglass: state.hourglass,
     today: today(),
@@ -518,6 +521,7 @@ function wireIpc() {
     if (Array.isArray(patch.ravens)) state.ravens = patch.ravens.slice(0, 50);
     if ('hourglass' in patch) state.hourglass = patch.hourglass || null;
     if (typeof patch.greeted === 'string') state.greeted = patch.greeted.slice(0, 20);
+    if (patch.guided === true) state.guided = true;
     writeState();
   });
 

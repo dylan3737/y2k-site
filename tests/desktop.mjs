@@ -19,11 +19,13 @@ let context = null;
 async function open(storage = {}) {
   if (context) await context.close();
   context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  // The first-run guide has been seen, and the garden starts empty (a real new
+  // one starts with enough for a sprite), unless a test says otherwise.
   await context.addInitScript((items) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.setItem('reaper-companion', JSON.stringify(items));
-  }, storage);
+  }, { guided: true, crypt: { souls: 0 }, ...storage });
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -70,6 +72,52 @@ async function castFromRing(page, id) {
 }
 
 try {
+  // The first-run guide, walked through as a newcomer would.
+  {
+    const g = await open({ guided: false, wander: false, muted: true, crypt: undefined });
+    const step = () => g.evaluate(() => window.__reaper.guide.step);
+    check('the first time, the guide shows instead of a greeting', !!(await g.waitForSelector('.guide', { timeout: 4000 }).catch(() => null)) && (await step()) === 0);
+    const b = await g.locator('#body').boundingBox();
+    await g.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await g.mouse.down();
+    await g.mouse.move(b.x + b.width / 2 - 120, b.y + b.height / 2 - 60, { steps: 8 });
+    await g.mouse.up();
+    await g.waitForTimeout(600);
+    check('guide: dragging him and letting go is step one done', (await step()) === 1, String(await step()));
+    await g.evaluate(() => window.__reaper.retarget());
+    await g.click('#body', { force: true });
+    await g.waitForTimeout(600);
+    check('guide: opening his ring is step two', (await step()) === 2, String(await step()));
+    await g.click('.ring-btn[data-id="crypt"]', { force: true });
+    await g.waitForTimeout(600);
+    check('guide: opening the Garden is step three', (await step()) === 3, String(await step()));
+    check('a new garden has just enough for a moss sprite', (await g.evaluate(() => window.__reaper.crypt.get().souls)) >= 25);
+    await g.click('#card [aria-label^="Raise a moss sprite"]');
+    await g.waitForTimeout(600);
+    check('guide: raising a first sprite is step four; reaping is explained, with Next', (await step()) === 4 &&
+      /reap/.test(await g.textContent('.guide')) && !!(await g.$('.guide .chip:has-text("Next")')), String(await step()));
+    await g.click('.guide .chip:has-text("Next")');
+    await g.waitForTimeout(300);
+    await g.evaluate(() => window.__reaper.dragon.open());
+    await g.waitForTimeout(200);
+    await g.click('#card .chip:has-text("Take the egg")');
+    await g.waitForTimeout(600);
+    check('guide: taking the egg leads to the last step, about Speak', (await step()) === 6 && /Speak/.test(await g.textContent('.guide')), String(await step()));
+    await g.click('.guide .chip:has-text("Done")');
+    await g.waitForTimeout(300);
+    check('done, the guide goes, and is remembered', !(await g.$('.guide')) && (await g.evaluate(() => window.__companion.read().guided)) === true);
+    await g.reload();
+    await g.waitForSelector('#body');
+    await g.waitForTimeout(2200);
+    check('and does not come back by itself', !(await g.$('.guide')));
+    const shown = await g.evaluate(() => window.__reaper.abilities.runTool('show_guide', {}));
+    check('Speak can show it again', shown.ok && !!(await g.$('.guide')));
+    await g.click('.guide .chip:has-text("Skip the guide")');
+    await g.waitForTimeout(200);
+    check('and it can be skipped', !(await g.$('.guide')));
+    check('no errors in the guide', g.errors.length === 0, g.errors.join('; '));
+  }
+
   let page = await open({ wander: false });
   check('page loads without errors', page.errors.length === 0, page.errors.join('; '));
   check('reaper is drawn', await visible(page, '#body'));

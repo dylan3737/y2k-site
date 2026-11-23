@@ -23,6 +23,7 @@ export const HELP = [
   '• find resume',
   '• prs / issues / did ci pass / notifications (GitHub)',
   '• how\'s my dragon / pet the dragon / feed the dragon a snail / train the dragon to hunt',
+  '• guide (a quick tour of how I work)',
   '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -264,6 +265,13 @@ function reaching(text, original) {
     return async ({ tool }) => {
       const out = await tool('work_on_myself', { request, engine: self[1] ? 'claude' : 'local', ...(self[2] ? { model: self[2] } : {}) });
       return out.ok ? 'A Terminal opens. Watch me work, on ' + out.result.branch + '.' : out.error || 'I could not.';
+    };
+  }
+  // The first-run guide, again.
+  if (/^(guide|(the |a )?tour|show me around|how do i use (you|this)|getting started|help me get started)\??$/.test(text)) {
+    return async ({ tool }) => {
+      const out = await tool('show_guide', {});
+      return out.ok ? 'Follow me.' : out.error || 'Not now.';
     };
   }
   // The dragon.

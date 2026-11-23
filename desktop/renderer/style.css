@@ -1062,3 +1062,14 @@ body.is-capturing * { visibility: hidden !important; }
 
 /* A ring button that opens another ring (Effects), or goes back. */
 .ring-btn.is-folder { border-style: dashed; }
+
+/* The first-run guide: a panel at the top of the screen, a step at a time. */
+.guide { position: fixed; top: 18px; left: 50%; translate: -50% 0; z-index: 20; width: min(340px, calc(100vw - 32px));
+  padding: 10px 14px 12px; background: linear-gradient(var(--pale), #ffe56a); color: #1a1028;
+  border: 2px solid #140c22; box-shadow: 3px 3px 0 var(--lilac); border-radius: 10px; font-size: 10px; line-height: 1.55;
+  animation: guide-in 0.25s ease-out; }
+.guide .guide-step { margin: 0 0 4px; font-size: 7px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.65; }
+.guide .guide-text { margin: 0 0 8px; white-space: pre-line; }
+.guide .row { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+@keyframes guide-in { from { translate: -50% -12px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .guide { animation: none; } }

@@ -6,6 +6,7 @@ import { createAbilities } from './abilities.js';
 import { createSpeak } from './speak.js';
 import { createCrypt } from './crypt.js';
 import { createDragon } from './dragon.js';
+import { createGuide } from './guide.js';
 
 const $ = (id) => document.getElementById(id);
 const reaper = $('reaper');
@@ -264,6 +265,8 @@ const ctx = {
 const crypt = createCrypt(ctx);
 ctx.crypt = crypt;
 ctx.dragon = createDragon(ctx);
+// The first-run guide (started from start(), or by Speak).
+ctx.guide = createGuide(ctx, { ringOpen: () => !ring.hidden });
 ctx.dragon.update(crypt.get().dragon);
 const speak = createSpeak(ctx);
 ctx.speak = speak;
@@ -464,6 +467,7 @@ function endDrag(e) {
       target = null;
       waitUntil = performance.now() + 5000;
     }
+    ctx.guide.saw('drag');
   }
   crypt.aim(null);
   hitTest();
@@ -848,7 +852,9 @@ async function start() {
   place();
   paintSoul();
   requestAnimationFrame(frame);
-  setTimeout(() => { if (!greet(dug)) say(dug || timeLine(), dug ? 6000 : 4000); }, 1500);
+  // The first time: the guide, instead of the usual greeting.
+  if (!s.guided) setTimeout(() => ctx.guide.start(), 1500);
+  else setTimeout(() => { if (!greet(dug)) say(dug || timeLine(), dug ? 6000 : 4000); }, 1500);
   setInterval(() => { if (Math.random() < 0.35) sayIdle(timeLine()); }, 240000);
 }
 
@@ -859,4 +865,4 @@ window.__reaper = {
   pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
   // Forget where he was going and choose again now.
   retarget() { target = null; waitUntil = 0; },
-  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, say };
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, guide: ctx.guide, say };
