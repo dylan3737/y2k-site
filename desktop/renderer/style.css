@@ -1058,3 +1058,6 @@ body.is-capturing * { visibility: hidden !important; }
 }
 
 .fx-canvas.is-closing { opacity: 0; }
+
+/* A ring button that opens another ring (Effects), or goes back. */
+.ring-btn.is-folder { border-style: dashed; }

@@ -60,6 +60,11 @@ async function castFromRing(page, id) {
     await page.click('#body', { force: true });
     await page.waitForTimeout(260);
   }
+  // The screen effects are behind the Effects button.
+  if (!(await page.$(`.ring-btn[data-id="${id}"]`)) && (await page.$('.ring-btn[data-id="effects"]'))) {
+    await page.click('.ring-btn[data-id="effects"]', { force: true, timeout: 5000 });
+    await page.waitForTimeout(150);
+  }
   await page.click(`.ring-btn[data-id="${id}"]`, { force: true, timeout: 5000 });
   await page.waitForTimeout(150);
 }
@@ -74,7 +79,9 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of sixteen abilities', buttons.length === 16 && buttons.includes('dragonbreath') && buttons.includes('dragon'), buttons.join(','));
+  const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
+  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') &&
+    buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -85,6 +92,13 @@ try {
     return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
   }));
   check('every ring button is on screen', onScreen);
+  await page.click('.ring-btn[data-id="effects"]');
+  await page.waitForTimeout(250);
+  const fx = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
+  check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
+  await page.click('.ring-btn[data-id="back"]');
+  await page.waitForTimeout(250);
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
