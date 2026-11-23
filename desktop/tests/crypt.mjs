@@ -15,7 +15,16 @@ const RATE = crypt.RATE_PER_HOUR;
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 
 // --- Earning and raising ---------------------------------------------------------
-const c = crypt.fresh(T0);
+// A new garden starts with enough for its first moss sprite; most checks here
+// start from nothing, to count exactly.
+const started = crypt.fresh(T0);
+check('a new garden starts with enough for its first moss sprite', started.souls === crypt.BASE_COST && crypt.raise(started, 1, 'digger', T0).ok);
+function blank(t) {
+  const x = crypt.fresh(t);
+  x.souls = 0;
+  return x;
+}
+const c = blank(T0);
 check('a new crypt is empty', c.souls === 0 && c.skeletons === 0 && crypt.view(c).nextCost === crypt.BASE_COST);
 check('a ghost is worth one soul', crypt.earn(c, 'caught', 7) === 7 && c.souls === 7);
 check('a file is worth five', crypt.earn(c, 'reaped', 2) === 10 && c.souls === 17);
@@ -48,7 +57,7 @@ const seen = crypt.view(c);
 check('the page is shown whole souls', Number.isInteger(seen.souls) && seen.perHour === 5 * RATE && seen.skeletons === 5, JSON.stringify([seen.souls, seen.perHour]));
 
 // --- Upgrades ------------------------------------------------------------------------
-const u = crypt.fresh(T0);
+const u = blank(T0);
 u.skeletons = 4;
 u.souls = 10;
 out = crypt.buy(u, 'shovels');
@@ -74,7 +83,7 @@ check('the card is told each upgrade\'s level, price and effect', shop.length ==
   shop[0].now === '+50% gathering' && shop[1].cost === null && shop[1].next === null, JSON.stringify(shop.slice(0, 2)));
 
 // --- Milestones ----------------------------------------------------------------------
-const m = crypt.fresh(T0);
+const m = blank(T0);
 let did = crypt.deed(m, 'focus', 25, T0);
 check('the first hourglass is a milestone, paid at once', did.gained === 25 && did.reached.length === 1 && did.reached[0].name === 'First sand' && m.souls === 40, JSON.stringify(did));
 did = crypt.deed(m, 'focus', 25, T0);
@@ -87,7 +96,7 @@ m.total = 249;
 m.souls = 0;
 did = crypt.deed(m, 'caught', 1, T0);
 check('souls ever held reach one too', did.reached.some((r) => r.name === 'A full urn') && m.souls === 31, JSON.stringify(did));
-const chain = crypt.fresh(T0);
+const chain = blank(T0);
 chain.total = 2499 - 15;
 check('one reward can reach the next milestone', crypt.deed(chain, 'focus', 1, T0).reached.map((r) => r.name).join() === 'First sand,A full urn,A full meadow');
 const list = crypt.view(m).milestones;
@@ -134,7 +143,7 @@ got = await heard('summon', { ok: true, result: 'cast' });
 check('"summon" is still the ghost game', got && got.name === 'cast' && got.ability === 'summon');
 
 // Reaping: skeletons ripen as they dig, and burst into their ghosts.
-const r = crypt.fresh(T0);
+const r = blank(T0);
 r.souls = 1000;
 crypt.act(r, { raise: 3 }, T0);
 check('a new skeleton holds one ghost', crypt.ripeness(r.born[0], r.born[0]) === 1);
@@ -152,13 +161,14 @@ const before = r.souls;
 out = crypt.act(r, { hunt: { caught: 2, golden: 1, points: 60 } }, t2);
 check('ghosts caught bank souls, golden ones three times as much', out.caught === 2 && out.gained === 40 && Math.round(r.souls - before) >= 40, JSON.stringify(out));
 check('the rest are lost', r.loose === 0);
-check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Groundskeeper' && crypt.view(r).nextRank.at === 100);
+check('the points are kept', r.score === 60 && crypt.view(r).rank === 'Groundskeeper' && crypt.view(r).nextRank.at === crypt.RANKS[1].at);
 out = crypt.act(r, { hunt: { caught: 5, points: 999 } }, t2);
 check('a hunt cannot claim ghosts that were never loose', out.caught === 0 && out.points === 0 && r.score === 60, JSON.stringify(out));
 crypt.act(r, { reap: 0 }, t2);
+r.score = crypt.RANKS[1].at - 50;
 out = crypt.act(r, { hunt: { caught: 1, points: 50 } }, t2);
-check('a new rank pays once', out.ranked.length === 1 && out.ranked[0].name === 'Ghost catcher' && out.ranked[0].reward === 30 && crypt.view(r).rank === 'Ghost catcher', JSON.stringify(out));
-check('reaping with none says to raise one', /No moss sprites/.test(crypt.reap(crypt.fresh(T0)).error));
+check('a new rank pays once', out.ranked.length === 1 && out.ranked[0].name === 'Ghost catcher' && out.ranked[0].reward === crypt.RANKS[1].reward && crypt.view(r).rank === 'Ghost catcher', JSON.stringify(out));
+check('reaping with none says to raise one', /No moss sprites/.test(crypt.reap(blank(T0)).error));
 
 // Summon's Gathering: every skeleton at once, one more ghost for each past the first.
 const t3 = t2 + 3 * HOUR;
@@ -169,12 +179,12 @@ check('a Gathering takes every skeleton\'s ghosts, and one more for each past th
 check('and they all rise again empty', r.skeletons === 3 && r.born.every((t) => crypt.ripeness(t, t3) === 1) && new Set(r.born).size === 3);
 out = crypt.act(r, { hunt: { caught: out.ghosts, points: 10 } }, t3);
 check('a big hunt can bank every ghost it let loose', out.caught === holds.reduce((a, b) => a + b, 0) + 2, JSON.stringify(out));
-const full = crypt.fresh(T0);
+const full = blank(T0);
 full.souls = 1e6;
 crypt.act(full, { raise: 8 }, T0);
 out = crypt.act(full, { gather: true }, T0 + 100 * HOUR);
 check('eight full skeletons make the most a hunt can hold', out.ghosts === 8 * crypt.MAX_RIPE + 7 && out.ghosts <= crypt.MAX_LOOSE, String(out.ghosts));
-const empty = crypt.fresh(T0);
+const empty = blank(T0);
 out = crypt.act(empty, { gather: true }, T0);
 check('with no skeletons the grave gives a first one instead', out.ok && out.gathered === 0 && out.ghosts === 0 && empty.skeletons === 1 && empty.loose === 0, JSON.stringify(out));
 
@@ -188,7 +198,7 @@ const souls1 = r.souls;
 out = crypt.act(r, { wraith: { won: false } }, t3);
 check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 5);
 // Workers: the ghoul, the bat and the will-o'-wisp, unlocked by rank.
-const k = crypt.fresh(T0);
+const k = blank(T0);
 k.souls = 1e5;
 crypt.act(k, { raise: 2 }, T0);
 out = crypt.act(k, { raise: 1, kind: 'snail' }, T0);
@@ -213,7 +223,7 @@ check('a Gathering takes the sprites and the toadstools, and each comes back as 
   k.kinds.join() === 'wisp,wisp,wisp,digger,digger,snail', JSON.stringify([out, k.kinds]));
 
 // The toadstool grows its ghosts slowly, three at most, and comes back a toadstool.
-const ts = crypt.fresh(T0);
+const ts = blank(T0);
 ts.souls = 1e4; ts.rank = 2;
 crypt.act(ts, { raise: 1, kind: 'snail' }, T0);
 crypt.act(ts, { raise: 1, kind: 'moth' }, T0);
@@ -226,16 +236,16 @@ out = crypt.act(ts, { reap: mothAt }, T0 + 9 * HOUR);
 check('a moth can be reaped: two spirit-lights', out.ok && out.ghosts === 2 && out.lights === 2 && ts.loose === 2, JSON.stringify(out));
 check('and rests as a cocoon, then comes back a moth', ts.kinds.filter((x) => x === 'moth').length === 1 &&
   /cocoon/.test(crypt.act(ts, { reap: ts.kinds.indexOf('moth') }, T0 + 9 * HOUR).error || ''));
-const toadOnly = crypt.fresh(T0);
+const toadOnly = blank(T0);
 toadOnly.souls = 1e4; toadOnly.rank = 1;
 crypt.act(toadOnly, { raise: 1, kind: 'snail' }, T0);
 out = crypt.act(toadOnly, { gather: true }, T0);
 check('with only a toadstool, a Gathering gathers it', out.ok && out.gathered === 1 && out.ghosts === 1 && toadOnly.kinds.join() === 'snail');
-const gnone = crypt.fresh(T0);
+const gnone = blank(T0);
 out = crypt.act(gnone, { gather: true }, T0);
 check('with nothing at all, a Gathering plants a moss sprite', out.ok && out.gathered === 0 && gnone.kinds.join() === 'digger');
 // The frog: half as much again, a ghost every hour and a half, four at most.
-const fr = crypt.fresh(T0);
+const fr = blank(T0);
 fr.souls = 1e4; fr.rank = 1;
 crypt.act(fr, { raise: 1, kind: 'frog' }, T0);
 check('a frog gathers half as much again', crypt.perHour(fr) === 1.5 * crypt.RATE_PER_HOUR);
@@ -243,7 +253,7 @@ out = crypt.act(fr, { reap: 0 }, T0 + 3.1 * HOUR);
 check('and grows a ghost every hour and a half', out.ok && out.ghosts === 3 && out.kind === 'frog', JSON.stringify(out));
 
 // The caterpillar: a moth starts as one, and only a turned moth can be reaped.
-const cat = crypt.fresh(T0);
+const cat = blank(T0);
 cat.souls = 1e4; cat.rank = 2;
 crypt.act(cat, { raise: 1, kind: 'moth' }, T0);
 check('a moth starts as a caterpillar (resting three hours, the last half a cocoon)', cat.born[0] === T0 + crypt.METAMORPHOSIS_MS &&
@@ -252,7 +262,7 @@ out = crypt.act(cat, { reap: 0 }, T0 + crypt.METAMORPHOSIS_MS + 1000);
 check('once turned, a moth can be reaped for two spirit-lights', out.ok && out.lights === 2);
 
 // The bee: pollen gives a worker a ghost at once; a worker once an hour, the bees once every 20 minutes.
-const hive = crypt.fresh(T0);
+const hive = blank(T0);
 hive.souls = 1e5; hive.rank = 2;
 crypt.act(hive, { raise: 2 }, T0);
 check('no bees, no pollen', !crypt.act(hive, { pollinate: 0 }, T0).ok);
@@ -269,7 +279,7 @@ check('a reaped worker gives its pollen ghost too, and starts afresh', out.ghost
 check('a bee cannot be reaped', /cannot be reaped/.test(crypt.act(hive, { reap: hive.kinds.indexOf('bee') }, T0 + HOUR).error || ''));
 
 // The robin: workers rest less. The ladybug: more spirit-lights.
-const nest = crypt.fresh(T0);
+const nest = blank(T0);
 nest.souls = 1e6; nest.rank = 4;
 crypt.act(nest, { raise: 1 }, T0);
 check('a reaped worker rests 30 minutes without robins', crypt.restMs(nest) === 30 * 60000);
@@ -284,7 +294,7 @@ crypt.act(nest, { raise: 3, kind: 'ladybug' }, T0);
 check('each ladybug brings luck: more spirit-lights', crypt.goldenChance(nest) === Math.round((before2 + 0.15) * 100) / 100 && crypt.view(nest).goldenChance === crypt.goldenChance(nest));
 
 check('kinds survive a save', crypt.clean(JSON.parse(JSON.stringify(k)), twoHours).kinds.join() === k.kinds.join());
-const batty = crypt.fresh(T0);
+const batty = blank(T0);
 batty.souls = 1e5;
 crypt.act(batty, { raise: 1 }, T0);
 check('a bat waits for Soul warden', /Soul warden/.test(crypt.act(batty, { raise: 1, kind: 'moth' }, T0).error || ''));
@@ -300,7 +310,7 @@ check('a ghoul, a bat and a toadstool from an old save become a snail, a moth an
 check('an unknown kind is refused', !crypt.act(k, { raise: 1, kind: 'dragon' }).ok);
 
 // Sweeping their dirt.
-const broom = crypt.fresh(T0);
+const broom = blank(T0);
 out = crypt.act(broom, { sweep: 1 }, T0);
 check('a swept mound pays a soul', out.ok && out.gained === 1 && broom.souls === 1 && broom.total === 1);
 out = crypt.act(broom, { sweep: 1000 }, T0);

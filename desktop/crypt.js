@@ -52,11 +52,11 @@ export const WRAITH_PER_RANK = 30;
 // Ranks, by score; each pays its reward once, when it is reached.
 export const RANKS = [
   { name: 'Groundskeeper', at: 0, reward: 0 },
-  { name: 'Ghost catcher', at: 100, reward: 30 },
-  { name: 'Soul warden', at: 400, reward: 80 },
-  { name: 'Shade hunter', at: 1200, reward: 200 },
-  { name: 'Wraith lord', at: 3000, reward: 500 },
-  { name: "The Reaper's hand", at: 8000, reward: 1200 }
+  { name: 'Ghost catcher', at: 300, reward: 40 },
+  { name: 'Soul warden', at: 1000, reward: 120 },
+  { name: 'Shade hunter', at: 5000, reward: 300 },
+  { name: 'Wraith lord', at: 14000, reward: 800 },
+  { name: "The Reaper's hand", at: 60000, reward: 2500 }
 ];
 
 // The kinds of skeleton. `dig` is how much one digs against a plain one,
@@ -148,7 +148,13 @@ const HOUR = 3600000;
 const whole = (n, max) => (Number.isFinite(n) && n > 0 ? Math.min(max, n) : 0);
 const level = (c, id) => c.upgrades[id] || 0;
 
-export const fresh = (now = Date.now()) => clean(null, now);
+// A new garden starts with enough for its first moss sprite.
+export const STARTING_SOULS = BASE_COST;
+export function fresh(now = Date.now()) {
+  const c = clean(null, now);
+  c.souls = STARTING_SOULS;
+  return c;
+}
 
 // Whatever was saved, made safe to use.
 export function clean(raw, now = Date.now()) {
@@ -383,7 +389,7 @@ export function gather(c, now = Date.now()) {
 // The end of a hunt: `caught` of the loose ghosts were caught, `golden` of them
 // golden, for `points` with the combo. The rest are lost. Pays the souls, adds
 // the points, and pays any rank newly reached.
-export function hunted(c, result) {
+export function hunted(c, result, now = Date.now()) {
   const r = result && typeof result === 'object' ? result : {};
   const caught = Math.min(c.loose, Math.floor(whole(r.caught, MAX_LOOSE)));
   const golden = Math.min(caught, Math.floor(whole(r.golden, MAX_LOOSE)));
@@ -395,7 +401,7 @@ export function hunted(c, result) {
   bank(c, gained);
   c.score += points;
   // The dragon learns from every hunt it shares.
-  const dragon = c.dragon ? dragons.hunted(c.dragon, caught) : null;
+  const dragon = c.dragon ? dragons.hunted(c.dragon, caught, now) : null;
   return { ok: true, caught, golden, points, gained, ranked: climb(c), ...(dragon && dragon.grew.length ? { dragonGrew: dragon.grew } : {}) };
 }
 
@@ -507,7 +513,7 @@ export function dragonAct(c, a, now = Date.now()) {
     if (!n) return { ok: false, error: 'Feed it some souls.' };
     if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
     out = dragons.feed(d, n, now);
-    if (out.ok) c.souls -= n;
+    if (out.ok) c.souls -= out.ate;
   } else if (a.train) {
     out = dragons.train(d, a.train, now, a.quality);
   } else if (a.ascend) {
@@ -541,7 +547,7 @@ export function act(c, action, now = Date.now()) {
       : a.gather ? gather(c, now)
       : 'sweep' in a ? sweep(c, a.sweep)
       : 'pollinate' in a ? pollinate(c, a.pollinate, now)
-      : a.hunt ? hunted(c, a.hunt)
+      : a.hunt ? hunted(c, a.hunt, now)
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)
             : typeof a.buy === 'string' ? buy(c, a.buy)
@@ -550,28 +556,28 @@ export function act(c, action, now = Date.now()) {
 }
 
 // What the page and Speak are shown: whole souls only.
-export function view(c) {
+export function view(c, now = Date.now()) {
   return {
     souls: Math.floor(c.souls),
     skeletons: c.skeletons,
     nextCost: cost(c.skeletons),
-    perHour: Math.round(perHour(c) * 10) / 10,
+    perHour: Math.round(perHour(c, now) * 10) / 10,
     total: Math.floor(c.total),
     awayCapHours: capHours(c),
     goldenChance: goldenChance(c),
     // The skeletons drawn on screen (the oldest eight): how each is known,
     // how many ghosts it holds, and what kind it is.
     // A resting one has `rest`: the minutes until it rises.
-    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, Date.now()), most: kindOf(c, i).ripest || 0,
-      ...(t > Date.now() + 1000 ? { rest: Math.max(1, Math.round((t - Date.now()) / 60000)) } : {}) })),
+    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
+      ...(t > now + 1000 ? { rest: Math.max(1, Math.round((t - now) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,
       cost: kindCost(c, k.id), open: (c.rank || 0) >= k.rank, rank: RANKS[k.rank].name
     })),
     loose: c.loose,
-    dragon: dragons.viewDragon(c.dragon),
+    dragon: dragons.viewDragon(c.dragon, now),
     // Moths up and about (not cocoons): each saves ghosts at a hunt's end.
-    moths: (c.born || []).filter((t, i) => kindOf(c, i).id === 'moth' && awake(c, i, Date.now())).length,
+    moths: (c.born || []).filter((t, i) => kindOf(c, i).id === 'moth' && awake(c, i, now)).length,
     score: c.score,
     rank: RANKS[c.rank].name,
     nextRank: c.rank + 1 < RANKS.length ? { name: RANKS[c.rank + 1].name, at: RANKS[c.rank + 1].at, reward: RANKS[c.rank + 1].reward } : null,

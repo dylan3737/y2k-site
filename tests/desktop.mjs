@@ -591,9 +591,14 @@ try {
   check('the hatchling shows its own picture', /dragon-hatchling-[a-z]+\.png/.test(await page.$eval('.field .dragon', (n) => n.style.backgroundImage)));
   await page.evaluate(() => window.__reaper.dragon.open());
   await page.waitForTimeout(150);
-  await page.click('#card .chip:has-text("50 souls")');
+  check('the card shows how hungry it is', /Hunger/.test(await page.textContent('#card')));
+  await page.click('#card .chip:has-text("A bite")');
   await page.waitForTimeout(250);
-  check('fed souls, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  check('fed a bite, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  await page.click('#card .chip:has-text("Fill it up")');
+  await page.waitForTimeout(250);
+  check('filled up, it is full till tomorrow, and offers no more', /Full till tomorrow/.test(await page.textContent('#card')) &&
+    !(await page.$('#card .chip:has-text("A bite")')), await page.textContent('#card'));
   // Training starts its drill (a flight lesson); left alone, it still learns a little.
   await page.click('#card .chip:has-text("Garden ·")');
   check('training starts a drill', !!(await page.waitForSelector('.drill-ring', { timeout: 2000 }).catch(() => null)));
@@ -621,7 +626,7 @@ try {
   // An elder with a strong bond ascends: scales, and an egg of a new element.
   await page.evaluate(() => {
     const saved = window.__companion.read();
-    Object.assign(saved.crypt.dragon, { stage: 4, xp: 2000, bond: 90, branch: 'hunter' });
+    Object.assign(saved.crypt.dragon, { stage: 4, xp: 5000, bond: 90, branch: 'hunter' });
     localStorage.setItem('reaper-companion', JSON.stringify(saved));
   });
   await page.reload();

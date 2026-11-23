@@ -445,11 +445,24 @@ export function createDragon(ctx) {
         meter('Bond', d.bond, 100, 'is-bond'), meter('Energy', d.energy, 100, 'is-energy'));
       if (d.branch) page.appendChild(el('p', 'dragon-branch', BRANCH[d.branch]));
       else page.appendChild(el('p', 'muted', 'What you train it in most decides what it becomes when it grows into a wyvern.'));
+      // Its appetite: what it can still eat today (ghosts from hunts fill half of it).
+      const ap = d.appetite;
+      page.appendChild(meter(ap.left ? 'Hunger' : 'Full till tomorrow', ap.left, ap.of, 'is-hunger'));
       const feed = el('div', 'row');
-      feed.append(el('span', 'muted', 'Feed:'), ...[10, 50, 200].map((n) => chip(n + ' souls', () => act({ feed: n }).then((o) => o.ok || say(o.error, 3000)))));
-      // Its favourite food: a snail from the garden.
+      feed.appendChild(el('span', 'muted', 'Feed:'));
+      if (ap.left) {
+        const bite = Math.min(10, ap.left);
+        const ate = (o) => (o.ok ? say(o.full ? 'It is full.' : 'Nom.', 2000) : say(o.error, 3000));
+        feed.append(chip('A bite · ' + bite * ap.souls + ' souls', () => act({ feed: bite * ap.souls }).then(ate)));
+        if (ap.left > bite) feed.append(chip('Fill it up · ' + ap.left * ap.souls + ' souls', () => act({ feed: ap.left * ap.souls }).then(ate)));
+      }
+      // Its favourite food: a snail from the garden, once a day.
       const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
-      if (snails) {
+      if (snails && !d.snailToday) {
+        const had = chip('Had its snail today', () => {});
+        had.disabled = true;
+        feed.appendChild(had);
+      } else if (snails) {
         const treat = chip('A snail ♥ · ' + snails, async () => {
           const o = await act({ snail: true });
           if (!o.ok) return say(o.error, 3000);
@@ -457,7 +470,7 @@ export function createDragon(ctx) {
           say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
         }, 'solid');
         treat.dataset.feed = 'snail';
-        treat.title = 'Its favourite food: worth far more than souls, and it loves you for it';
+        treat.title = 'Its favourite food, once a day: worth more than a day of meals, and it loves you for it';
         feed.appendChild(treat);
       }
       const train = el('div', 'row');

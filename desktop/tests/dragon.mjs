@@ -35,17 +35,44 @@ for (let i = 0; i < 3; i++) dragon.train(d, 'garden', T0 + 15 * HOUR);
 check('tired, it will not train', !dragon.train(d, 'hunt', T0 + 15 * HOUR).ok && d.energy < dragon.TRAIN_COST);
 dragon.age(d, T0 + 25 * HOUR);
 check('rest brings its energy back', d.energy === 100);
-out = dragon.feed(d, 2000, T0 + 25 * HOUR);
+out = dragon.gain(d, dragon.XP_AT[3]);
 check('grown enough, it becomes a wyvern, and what it trained most decides its path', d.stage >= 3 && d.branch === 'guardian' && out.grew.includes('wyvern'), JSON.stringify(out));
 check('a guardian makes the garden grow faster', dragon.gardenGrowth(d) > 0 && dragon.breaths(d) === 0 && dragon.playSouls(d) === 0);
 const h = dragon.freshDragon(T0, seq(0.1));
 h.stage = 1; h.train.hunt = 2;
-dragon.feed(h, 3000, T0);
+dragon.gain(h, 3000);
 check('one trained to hunt becomes a hunter, and breathes on ghosts', h.branch === 'hunter' && dragon.breaths(h) >= 2);
 const t = dragon.freshDragon(T0, seq(0.8));
 t.stage = 1;
-dragon.feed(t, 3000, T0);
+dragon.gain(t, 3000);
 check('untrained, the element leans it (storm: a hunter)', t.element === 'storm' && t.branch === 'hunter');
+
+// Its appetite, and what it can have in a day.
+const hungry = dragon.freshDragon(T0, seq(0.1));
+hungry.stage = 2;
+out = dragon.feed(hungry, 1e6, T0);
+check('a drake eats its appetite\'s worth, at its price in souls', out.ok && out.ate === dragon.APPETITE[2] * dragon.MEAL_SOULS[2] && out.full, JSON.stringify(out));
+check('the next day it is hungry again', dragon.feed(hungry, 50, T0 + 24 * HOUR).ok);
+const hunter = dragon.freshDragon(T0, seq(0.1));
+hunter.stage = 2;
+dragon.hunted(hunter, 60, T0);
+check('ghosts from hunts fill only half its appetite', dragon.appetiteLeft(hunter, T0) === dragon.APPETITE[2] / 2 &&
+  dragon.hunted(hunter, 60, T0).gained === 0 && dragon.feed(hunter, 1e6, T0).ok);
+const snacker = dragon.freshDragon(T0, seq(0.1));
+snacker.stage = 1;
+check('a snail is a treat: one a day', dragon.snack(snacker, T0).ok && /today/.test(dragon.snack(snacker, T0 + 1000).error || '') &&
+  dragon.snack(snacker, T0 + 24 * HOUR).ok);
+const pettable = dragon.freshDragon(T0, seq(0.1));
+for (let i = 0; i < 40; i++) dragon.pet(pettable, T0 + i * dragon.PET_GAP_MS);
+check('rubbing warms an egg only so much a day (it cannot be clicked into hatching)', pettable.stage === 0 &&
+  Math.round(pettable.warmth) <= dragon.PET_WARMTH_A_DAY + 1, String(pettable.warmth));
+const petted = dragon.freshDragon(T0, seq(0.1));
+petted.stage = 1;
+for (let i = 0; i < 40; i++) dragon.pet(petted, T0 + i * dragon.PET_GAP_MS);
+check('and petting teaches it only so much a day', petted.xp <= dragon.PET_XP_A_DAY * 2, String(petted.xp));
+const youngElder = dragon.freshDragon(T0, seq(0.1));
+youngElder.stage = 4; youngElder.xp = dragon.XP_AT[4]; youngElder.bond = 90;
+check('a young elder must mature before it can ascend', /young elder/.test(dragon.ascendable(youngElder).why || ''));
 
 // Bond.
 const lonely = dragon.freshDragon(T0, seq(0.3));
@@ -61,7 +88,7 @@ young.stage = 2;
 check('a young one cannot ascend', !dragon.ascend(young, T0).ok && /elder/.test(dragon.ascendable(young).why));
 const e = dragon.freshDragon(T0, seq(0.1));
 e.stage = 1;
-dragon.feed(e, 50000, T0);
+dragon.gain(e, 50000);
 check('an elder stops at elder in its first lineage', e.stage === 4);
 e.bond = 40;
 check('it needs a strong bond to ascend', /bond/.test(dragon.ascendable(e).why));
@@ -76,7 +103,7 @@ check('and not what they cannot pay for', !dragon.buyPerk(e, 'tricks').ok || e.s
 check('no such perk', !dragon.buyPerk(e, 'wings').ok);
 const twice = dragon.freshDragon(T0, seq(0.2), 2);
 twice.stage = 1;
-dragon.feed(twice, 1e5, T0);
+dragon.gain(twice, 1e5);
 check('a line that ascended twice can grow Ancient', twice.stage === 5 && dragon.viewDragon(twice).stage === 'ancient');
 check('a dragon survives a save', JSON.stringify(dragon.cleanDragon(JSON.parse(JSON.stringify(e)), T0)) === JSON.stringify(e));
 check('nonsense in a save is made sane', dragon.cleanDragon({ element: 'lava', stage: 99, bond: -5, perks: { power: 99 } }, T0).stage === 5 &&
@@ -93,8 +120,12 @@ check('a finished hourglass warms the egg through the garden', crypt.view(g).dra
 out = crypt.act(g, {}, T0 + 30 * HOUR);
 check('time passing hatches it, and the garden says so', out.hatched === true && crypt.view(g).dragon.stage === 'hatchling', JSON.stringify(out));
 const souls0 = Math.floor(g.souls);
-out = crypt.act(g, { dragon: { feed: 100 } }, T0 + 30 * HOUR);
-check('feeding takes the souls from the garden', out.ok && Math.floor(g.souls) === souls0 - 100);
+out = crypt.act(g, { dragon: { feed: 20 } }, T0 + 30 * HOUR);
+check('feeding takes the souls from the garden', out.ok && out.ate === 20 && Math.floor(g.souls) === souls0 - 20, JSON.stringify(out));
+out = crypt.act(g, { dragon: { feed: 900 } }, T0 + 30 * HOUR);
+check('it eats only as much as its appetite, and only those souls are taken', out.ok && out.full &&
+  out.ate === (dragon.APPETITE[1] - 10) * dragon.MEAL_SOULS[1] && Math.floor(g.souls) === souls0 - dragon.APPETITE[1] * dragon.MEAL_SOULS[1], JSON.stringify(out));
+check('full, it eats no more today', /full/.test(crypt.act(g, { dragon: { feed: 20 } }, T0 + 30 * HOUR).error || ''));
 check('and not more than it holds', !crypt.act(g, { dragon: { feed: 1e6 } }, T0 + 30 * HOUR).ok);
 g.dragon.branch = 'guardian'; g.dragon.stage = 4;
 check('a guardian elder makes the garden\'s sprouts grow faster', crypt.ripenSpeed(g) === 1.5);
@@ -107,8 +138,8 @@ out = crypt.act(g, { dragon: { pet: true } }, T0 + 31 * HOUR);
 check('a trickster\'s play earns souls', out.ok && out.gained === 6 && g.souls >= s1 + 6, JSON.stringify(out));
 g.loose = 5;
 g.dragon.stage = 2; g.dragon.xp = 200;
-out = crypt.act(g, { hunt: { caught: 5, points: 50 } }, T0 + 31 * HOUR);
-check('a hunt teaches the dragon too', g.dragon.xp > 200);
+out = crypt.act(g, { hunt: { caught: 5, points: 50 } }, T0 + 56 * HOUR);
+check('a hunt teaches the dragon too (another day: it ate its fill today)', g.dragon.xp > 200);
 check('the dragon survives the garden\'s save', crypt.clean(JSON.parse(JSON.stringify(g)), T0 + 32 * HOUR).dragon.lineage === g.dragon.lineage);
 
 // Its favourite food: snails.

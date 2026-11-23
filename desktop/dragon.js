@@ -23,7 +23,9 @@
 export const ELEMENTS = ['ember', 'frost', 'shadow', 'storm'];
 export const STAGES = ['egg', 'hatchling', 'drake', 'wyvern', 'elder', 'ancient'];
 // Experience to reach each stage (from hatchling on).
-export const XP_AT = [0, 0, 120, 450, 1400, 4000];
+export const XP_AT = [0, 0, 150, 900, 2800, 8000];
+// An elder can ascend once it has matured this far (its scales have hardened).
+export const ASCEND_XP = 4500;
 export const BRANCHES = { hunt: 'hunter', garden: 'guardian', tricks: 'trickster' };
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -33,10 +35,21 @@ export const ENERGY_PER_HOUR = 12;
 export const TRAIN_COST = 25;
 export const BOND_DECAY_PER_DAY = 6;
 export const ASCEND_BOND = 60;
+// Its appetite: how much growth souls can give it in a day, at each stage,
+// and how many souls make one point of growth (a bigger dragon eats more).
+// Without a limit, a full garden could buy a whole dragon in an afternoon.
+export const APPETITE = [0, 40, 70, 100, 140, 180];
+export const MEAL_SOULS = [0, 2, 5, 12, 25, 40];
+// Petting teaches it a little, but only this much a day.
+export const PET_XP_A_DAY = 20;
+// A snail is a treat: one a day.
+export const SNAILS_A_DAY = 1;
+// Rubbing an egg warms it, but only this much a day: time and hourglasses do the rest.
+export const PET_WARMTH_A_DAY = 20;
 
 // Perks bought with Dragon Scales: one price per level; what a level gives.
 export const PERKS = [
-  { id: 'power', name: 'Old blood', blurb: 'Grows faster, and a hunter breathes on more ghosts.', costs: [3, 6, 12, 20, 32], effect: (l) => '+' + l * 20 + '% growth, +' + l + ' breath' },
+  { id: 'power', name: 'Old blood', blurb: 'Grows faster, and a hunter breathes on more ghosts.', costs: [3, 6, 12, 20, 32], effect: (l) => '+' + l * 15 + '% growth, +' + l + ' breath' },
   { id: 'garden', name: 'Warm roots', blurb: 'The whole garden gathers more and grows faster.', costs: [4, 8, 14, 24, 36], effect: (l) => '+' + l * 10 + '% souls and growth' },
   { id: 'looks', name: 'Gleam', blurb: 'A brighter glow and an aura, deeper each level.', costs: [2, 5, 10], effect: (l) => ['no aura', 'a soft aura', 'a bright aura', 'a blazing aura'][l] },
   { id: 'tricks', name: 'Lore', blurb: 'Tricks only an ascended line learns: dive at a wraith, light up finished hourglasses, fetch ghosts back.', costs: [5, 10, 18], effect: (l) => ['none', 'dive at wraiths', '+ hourglass fireworks', '+ fetches escaping ghosts'][l] }
@@ -52,7 +65,9 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
     element: pick(rand), stage: 0, warmth: 0, xp: 0, bond: 20, energy: 100,
     train: { hunt: 0, garden: 0, tricks: 0 }, branch: null,
     lineage, scales: 0, perks: { power: 0, garden: 0, looks: 0, tricks: 0 },
-    petAt: 0, caredAt: now, at: now
+    petAt: 0, caredAt: now, at: now,
+    // What it has had today (a UTC day): growth from meals, snails, warmth from rubbing.
+    today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0 }
   };
 }
 
@@ -74,11 +89,15 @@ export function cleanDragon(raw, now = Date.now()) {
   out.petAt = clamp(num(d.petAt), 0, now);
   out.caredAt = clamp(num(d.caredAt, now), 0, now);
   out.at = clamp(num(d.at, now), 0, now);
+  const t = d.today && typeof d.today === 'object' ? d.today : {};
+  if (num(t.day, -1) === Math.floor(now / DAY)) {
+    out.today = { day: t.day, ate: clamp(num(t.ate), 0, 1e6), snails: Math.floor(clamp(num(t.snails), 0, 99)), warmth: clamp(num(t.warmth), 0, 100), petted: clamp(num(t.petted), 0, 1e6) };
+  }
   return out;
 }
 
 // What it most needs to grow, against its lineage and perks.
-const growth = (d) => (1 + 0.25 * d.lineage) * (1 + 0.2 * d.perks.power) * (0.6 + d.bond / 100);
+const growth = (d) => (1 + 0.2 * d.lineage) * (1 + 0.15 * d.perks.power) * (0.8 + d.bond / 250);
 const topStage = (d) => (d.lineage >= 2 ? 5 : 4);
 
 // Time passing: the egg warms, energy returns, bond fades if it is neglected.
@@ -125,6 +144,15 @@ export function branchOf(d) {
   return BRANCHES[best];
 }
 
+// Today's tally, started afresh on a new day.
+const todayOf = (d, now) => {
+  const day = Math.floor(now / DAY);
+  if (!d.today || d.today.day !== day) d.today = { day, ate: 0, snails: 0, warmth: 0, petted: 0 };
+  return d.today;
+};
+// Growth it can still take from meals today.
+export const appetiteLeft = (d, now = Date.now()) => (d.stage === 0 ? 0 : Math.max(0, APPETITE[d.stage] - todayOf(d, now).ate));
+
 const care = (d, now, bond) => {
   d.bond = clamp(d.bond + bond, 0, 100);
   d.caredAt = now;
@@ -135,10 +163,16 @@ export function pet(d, now = Date.now()) {
   d.petAt = now;
   care(d, now, 2);
   if (d.stage === 0) {
-    d.warmth = clamp(d.warmth + 3, 0, 100);
+    const t = todayOf(d, now);
+    const w = Math.min(3, PET_WARMTH_A_DAY - t.warmth);
+    t.warmth += Math.max(0, w);
+    d.warmth = clamp(d.warmth + Math.max(0, w), 0, 100);
     return { ok: true, warmth: Math.round(d.warmth), ...hatchIfReady(d) };
   }
-  return { ok: true, ...gain(d, 2) };
+  const t = todayOf(d, now);
+  const xp = Math.max(0, Math.min(2, PET_XP_A_DAY - t.petted));
+  t.petted += xp;
+  return { ok: true, ...gain(d, xp) };
 }
 
 // Warmth from a finished hourglass of `minutes` (an egg), or experience (a dragon).
@@ -149,21 +183,31 @@ export function focus(d, minutes, now = Date.now()) {
     d.warmth = clamp(d.warmth + m * 0.8, 0, 100);
     return { ok: true, warmth: Math.round(d.warmth), ...hatchIfReady(d) };
   }
-  return { ok: true, ...gain(d, m) };
+  return { ok: true, ...gain(d, m / 2) };
 }
 
-// Feeding souls: the caller takes them from the garden first.
+// Feeding souls. It eats only as much as its appetite allows today, and says
+// how many souls it ate (`ate`): the caller takes those from the garden.
 export function feed(d, souls, now = Date.now()) {
   if (d.stage === 0) return { ok: false, error: 'An egg does not eat. Keep it warm.' };
+  const left = appetiteLeft(d, now);
+  if (left <= 0) return { ok: false, error: 'It is full. It will be hungry again tomorrow.' };
+  const per = MEAL_SOULS[d.stage];
+  const growth = Math.min(left, Math.floor(num(souls) / per));
+  if (growth <= 0) return { ok: false, error: 'A ' + STAGES[d.stage] + ' needs at least ' + per + ' souls for a mouthful.' };
+  todayOf(d, now).ate += growth;
   care(d, now, 1);
-  return { ok: true, ...gain(d, souls) };
+  return { ok: true, ate: growth * per, full: appetiteLeft(d, now) <= 0, ...gain(d, growth) };
 }
 
 // Its favourite food: a snail from the garden (the caller takes it from
-// there). Worth far more than souls, and it loves you for it.
-export const SNAIL_XP = 250;
+// there). Worth more than a day of meals, and it loves you for it; one a day.
+export const SNAIL_XP = 80;
 export function snack(d, now = Date.now()) {
   if (d.stage === 0) return { ok: false, error: 'An egg does not eat. Keep it warm.' };
+  const t = todayOf(d, now);
+  if (t.snails >= SNAILS_A_DAY) return { ok: false, error: 'It has had its snail today. Tomorrow.' };
+  t.snails += 1;
   care(d, now, 12);
   return { ok: true, ate: 'snail', ...gain(d, SNAIL_XP) };
 }
@@ -183,15 +227,22 @@ export function train(d, kind, now = Date.now(), quality = 0.5) {
 }
 
 // Ghosts it helped catch in a hunt.
+// A hunt it shared: it eats some of the ghosts, which counts towards its
+// appetite like a meal (a point of growth a ghost), but ghosts fill only half
+// of it: the rest is for meals.
+export const huntAppetiteLeft = (d, now = Date.now()) => Math.max(0, appetiteLeft(d, now) - APPETITE[d.stage] / 2);
 export function hunted(d, caught, now = Date.now()) {
   if (d.stage === 0 || !(caught > 0)) return { gained: 0, grew: [] };
   d.caredAt = Math.max(d.caredAt, now - DAY / 2);
-  return gain(d, Math.min(60, caught) * 2);
+  const xp = Math.min(huntAppetiteLeft(d, now), Math.min(60, caught));
+  todayOf(d, now).ate += xp;
+  return gain(d, xp);
 }
 
 // What ascending would leave behind, if it can.
 export function ascendable(d) {
   if (d.stage < 4) return { ok: false, why: 'Only an elder can ascend.' };
+  if (d.xp < ASCEND_XP) return { ok: false, why: 'It is a young elder: it can ascend at ' + ASCEND_XP + ' growth.' };
   if (d.bond < ASCEND_BOND) return { ok: false, why: 'Its bond must be ' + ASCEND_BOND + ' or more.' };
   return { ok: true, scales: 10 + Math.floor(d.xp / 400) + 5 * d.lineage + (d.stage === 5 ? 15 : 0) };
 }
@@ -231,7 +282,7 @@ export const gardenSouls = (d) => (d ? 0.1 * d.perks.garden : 0);
 export const playSouls = (d) => (d && d.branch === 'trickster' && d.stage >= 3 ? 2 * (d.stage - 1) : 0);
 
 // What the page and Speak are shown.
-export function viewDragon(d) {
+export function viewDragon(d, now = Date.now()) {
   if (!d) return null;
   const next = d.stage >= 1 && d.stage < topStage(d) ? XP_AT[d.stage + 1] : null;
   const can = ascendable(d);
@@ -240,6 +291,9 @@ export function viewDragon(d) {
     xp: Math.round(d.xp), nextAt: next, bond: Math.round(d.bond), energy: Math.round(d.energy),
     train: { ...d.train }, branch: d.branch, lineage: d.lineage, scales: d.scales,
     canTrain: d.stage > 0 && d.energy >= TRAIN_COST,
+    // Today: growth it can still take from meals, souls per mouthful, a snail still to come.
+    appetite: d.stage ? { left: appetiteLeft(d, now), of: APPETITE[d.stage], souls: MEAL_SOULS[d.stage] } : null,
+    snailToday: d.stage > 0 && todayOf(d, now).snails < SNAILS_A_DAY,
     ascend: can.ok ? { scales: can.scales } : { why: can.why },
     perks: PERKS.map((p) => ({ id: p.id, name: p.name, blurb: p.blurb, level: d.perks[p.id], max: p.costs.length,
       cost: d.perks[p.id] < p.costs.length ? p.costs[d.perks[p.id]] : null, now: p.effect(d.perks[p.id]) })),
