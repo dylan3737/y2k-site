@@ -36,19 +36,41 @@ export const CLAUDE_MODELS = { haiku: 'Claude Haiku 5.5', sonnet: 'Claude Sonnet
 export const pickClaudeModel = (m) => (Object.hasOwn(CLAUDE_MODELS, m) ? m : 'haiku');
 
 // What the agent is told, around the user's request.
+//
+// The files are long (500 to 1000 lines each) and the local model's memory is
+// small: reading two of them whole fills it, it forgets what it read, reads
+// them again, and in the end believes it has finished. So it is told to find
+// things first and read only what it needs, and given a map to find them by
+// (names to search for, which do not go stale as line numbers do).
 export function brief(request) {
   return [
     'You are improving the Reaper, a desktop companion app: a pixel-art grim reaper who lives on the screen.',
-    'The app is in desktop/ (Electron). desktop/README.md explains every part; read the parts you need first.',
-    'Where things are: desktop/main.js (the main process), desktop/renderer/ (the page: app.js, abilities.js, crypt.js, speak.js, style.css),',
-    'desktop/crypt.js (the rules of the Crypt idle game), desktop/oracle.js (Speak, his chat), desktop/assets/ (sprites).',
+    'The app is in desktop/ (Electron).',
     '',
     'The user asked for this:',
     request,
     '',
-    'Make the change with small, careful edits in the style of the code around them. Keep desktop/README.md accurate.',
+    'HOW TO READ THIS CODE. Its files are long (500 to 1000 lines) and your memory is short: if you read whole files you',
+    'will run out of room and forget what you read. So:',
+    '- Find things first: grep -n "name" desktop/renderer/*.js (or the bash tool with grep/rg).',
+    '- Then read only around what you found: the read tool with offset and limit, 150 lines at most at a time.',
+    '- Never read a whole file of more than 200 lines, desktop/README.md included: grep it for the part you need.',
+    '- Make the edit as soon as you know enough. Do not re-read what you have already read.',
+    '',
+    'WHERE THINGS ARE (search for these names):',
+    '- The ring of abilities (the menu that opens on a click): desktop/renderer/app.js, function openRing, closeRing.',
+    '- Every ability (name, cost, what it does): desktop/renderer/abilities.js, `const list = [`; Speak casts them by id (CASTABLE).',
+    '- The page styles: desktop/renderer/style.css (search for the class name, e.g. .ring-btn).',
+    '- The Garden idle game: rules in desktop/crypt.js (export function act), drawn by desktop/renderer/crypt.js.',
+    '- The dragon: rules in desktop/dragon.js, drawn by desktop/renderer/dragon.js (createDragon).',
+    '- Speak, his chat: desktop/oracle.js (the TOOLS list, the system prompt), desktop/renderer/speak.js.',
+    '- The main process (windows, tray, saving): desktop/main.js. Sprites: desktop/assets/.',
+    '- Tests of the page: tests/desktop.mjs (search for the feature name, e.g. "ring").',
+    '',
+    'Make the change with small, careful edits in the style of the code around them. If tests check what you changed, update them.',
     'Do not touch .github/ or anything outside this folder. Do not push.',
-    'When you are done, run the checks and fix what fails: npm run lint && node tests/desktop.mjs && (cd desktop && npm run test:quick)'
+    'When you are done, run the checks and fix what fails: npm run lint && node tests/desktop.mjs && (cd desktop && npm run test:quick)',
+    'Before you say you are done, run git diff --stat: if it shows nothing, you have not made the change yet.'
   ].join('\n');
 }
 
@@ -126,8 +148,19 @@ say "Handing over to ${local ? 'OpenCode on ' + CODER.name : 'Claude Code on ' +
 agent "$(cat "$PROMPT_FILE")"
 
 git add -A
-if git diff --cached --quiet; then
-  say "Nothing changed."
+${local ? `# The local model can believe it has finished when it has not. Check, and
+# offer the job to Claude Code instead.
+if git diff --cached --quiet && command -v claude >/dev/null; then
+  say "OpenCode made no changes, whatever it said."
+  if ask "Hand the job to Claude Code (${CLAUDE_MODELS[claudeModel]}) instead?"; then
+    kill $SERVER_PID 2>/dev/null
+    agent() { claude --model ${claudeModel} "$1"; }
+    agent "$(cat "$PROMPT_FILE")"
+    git add -A
+  fi
+fi
+` : ''}if git diff --cached --quiet; then
+  say "Nothing changed: the agent made no edits, whatever it said."
   cd "$REPO" && git worktree remove --force "$WORK" && git branch -q -D "$BRANCH"
   read -r -p "Press Return to close." _; exit 0
 fi

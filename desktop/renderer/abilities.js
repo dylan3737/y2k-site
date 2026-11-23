@@ -731,6 +731,26 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
+      // The dragon's breath across the screen, then its element's ruin: Ember
+      // burns it, Frost shatters it, Shadow swallows it, Storm scrambles it.
+      id: 'dragonbreath', name: 'Dragonbreath', cost: 15, school: 'fire', blurb: 'Your dragon breathes across the screen: fire, ice, shadow or lightning, by its element.',
+      ready: () => {
+        const d = ctx.dragon && ctx.dragon.get();
+        if (!d) return 'There is no dragon yet.\n(Take the egg from the Dragon card.)';
+        if (d.stageIndex < 2) return 'Your dragon is too young.\nRaise it to a drake.';
+        return wreckReady();
+      },
+      cast: async () => {
+        const d = ctx.dragon.get();
+        ctx.dragon.breathAcross();
+        await new Promise((r) => setTimeout(r, 650));
+        const effect = { ember: 'burn', frost: 'shatter', shadow: 'vortex', storm: 'glitch' }[d.element];
+        const how = await wreck(effect);
+        if (how === 'nogl') say('Its breath fades.\n(This computer can’t draw it.)', 4000);
+        else say({ ember: 'Scorched.', frost: 'Frozen. Shattered.', shadow: 'Swallowed by shadow.', storm: 'Thunderstruck.' }[d.element], 3000);
+      }
+    },
+    {
       id: 'dragon', name: 'Dragon', cost: 0, school: 'spirit', blurb: 'Your dragon: its egg, raising and training it, and ascension.',
       free: true,
       active: () => ctx.dragon.isOpen(),
@@ -788,7 +808,7 @@ export function createAbilities(ctx) {
   }
 
   // Speak's tools. Inputs are checked here: they arrive as streamed JSON.
-  const CASTABLE = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'hum', 'vanish'];
+  const CASTABLE = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'dragonbreath', 'hum', 'vanish'];
 
   async function runTool(name, input) {
     switch (name) {
@@ -890,6 +910,25 @@ export function createAbilities(ctx) {
         if (typeof input.query !== 'string' || !input.query.trim()) return { ok: false, error: 'query must be a non-empty string' };
         if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
         return companion.findFiles(input.query);
+      }
+      // The dragon: its state, and what the user asks to do with it.
+      case 'dragon': {
+        const a = input.action;
+        const what = { pet: { pet: true }, snail: { snail: true }, ascend: { ascend: true }, adopt: { adopt: true },
+          feed: Number.isInteger(input.souls) && input.souls > 0 && input.souls <= 1000 ? { feed: input.souls } : null,
+          train: ['hunt', 'garden', 'tricks'].includes(input.kind) ? { train: input.kind } : null,
+          perk: ['power', 'garden', 'looks', 'tricks'].includes(input.perk) ? { perk: input.perk } : null }[a];
+        if (a === 'status') {
+          const d = ctx.dragon.get();
+          return { ok: true, result: d ? { ...d, perks: d.perks.map((p) => p.name + ' ' + p.level + '/' + p.max) } : { dragon: 'none yet: there is an egg to take' } };
+        }
+        if (!what) return { ok: false, error: 'action must be status, pet, feed (with souls 1-1000), snail, train (with kind), ascend, perk (with perk) or adopt' };
+        const out = await companion.crypt({ dragon: what });
+        if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+        const d = ctx.dragon.get();
+        return out.ok
+          ? { ok: true, result: { did: a, stage: d && d.stage, xp: d && d.xp, nextAt: d && d.nextAt, bond: d && d.bond, energy: d && d.energy, grew: out.grew, hatched: out.hatched, scales: d && d.scales } }
+          : { ok: false, error: out.error };
       }
       // GitHub: reading is free; any change is asked, in the words the app gives.
       case 'github_read':

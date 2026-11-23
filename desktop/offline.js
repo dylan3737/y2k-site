@@ -22,6 +22,7 @@ export const HELP = [
   '• open Spotify / go to youtube.com / search for pixel art',
   '• find resume',
   '• prs / issues / did ci pass / notifications (GitHub)',
+  '• how\'s my dragon / pet the dragon / feed the dragon a snail / train the dragon to hunt',
   '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
 ].join('\n');
@@ -265,6 +266,20 @@ function reaching(text, original) {
       return out.ok ? 'A Terminal opens. Watch me work, on ' + out.result.branch + '.' : out.error || 'I could not.';
     };
   }
+  // The dragon.
+  const dr = (input, line) => async ({ tool }) => {
+    const out = await tool('dragon', input);
+    return out.ok ? line(out.result) : out.error || 'The dragon ignores you.';
+  };
+  if (/^(how('|’)?s|how is|check( on)?|show)( my| the)? dragon\??$|^dragon\??$/.test(text)) {
+    return dr({ action: 'status' }, (d) => (d.dragon ? 'No dragon yet: ' + d.dragon + '.' : d.stage === 'egg'
+      ? 'A ' + d.element + ' egg, ' + d.warmth + '% warm.'
+      : 'Your ' + d.element + ' ' + d.stage + (d.branch ? ', a ' + d.branch : '') + '. Growth ' + d.xp + (d.nextAt ? '/' + d.nextAt : '') + ', bond ' + d.bond + ', energy ' + d.energy + '.'));
+  }
+  if (/^(pet|scratch|stroke)( my| the)? dragon$/.test(text)) return dr({ action: 'pet' }, () => 'It leans into it.');
+  if (/^(feed|give)( my| the)? dragon( a)? snail$|^feed( my| the)? dragon$/.test(text)) return dr({ action: 'snail' }, () => 'Crunch. Its favourite.');
+  const tr = /^train( my| the)? dragon( to| in)? (hunt|hunting|garden|gardening|tricks?)$/.exec(text);
+  if (tr) return dr({ action: 'train', kind: tr[3].startsWith('hunt') ? 'hunt' : tr[3].startsWith('garden') ? 'garden' : 'tricks' }, (d) => 'Trained. Energy ' + d.energy + '.');
   // GitHub, read only: anything that changes it goes through a mind, and asks.
   const gh = (input, line) => async ({ tool }) => {
     const out = await tool('github_read', input);

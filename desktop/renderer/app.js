@@ -274,14 +274,25 @@ companion.setAbilities(abilities.list.map((a) => ({ id: a.id, name: a.name })));
 
 let ringAt = null;
 
-function openRing() {
+// The screen effects live on a ring of their own, behind an Effects button.
+const EFFECTS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
+const FOLDERS = {
+  effects: { id: 'effects', name: 'Effects', school: 'death', blurb: 'Slash, shatter, glitch, vortex, burn, melt and soulrip.', folder: 'effects' },
+  back: { id: 'back', name: 'Back', school: 'message', blurb: 'Back to all his abilities.', folder: null }
+};
+
+function openRing(group = null) {
+  const keepAt = ringAt;
   ring.replaceChildren();
-  const list = abilities.list;
+  ring.dataset.group = group || 'main';
+  const list = group === 'effects'
+    ? [...abilities.list.filter((a) => EFFECTS.includes(a.id)), FOLDERS.back]
+    : abilities.list.flatMap((a) => (a.id === EFFECTS[0] ? [FOLDERS.effects] : EFFECTS.includes(a.id) ? [] : [a]));
   // Wide enough that the buttons don't overlap, however many there are:
   // about 92 pixels of the ring for each.
   const radius = Math.max(116, Math.round((list.length * 92) / (Math.PI * 2)));
   ring.style.setProperty('--r', radius + 'px');
-  const c = center();
+  const c = keepAt || center();
   ringAt = { x: clamp(c.x, radius + 50, innerWidth - radius - 50), y: clamp(c.y, radius + 24, innerHeight - radius - 24) };
   ring.style.left = ringAt.x + 'px';
   ring.style.top = ringAt.y + 'px';
@@ -291,7 +302,8 @@ function openRing() {
     btn.type = 'button';
     btn.className = 'ring-btn hit';
     btn.dataset.id = a.id;
-    btn.dataset.cost = a.cost;
+    btn.dataset.cost = a.cost || 0;
+    if ('folder' in a) btn.classList.add('is-folder');
     btn.setAttribute('role', 'menuitem');
     btn.style.setProperty('--school', `var(--${a.school})`);
     btn.style.setProperty('--x', Math.round(Math.cos(angle) * radius) + 'px');
@@ -302,10 +314,11 @@ function openRing() {
     btn.title = a.blurb;
     btn.innerHTML = '<span></span><small></small>';
     btn.firstChild.textContent = a.name;
-    btn.lastChild.textContent = active ? 'stop' : (a.cost ? a.cost + ' soul' : 'free');
+    btn.lastChild.textContent = 'folder' in a ? (a.folder ? EFFECTS.length + ' more' : '') : active ? 'stop' : (a.cost ? a.cost + ' soul' : 'free');
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      abilities.cast(a.id);
+      if ('folder' in a) openRing(a.folder);
+      else abilities.cast(a.id);
     });
     ring.appendChild(btn);
   });
@@ -331,7 +344,7 @@ let dragging = null;
 function hitTest() {
   const el = cursor.x > -999 ? document.elementFromPoint(cursor.x, cursor.y) : null;
   // A skeleton in the hand keeps the mouse too, even when the cursor slips off it.
-  const want = !!dragging || crypt.holding() || !!(el && el.closest('.hit'));
+  const want = !!dragging || crypt.holding() || (ctx.dragon && ctx.dragon.holding()) || !!(el && el.closest('.hit'));
   if (want !== interactive) {
     interactive = want;
     companion.interactive(want);

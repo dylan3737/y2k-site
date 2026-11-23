@@ -60,6 +60,11 @@ async function castFromRing(page, id) {
     await page.click('#body', { force: true });
     await page.waitForTimeout(260);
   }
+  // The screen effects are behind the Effects button.
+  if (!(await page.$(`.ring-btn[data-id="${id}"]`)) && (await page.$('.ring-btn[data-id="effects"]'))) {
+    await page.click('.ring-btn[data-id="effects"]', { force: true, timeout: 5000 });
+    await page.waitForTimeout(150);
+  }
   await page.click(`.ring-btn[data-id="${id}"]`, { force: true, timeout: 5000 });
   await page.waitForTimeout(150);
 }
@@ -74,7 +79,9 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of fifteen abilities', buttons.length === 15 && buttons.includes('dragon'), buttons.join(','));
+  const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
+  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') &&
+    buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -85,6 +92,13 @@ try {
     return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
   }));
   check('every ring button is on screen', onScreen);
+  await page.click('.ring-btn[data-id="effects"]');
+  await page.waitForTimeout(250);
+  const fx = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
+  check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
+  await page.click('.ring-btn[data-id="back"]');
+  await page.waitForTimeout(250);
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
@@ -380,13 +394,18 @@ try {
   check('souls raise a skeleton', (await banked()) === '57 souls' &&
     (await page.textContent('#card')).includes('One worker gathers 1.5 souls an hour'), await page.textContent('#card'));
   check('the moss sprite works on screen', (await page.$$('.field .digger')).length === 1);
-  const bones = await page.locator('.field .digger').boundingBox();
-  await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
-  await page.waitForTimeout(50);
-  const fadedOver = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
-  await page.mouse.move(bones.x + bones.width / 2, bones.y - 120);
-  await page.waitForTimeout(50);
-  const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  // It wanders, so follow it with the cursor till it fades (or a second passes).
+  const isFaded = () => page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  let fadedOver = false, bones;
+  for (let i = 0; i < 20 && !fadedOver; i++) {
+    bones = await page.locator('.field .digger').boundingBox();
+    await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
+    await page.waitForTimeout(50);
+    fadedOver = await isFaded();
+  }
+  await page.mouse.move(bones.x + bones.width / 2, Math.max(5, bones.y - 160));
+  let fadedAway = true;
+  for (let i = 0; i < 20 && fadedAway; i++) { await page.waitForTimeout(50); fadedAway = await isFaded(); }
   check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
   check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
   check('the other workers wait for a rank',
@@ -421,6 +440,19 @@ try {
   check('or one that does not exist', !out.ok && /No such upgrade/.test(out.error), JSON.stringify(out));
   out = await tool('raise_worker', {});
   check('Speak cannot raise a skeleton without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  // Speak and the dragon.
+  out = await tool('dragon', { action: 'status' });
+  check('Speak knows when there is no dragon yet', out.ok && /egg to take/.test(out.result.dragon), JSON.stringify(out));
+  out = await tool('cast', { ability: 'dragonbreath' });
+  check('Dragonbreath needs a dragon', !out.ok && /no dragon/i.test(out.error), JSON.stringify(out));
+  out = await tool('dragon', { action: 'adopt' });
+  check('Speak can take the egg when asked', out.ok && out.result.stage === 'egg', JSON.stringify(out));
+  out = await tool('dragon', { action: 'status' });
+  check('and tell how it is', out.ok && out.result.stage === 'egg' && typeof out.result.warmth === 'number' && Array.isArray(out.result.perks), JSON.stringify(out).slice(0, 200));
+  out = await tool('dragon', { action: 'feed', souls: 5000 });
+  check('a silly feeding is refused', !out.ok);
+  out = await tool('dragon', { action: 'train', kind: 'hunt' });
+  check('an egg cannot be trained, and Speak says why', !out.ok && /hatched/.test(out.error), JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
   // Shut for two hours with one skeleton and sharper shovels: 3.75 souls, told on the way in.
@@ -562,8 +594,10 @@ try {
   await page.click('#card .chip:has-text("50 souls")');
   await page.waitForTimeout(250);
   check('fed souls, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  // Training starts its drill (a flight lesson); left alone, it still learns a little.
   await page.click('#card .chip:has-text("Garden ·")');
-  await page.waitForTimeout(250);
+  check('training starts a drill', !!(await page.waitForSelector('.drill-ring', { timeout: 2000 }).catch(() => null)));
+  await page.waitForTimeout(11800);
   check('trained, it learns, and tires', (await page.evaluate(() => window.__reaper.dragon.get().train.garden)) === 1 &&
     (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 75);
   // Its favourite food: a snail from the garden.
@@ -605,6 +639,59 @@ try {
   await page.click('#card .chip[data-perk="power"]');
   await page.waitForTimeout(250);
   check('scales buy a perk', (await page.evaluate(() => window.__reaper.dragon.get().perks.find((p) => p.id === 'power').level)) === 1);
+  // Training you play: target practice, a flight lesson, fetch.
+  page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 0, total: 0, at: Date.now(),
+    dragon: { element: 'storm', stage: 2, xp: 150, bond: 50, energy: 100, lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });
+  const xpStart = await page.evaluate(() => window.__reaper.dragon.get().xp);
+  const practice = page.evaluate(() => window.__reaper.dragon.drill('hunt'));
+  for (let i = 0; i < 30; i++) {
+    const orb = await page.$('.drill-orb:not(.is-popped)');
+    if (orb) { const b = await orb.boundingBox(); if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
+    await page.waitForTimeout(300);
+  }
+  const shot = await practice;
+  const afterHunt = await page.evaluate(() => window.__reaper.dragon.get());
+  check('target practice: click the lights, and how well it went is how much it learns', shot.ok && shot.quality >= 0.5 &&
+    afterHunt.train.hunt === 1 && afterHunt.xp - xpStart >= 20, JSON.stringify({ q: shot.quality, xp: afterHunt.xp - xpStart }));
+  const lesson = page.evaluate(() => window.__reaper.dragon.drill('garden'));
+  await page.waitForTimeout(500);
+  for (let i = 0; i < 4; i++) {
+    const ring = await page.$('.drill-ring:not(.is-passed)');
+    if (!ring) break;
+    const b = await ring.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 });
+    await page.waitForTimeout(500);
+  }
+  const flown = await lesson;
+  check('a flight lesson: it follows the cursor through the rings', flown.ok && flown.quality >= 0.75, JSON.stringify(flown).slice(0, 120));
+  const fetching = page.evaluate(() => window.__reaper.dragon.drill('tricks'));
+  for (let k = 0; k < 3; k++) {
+    await page.waitForTimeout(700);
+    const ball = await page.$('.drill-ball');
+    if (!ball) break;
+    const b = await ball.boundingBox();
+    await page.mouse.move(b.x + 12, b.y + 12);
+    await page.mouse.down();
+    for (let i = 1; i <= 5; i++) { await page.mouse.move(b.x + 12 - i * 60, b.y + 12 - i * 20); await page.waitForTimeout(16); }
+    await page.mouse.up();
+    await page.waitForTimeout(1600);
+  }
+  const fetched = await fetching;
+  check('fetch: throw the ball and it brings it back; three throws', fetched.ok && fetched.quality > 0.2 &&
+    (await page.evaluate(() => window.__reaper.dragon.get().train.tricks)) === 1, JSON.stringify(fetched).slice(0, 120));
+  check('three drills tire it', (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 25);
+  // Dragonbreath: a storm drake breathes lightning across the screen.
+  const bolts = page.evaluate(() => new Promise((resolve) => {
+    let n = 0;
+    const seen = new MutationObserver((list) => {
+      for (const m of list) for (const a of m.addedNodes) if (a.classList && a.classList.contains('breath-bolt')) n++;
+    });
+    seen.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => { seen.disconnect(); resolve(n); }, 900);
+  }));
+  const breathed = await page.evaluate(() => window.__reaper.abilities.cast('dragonbreath'));
+  check('Dragonbreath: a storm dragon breathes lightning across the screen', breathed.ok !== false && (await bolts) >= 3, JSON.stringify(breathed));
+
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
     dragon: { element: 'ember', stage: 3, xp: 500, bond: 80, energy: 100, branch: 'hunter', lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });

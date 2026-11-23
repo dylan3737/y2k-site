@@ -168,14 +168,18 @@ export function snack(d, now = Date.now()) {
   return { ok: true, ate: 'snail', ...gain(d, SNAIL_XP) };
 }
 
-export function train(d, kind, now = Date.now()) {
+// A training session; `quality` (0 to 1) is how well the drill went (the
+// page's little games: target practice, a flight lesson, fetch). Ten for
+// turning up, up to thirty for a perfect drill.
+export function train(d, kind, now = Date.now(), quality = 0.5) {
   if (!(kind in d.train)) return { ok: false, error: 'Train it to hunt, to tend the garden, or in tricks.' };
   if (d.stage === 0) return { ok: false, error: 'It has not hatched yet.' };
   if (d.energy < TRAIN_COST) return { ok: false, error: 'It is tired. Let it rest a while.' };
+  const q = clamp(num(quality, 0.5), 0, 1);
   d.energy -= TRAIN_COST;
   d.train[kind] += 1;
-  care(d, now, 3);
-  return { ok: true, trained: kind, ...gain(d, 20) };
+  care(d, now, 2 + Math.round(q * 3));
+  return { ok: true, trained: kind, quality: Math.round(q * 100) / 100, ...gain(d, 10 + 20 * q) };
 }
 
 // Ghosts it helped catch in a hunt.
