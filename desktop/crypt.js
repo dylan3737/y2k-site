@@ -509,7 +509,7 @@ export function dragonAct(c, a, now = Date.now()) {
     out = dragons.feed(d, n, now);
     if (out.ok) c.souls -= n;
   } else if (a.train) {
-    out = dragons.train(d, a.train, now);
+    out = dragons.train(d, a.train, now, a.quality);
   } else if (a.ascend) {
     out = dragons.ascend(d, now);
   } else if (typeof a.perk === 'string') {

@@ -438,6 +438,19 @@ body.is-capturing * { visibility: hidden !important; }
 .dragon-spark.is-shadow { --breath: rgba(216, 150, 255, 0.95); }
 .dragon-spark.is-storm { --breath: rgba(255, 232, 140, 0.95); }
 @keyframes spark { to { translate: var(--dx) var(--dy); opacity: 0; } }
+/* Training: lights to click, rings to fly through, a ball to throw. */
+.drill-orb { position: fixed; width: 28px; height: 28px; border-radius: 50%; cursor: crosshair; z-index: 8;
+  background: radial-gradient(circle, #fff 0 25%, #ffd8f0 45%, rgba(216, 150, 255, 0.4) 70%, transparent 72%);
+  box-shadow: 0 0 14px rgba(216, 150, 255, 0.9); animation: orb-in 0.3s ease-out; }
+.drill-orb.is-popped { animation: orb-pop 0.35s ease-out forwards; pointer-events: none; }
+@keyframes orb-in { from { scale: 0; } }
+@keyframes orb-pop { to { scale: 1.8; opacity: 0; } }
+.drill-ring { position: fixed; width: 60px; height: 60px; border-radius: 50%; pointer-events: none; z-index: 5;
+  border: 3px dashed rgba(156, 230, 199, 0.9); box-shadow: 0 0 12px rgba(156, 230, 199, 0.6); animation: ring-spin 4s linear infinite; }
+.drill-ring.is-passed { border-style: solid; border-color: #fff; animation: orb-pop 0.4s ease-out forwards; }
+@keyframes ring-spin { to { rotate: 1turn; } }
+.drill-ball { position: fixed; width: 24px; height: 24px; border-radius: 50%; cursor: grab; z-index: 8;
+  background: radial-gradient(circle at 35% 35%, #fff, #ffe58a 40%, #f0a050); box-shadow: 0 0 10px rgba(255, 220, 120, 0.8); }
 /* Its card. */
 .dragon-title { font-size: 10px; color: #fff; margin: 0 0 8px; text-transform: capitalize; }
 .dragon-meter { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 8px; margin: 4px 0; }
@@ -491,7 +504,7 @@ body.is-capturing * { visibility: hidden !important; }
   .wisp, .snore { display: none; }
   .moth.is-flying, .wisp-worker, .ghost.is-golden::before, .cocoon, .bee { animation: none; }
   .note, .pollen { display: none; }
-  .dragon, .dragon.is-egg { animation: none; }
+  .dragon, .dragon.is-egg, .drill-ring { animation: none; }
   .digger.is-held, .digger.is-landing { animation: none !important; }
 }
 

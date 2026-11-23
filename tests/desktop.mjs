@@ -421,6 +421,17 @@ try {
   check('or one that does not exist', !out.ok && /No such upgrade/.test(out.error), JSON.stringify(out));
   out = await tool('raise_worker', {});
   check('Speak cannot raise a skeleton without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  // Speak and the dragon.
+  out = await tool('dragon', { action: 'status' });
+  check('Speak knows when there is no dragon yet', out.ok && /egg to take/.test(out.result.dragon), JSON.stringify(out));
+  out = await tool('dragon', { action: 'adopt' });
+  check('Speak can take the egg when asked', out.ok && out.result.stage === 'egg', JSON.stringify(out));
+  out = await tool('dragon', { action: 'status' });
+  check('and tell how it is', out.ok && out.result.stage === 'egg' && typeof out.result.warmth === 'number' && Array.isArray(out.result.perks), JSON.stringify(out).slice(0, 200));
+  out = await tool('dragon', { action: 'feed', souls: 5000 });
+  check('a silly feeding is refused', !out.ok);
+  out = await tool('dragon', { action: 'train', kind: 'hunt' });
+  check('an egg cannot be trained, and Speak says why', !out.ok && /hatched/.test(out.error), JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
   // Shut for two hours with one skeleton and sharper shovels: 3.75 souls, told on the way in.
@@ -562,8 +573,10 @@ try {
   await page.click('#card .chip:has-text("50 souls")');
   await page.waitForTimeout(250);
   check('fed souls, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  // Training starts its drill (a flight lesson); left alone, it still learns a little.
   await page.click('#card .chip:has-text("Garden ·")');
-  await page.waitForTimeout(250);
+  check('training starts a drill', !!(await page.waitForSelector('.drill-ring', { timeout: 2000 }).catch(() => null)));
+  await page.waitForTimeout(11800);
   check('trained, it learns, and tires', (await page.evaluate(() => window.__reaper.dragon.get().train.garden)) === 1 &&
     (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 75);
   // Its favourite food: a snail from the garden.
@@ -605,6 +618,48 @@ try {
   await page.click('#card .chip[data-perk="power"]');
   await page.waitForTimeout(250);
   check('scales buy a perk', (await page.evaluate(() => window.__reaper.dragon.get().perks.find((p) => p.id === 'power').level)) === 1);
+  // Training you play: target practice, a flight lesson, fetch.
+  page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 0, total: 0, at: Date.now(),
+    dragon: { element: 'storm', stage: 2, xp: 150, bond: 50, energy: 100, lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });
+  const xpStart = await page.evaluate(() => window.__reaper.dragon.get().xp);
+  const practice = page.evaluate(() => window.__reaper.dragon.drill('hunt'));
+  for (let i = 0; i < 30; i++) {
+    const orb = await page.$('.drill-orb:not(.is-popped)');
+    if (orb) { const b = await orb.boundingBox(); if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
+    await page.waitForTimeout(300);
+  }
+  const shot = await practice;
+  const afterHunt = await page.evaluate(() => window.__reaper.dragon.get());
+  check('target practice: click the lights, and how well it went is how much it learns', shot.ok && shot.quality >= 0.5 &&
+    afterHunt.train.hunt === 1 && afterHunt.xp - xpStart >= 20, JSON.stringify({ q: shot.quality, xp: afterHunt.xp - xpStart }));
+  const lesson = page.evaluate(() => window.__reaper.dragon.drill('garden'));
+  await page.waitForTimeout(500);
+  for (let i = 0; i < 4; i++) {
+    const ring = await page.$('.drill-ring:not(.is-passed)');
+    if (!ring) break;
+    const b = await ring.boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 });
+    await page.waitForTimeout(500);
+  }
+  const flown = await lesson;
+  check('a flight lesson: it follows the cursor through the rings', flown.ok && flown.quality >= 0.75, JSON.stringify(flown).slice(0, 120));
+  const fetching = page.evaluate(() => window.__reaper.dragon.drill('tricks'));
+  for (let k = 0; k < 3; k++) {
+    await page.waitForTimeout(700);
+    const ball = await page.$('.drill-ball');
+    if (!ball) break;
+    const b = await ball.boundingBox();
+    await page.mouse.move(b.x + 12, b.y + 12);
+    await page.mouse.down();
+    for (let i = 1; i <= 5; i++) { await page.mouse.move(b.x + 12 - i * 60, b.y + 12 - i * 20); await page.waitForTimeout(16); }
+    await page.mouse.up();
+    await page.waitForTimeout(1600);
+  }
+  const fetched = await fetching;
+  check('fetch: throw the ball and it brings it back; three throws', fetched.ok && fetched.quality > 0.2 &&
+    (await page.evaluate(() => window.__reaper.dragon.get().train.tricks)) === 1, JSON.stringify(fetched).slice(0, 120));
+  check('three drills tire it', (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 25);
+
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
     dragon: { element: 'ember', stage: 3, xp: 500, bond: 80, energy: 100, branch: 'hunter', lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });

@@ -5,10 +5,9 @@
 import { el, chip } from './dom.js';
 
 // On-screen size of each stage (its pixel art at twice the size).
-// (Frames of 40x38 and 46x46 art pixels for the young ones; the wyvern and
-// elder are 48x38 and 60x48.)
+// (Frames of 40x38, 46x46, 64x56 and 78x66 art pixels, from hatchling to elder.)
 const SIZE = {
-  egg: [40, 48], hatchling: [80, 76], drake: [92, 92], wyvern: [96, 76], elder: [120, 96], ancient: [120, 96]
+  egg: [40, 48], hatchling: [80, 76], drake: [92, 92], wyvern: [128, 112], elder: [156, 132], ancient: [156, 132]
 };
 const NAMES = { ember: 'Ember', frost: 'Frost', shadow: 'Shadow', storm: 'Storm' };
 const BRANCH = { hunter: 'Hunter: breathes on ghosts in hunts', guardian: 'Guardian: the garden grows faster', trickster: 'Trickster: its play is worth souls' };
@@ -112,7 +111,7 @@ export function createDragon(ctx) {
   // Where it goes: after the reaper, a little behind him; now and then off to
   // nap by the garden or to perch at the top of the screen.
   function wander() {
-    if (!now || now.stage === 'egg' || document.hidden) return;
+    if (!now || now.stage === 'egg' || document.hidden || mode === 'drill') return;
     const t = performance.now();
     const [w, h] = SIZE[now.stage];
     if (t < until && mode !== 'follow') return;
@@ -205,6 +204,162 @@ export function createDragon(ctx) {
     }
   }
 
+  // --- Training you play ------------------------------------------------------------
+  // Each kind of training is a little game; how well it went is the quality the
+  // rules weigh it by (a better drill, more growth).
+  let drilling = false;
+  let heldBall = null;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const spot = (pad = 80) => ({ x: rand(pad, innerWidth - pad), y: rand(pad, innerHeight - pad - 80) });
+
+  // Hunt: lights appear about the screen; click one and it breathes on it.
+  async function targetPractice() {
+    const n = 6;
+    let hit = 0;
+    say('Target practice.\nClick the lights.', 3000);
+    for (let i = 0; i < n; i++) {
+      const p = spot();
+      const orb = el('div', 'drill-orb hit');
+      orb.style.left = Math.round(p.x - 14) + 'px';
+      orb.style.top = Math.round(p.y - 14) + 'px';
+      orb.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        if (orb.classList.contains('is-popped')) return;
+        hit += 1;
+        breathe(p.x, p.y);
+        orb.classList.add('is-popped');
+        setTimeout(() => orb.remove(), 400);
+      });
+      field.appendChild(orb);
+      setTimeout(() => orb.isConnected && !orb.classList.contains('is-popped') && orb.remove(), 3200);
+      await wait(900);
+    }
+    await wait(3000);
+    return hit / n;
+  }
+
+  // Garden: it follows your cursor for a while; fly it through the rings.
+  async function flightLesson() {
+    const rings = Array.from({ length: 4 }, () => {
+      const p = spot(110);
+      const ring = el('div', 'drill-ring');
+      ring.style.left = Math.round(p.x - 30) + 'px';
+      ring.style.top = Math.round(p.y - 30) + 'px';
+      field.appendChild(ring);
+      return { ...p, ring, passed: false };
+    });
+    say('Flight lesson.\nLead it through the rings with your cursor.', 3500);
+    const [w, h] = SIZE[now.stage];
+    const end = performance.now() + 11000;
+    while (performance.now() < end && rings.some((r) => !r.passed)) {
+      const c = ctx.cursor;
+      if (c && c.x > -999) {
+        node.classList.toggle('is-right', c.x > x + w / 2);
+        x = c.x - w / 2;
+        y = c.y - h / 2;
+        place(0.12);
+      }
+      for (const r of rings) {
+        if (!r.passed && Math.hypot(x + w / 2 - r.x, y + h / 2 - r.y) < 40) {
+          r.passed = true;
+          r.ring.classList.add('is-passed');
+        }
+      }
+      await wait(60);
+    }
+    rings.forEach((r) => setTimeout(() => r.ring.remove(), 300));
+    return rings.filter((r) => r.passed).length / rings.length;
+  }
+
+  // Tricks: fetch. Throw the ball (drag it and let go); it brings it back.
+  async function fetchGame() {
+    const throws = 3;
+    let distance = 0;
+    say('Fetch.\nThrow the ball: drag it, and let go.', 3500);
+    for (let k = 0; k < throws; k++) {
+      const [w, h] = SIZE[now.stage];
+      const ball = el('div', 'drill-ball hit');
+      let bx = Math.min(innerWidth - 40, x + w + 10);
+      let by = Math.max(10, y + h / 2);
+      const put = () => { ball.style.left = Math.round(bx) + 'px'; ball.style.top = Math.round(by) + 'px'; };
+      put();
+      field.appendChild(ball);
+      // Wait for a throw: a drag and a let-go, or give up after a while.
+      const thrown = await new Promise((resolve) => {
+        const trail = [];
+        const give = setTimeout(() => resolve(null), 9000);
+        ball.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          heldBall = ball;
+          try { ball.setPointerCapture(e.pointerId); } catch {}
+        });
+        ball.addEventListener('pointermove', (e) => {
+          if (heldBall !== ball) return;
+          bx = e.clientX - 12; by = e.clientY - 12; put();
+          trail.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+          if (trail.length > 6) trail.shift();
+        });
+        ball.addEventListener('pointerup', () => {
+          if (heldBall !== ball) return;
+          heldBall = null;
+          clearTimeout(give);
+          const a = trail[0] || { x: bx, y: by, t: 0 }, b = trail[trail.length - 1] || a;
+          const dt = Math.max(16, b.t - a.t);
+          resolve({ vx: (b.x - a.x) / dt, vy: (b.y - a.y) / dt });
+        });
+      });
+      if (!thrown) { ball.remove(); continue; }
+      // It flies, slowing, bouncing off the edges.
+      const from = { x: bx, y: by };
+      let { vx, vy } = thrown;
+      for (let i = 0; i < 40 && Math.hypot(vx, vy) > 0.05; i++) {
+        bx += vx * 16; by += vy * 16;
+        if (bx < 0 || bx > innerWidth - 24) vx = -vx;
+        if (by < 0 || by > innerHeight - 24) vy = -vy;
+        bx = Math.max(0, Math.min(innerWidth - 24, bx)); by = Math.max(0, Math.min(innerHeight - 24, by));
+        vx *= 0.9; vy *= 0.9;
+        put();
+        await wait(16);
+      }
+      distance += Math.hypot(bx - from.x, by - from.y);
+      // After it! It catches it and brings it back.
+      node.classList.toggle('is-right', bx > x);
+      x = bx - w / 2; y = by - h / 2;
+      place(0.5);
+      await wait(550);
+      ball.remove();
+      await wait(250);
+    }
+    return Math.min(1, distance / 1500);
+  }
+
+  const DRILLS = { hunt: targetPractice, garden: flightLesson, tricks: fetchGame };
+  async function drill(kind) {
+    if (drilling || !now || now.stage === 'egg') return { ok: false, error: 'Not now.' };
+    if (!now.canTrain) { say('It is tired. Let it rest a while.', 3000); return { ok: false, error: 'tired' }; }
+    drilling = true;
+    card.close(owner);
+    mode = 'drill';
+    node.classList.remove('is-napping');
+    let quality = 0;
+    try {
+      quality = await DRILLS[kind]();
+    } finally {
+      drilling = false;
+      heldBall = null;
+      mode = 'follow';
+    }
+    const out = await act({ train: kind, quality });
+    if (out.ok) {
+      sound.bell();
+      const words = quality >= 0.9 ? 'Flawless.' : quality >= 0.5 ? 'Good.' : quality > 0 ? 'It will learn.' : 'It watched you, mostly.';
+      say(words + '\n+' + out.gained + ' growth.', 3500);
+    } else {
+      say(out.error, 3000);
+    }
+    return out;
+  }
+
   // --- Its card ---------------------------------------------------------------------
   const box = el('div', 'dragon-card');
   const head = el('h2', null, 'DRAGON');
@@ -265,7 +420,7 @@ export function createDragon(ctx) {
       }
       const train = el('div', 'row');
       train.append(el('span', 'muted', 'Train:'), ...TRAIN.map(([k, label]) => {
-        const c = chip(label + ' · ' + d.train[k], () => act({ train: k }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))));
+        const c = chip(label + ' · ' + d.train[k], () => drill(k));
         c.disabled = !d.canTrain;
         return c;
       }));
@@ -311,6 +466,9 @@ export function createDragon(ctx) {
     breathe,
     dive,
     fireworks,
+    drill,
+    // The fetch ball is in the hand: the window keeps the mouse till it is let go.
+    holding: () => !!heldBall,
     // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.
     breaths: () => (now ? now.breaths : 0),
     lore: () => (now ? (now.perks.find((p) => p.id === 'tricks') || { level: 0 }).level : 0),
