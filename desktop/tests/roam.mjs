@@ -52,7 +52,9 @@ check('a sliver of shared edge is no door', doorsOf(mon(1, 0, 0, 1920, 1080), [m
 
 // --- The app, on several monitors ----------------------------------------------------
 const here = path.dirname(fileURLToPath(import.meta.url));
-const env = { ...process.env, XDG_CONFIG_HOME: mkdtempSync(path.join(tmpdir(), 'reaper-roam-')), OLLAMA_HOST: '127.0.0.1:1' };
+// Its own data folder on every system (XDG_CONFIG_HOME alone is Linux only).
+const scratch = mkdtempSync(path.join(tmpdir(), 'reaper-roam-'));
+const env = { ...process.env, XDG_CONFIG_HOME: scratch, REAPER_USER_DATA: path.join(scratch, 'Reaper'), OLLAMA_HOST: '127.0.0.1:1' };
 delete env.ANTHROPIC_API_KEY;
 const app = await electron.launch({ executablePath: createRequire(import.meta.url)('electron'), args: [path.join(here, '..')], env });
 try {

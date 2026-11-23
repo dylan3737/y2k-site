@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { STARTING_SOULS } from '../crypt.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.join(here, '..');
@@ -18,8 +19,11 @@ function check(name, ok, detail = '') {
   if (!ok) failures++;
 }
 
-// A fresh profile, and no API key, so the run touches nothing real.
-const env = { ...process.env, XDG_CONFIG_HOME: mkdtempSync(path.join(tmpdir(), 'reaper-')) };
+// A fresh profile, and no API key, so the run touches nothing real. (Its
+// own data folder on every system: XDG_CONFIG_HOME alone keeps it apart only
+// on Linux, and on a Mac it once played with the user's real garden.)
+const scratch = mkdtempSync(path.join(tmpdir(), 'reaper-'));
+const env = { ...process.env, XDG_CONFIG_HOME: scratch, REAPER_USER_DATA: path.join(scratch, 'Reaper') };
 delete env.ANTHROPIC_API_KEY;
 delete env.ANTHROPIC_AUTH_TOKEN;
 // And no Ollama, wherever this runs.
@@ -114,12 +118,14 @@ try {
   // The Crypt is kept by the main process.
   await page.evaluate(() => window.companion.stat('focus', 1, 30));
   await page.waitForTimeout(200);
-  // 30 minutes and the first-hourglass milestone (15), less 25, plus the first-skeleton milestone (10).
+  // A new garden's starting souls, 30 minutes and the first-hourglass milestone (15), less 25,
+  // plus the first-skeleton milestone (10).
   const raised = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
-  check('a finished hourglass banks souls that raise a skeleton', raised.ok && raised.crypt.skeletons === 1 && raised.crypt.souls === 30, JSON.stringify([raised.ok, raised.crypt.souls]));
+  check('a finished hourglass banks souls that raise a skeleton', raised.ok && raised.crypt.skeletons === 1 && raised.crypt.souls === STARTING_SOULS + 30, JSON.stringify([raised.ok, raised.crypt.souls]));
   check('the skeleton digs on screen', (await page.$$('.digger')).length === 1);
-  const poor = await page.evaluate(() => window.companion.crypt({ raise: 1 }));
-  check('the crypt refuses what the souls cannot pay for', !poor.ok && poor.crypt.skeletons === 1, poor.error);
+  // Finer sand costs 120; the garden holds 55.
+  const poor = await page.evaluate(() => window.companion.crypt({ buy: 'sand' }));
+  check('the crypt refuses what the souls cannot pay for', !poor.ok && /Not enough souls/.test(poor.error) && poor.crypt.upgrades[2].level === 0, poor.error);
   await page.evaluate(() => window.companion.stat('focus', 1, 60));
   const bought = await page.evaluate(() => window.companion.crypt({ buy: 'shovels' }));
   check('souls buy an upgrade', bought.ok && bought.level === 1 && bought.crypt.upgrades[0].level === 1 && bought.crypt.perHour === 1.9, JSON.stringify([bought.ok, bought.error, bought.crypt.perHour]));

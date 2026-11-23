@@ -19,6 +19,9 @@ import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// Tests run him with a data folder of their own, so they never touch the
+// user's save (or wait on the copy of him already running).
+if (process.env.REAPER_USER_DATA) app.setPath('userData', process.env.REAPER_USER_DATA);
 const asset = (name) => path.join(here, 'assets', name);
 
 const COME_KEY = 'CommandOrControl+Alt+R';
