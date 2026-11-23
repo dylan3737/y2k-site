@@ -403,6 +403,8 @@ export function createDragon(ctx) {
   }
 
   // --- Its card ---------------------------------------------------------------------
+  // Two tabs: Care (how it is, feeding, training) and Ascend (ascension and
+  // the perks scales buy). The longer words are in tooltips, to keep it small.
   const box = el('div', 'dragon-card');
   const head = el('h2', null, 'DRAGON');
   const close = el('button', 'card-x', '×');
@@ -410,21 +412,114 @@ export function createDragon(ctx) {
   close.setAttribute('aria-label', 'Close');
   close.addEventListener('click', () => card.close(owner));
   head.appendChild(close);
+  let tab = 'care';
+  const tabs = el('div', 'row crypt-tabs');
+  const tabChips = [['care', 'Care'], ['ascend', 'Ascend']].map(([id, label]) => {
+    const c = chip(label, () => { tab = id; paint(); });
+    c.dataset.tab = id;
+    tabs.appendChild(c);
+    return c;
+  });
   const page = el('div', 'dragon-page');
-  box.append(head, page);
+  box.append(head, tabs, page);
 
-  const meter = (label, value, max, kind) => {
+  const meter = (label, value, max, kind, tip) => {
     const row = el('div', 'dragon-meter');
     const bar = el('div', 'dragon-bar ' + (kind || ''));
     const fill = el('span');
     fill.style.width = Math.max(0, Math.min(100, value / max * 100)).toFixed(1) + '%';
     bar.appendChild(fill);
     row.append(el('b', null, label), bar);
+    if (tip) row.title = tip;
     return row;
   };
+  const tipped = (c, tip) => { c.title = tip; return c; };
+
+  function carePage(d) {
+    if (d.stage === 'egg') {
+      page.append(meter('Warmth', d.warmth, 100, 'is-warm'),
+        el('p', 'muted', 'It warms slowly on its own. Click it in the garden to warm it; every finished hourglass warms it more.'));
+      return;
+    }
+    const ap = d.appetite;
+    const meters = el('div', 'dragon-meters');
+    meters.append(
+      meter(d.nextAt ? 'Growth' : 'Grown', d.nextAt ? d.xp : 1, d.nextAt || 1, 'is-xp', d.nextAt ? d.xp + ' of ' + d.nextAt + ' to grow' : 'Fully grown'),
+      meter('Bond', d.bond, 100, 'is-bond', 'Bond ' + d.bond + ': care makes it grow faster; it fades if left alone for days'),
+      meter('Energy', d.energy, 100, 'is-energy', 'Energy ' + d.energy + ': a drill takes 25, and it comes back with time'),
+      meter(ap.left ? 'Hunger' : 'Full', ap.left, ap.of, 'is-hunger', ap.left ? 'It can eat ' + ap.left + ' more growth today (ghosts from hunts fill half)' : 'Full till tomorrow'));
+    page.appendChild(meters);
+    if (!d.branch) page.appendChild(el('p', 'muted dragon-hint', 'What you train it in most picks its path when it becomes a wyvern.'));
+
+    const feed = el('div', 'row dragon-row');
+    feed.appendChild(el('span', 'muted', 'Feed'));
+    if (ap.left) {
+      const bite = Math.min(10, ap.left);
+      const ate = (o) => (o.ok ? say(o.full ? 'It is full.' : 'Nom.', 2000) : say(o.error, 3000));
+      const b = tipped(chip('Bite · ' + bite * ap.souls, () => act({ feed: bite * ap.souls }).then(ate)), 'A bite: ' + bite * ap.souls + ' souls');
+      b.dataset.feed = 'bite';
+      feed.appendChild(b);
+      if (ap.left > bite) {
+        const f = tipped(chip('Fill · ' + ap.left * ap.souls, () => act({ feed: ap.left * ap.souls }).then(ate)), 'Fill it up: ' + ap.left * ap.souls + ' souls');
+        f.dataset.feed = 'fill';
+        feed.appendChild(f);
+      }
+    } else {
+      feed.appendChild(el('span', 'muted', 'full till tomorrow'));
+    }
+    // Its favourite food: a snail from the garden, once a day.
+    const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
+    if (snails) {
+      const treat = tipped(chip(d.snailToday ? 'Snail ♥' : 'Had its snail', async () => {
+        const o = await act({ snail: true });
+        if (!o.ok) return say(o.error, 3000);
+        sound.bell();
+        say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
+      }, d.snailToday ? 'solid' : undefined), d.snailToday
+        ? 'Its favourite food, once a day: one of your ' + snails + ' snails. Worth more than a day of meals.'
+        : 'It has had its snail today. Tomorrow.');
+      treat.dataset.feed = 'snail';
+      treat.disabled = !d.snailToday;
+      feed.appendChild(treat);
+    }
+    const train = el('div', 'row dragon-row');
+    train.append(el('span', 'muted', 'Train'), ...TRAIN.map(([k, label]) => {
+      const c = tipped(chip(label + ' · ' + d.train[k], () => drill(k)), { hunt: 'Target practice: click the lights', garden: 'A flight lesson: lead it through the rings', tricks: 'Fetch: throw the ball' }[k]);
+      c.dataset.train = k;
+      c.disabled = !d.canTrain;
+      return c;
+    }));
+    page.append(feed, train);
+  }
+
+  function ascendPage(d) {
+    const asc = el('div', 'dragon-ascend');
+    if (d.ascend.scales) {
+      const go = tipped(chip('Ascend · +' + d.ascend.scales + ' scales', async () => {
+        const out = await act({ ascend: true });
+        if (out.ok) { sound.bell(); say('It ascends.\nA new egg: ' + NAMES[out.element].toLowerCase() + '. Lineage ' + (out.lineage + 1) + '.', 6000); }
+      }, 'solid'), 'It returns as an egg of a new element, a lineage higher, and leaves Dragon Scales, which you keep');
+      asc.append(el('p', 'muted', 'Ready to ascend.'), go);
+    } else {
+      asc.appendChild(el('p', 'muted', d.stage === 'egg' ? 'An elder, grown and loved, can ascend.' : d.ascend.why));
+    }
+    page.append(asc, el('p', 'dragon-scales', 'Dragon Scales: ' + d.scales));
+    for (const p of d.perks) {
+      const item = el('div', 'crypt-item dragon-perk');
+      item.title = p.blurb;
+      const text = el('div');
+      text.append(el('b', null, p.name + ' ' + p.level + '/' + p.max), el('span', 'muted', p.now));
+      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))), 'solid');
+      get.dataset.perk = p.id;
+      get.disabled = p.cost === null || d.scales < p.cost;
+      item.append(text, get);
+      page.appendChild(item);
+    }
+  }
 
   function paint() {
     page.replaceChildren();
+    tabs.hidden = !now;
     if (!now) {
       const row = el('div', 'row end');
       row.appendChild(chip('Take the egg', async () => {
@@ -436,65 +531,51 @@ export function createDragon(ctx) {
       return;
     }
     const d = now;
-    page.appendChild(el('p', 'dragon-title', NAMES[d.element] + ' ' + d.stage + (d.lineage ? ' · lineage ' + (d.lineage + 1) : '')));
-    if (d.stage === 'egg') {
-      page.append(meter('Warmth', d.warmth, 100, 'is-warm'),
-        el('p', 'muted', 'It warms slowly on its own. Click it in the garden to warm it, and every finished hourglass warms it more.'));
-    } else {
-      page.append(meter(d.nextAt ? 'Growth' : 'Grown', d.nextAt ? d.xp : 1, d.nextAt || 1, 'is-xp'),
-        meter('Bond', d.bond, 100, 'is-bond'), meter('Energy', d.energy, 100, 'is-energy'));
-      if (d.branch) page.appendChild(el('p', 'dragon-branch', BRANCH[d.branch]));
-      else page.appendChild(el('p', 'muted', 'What you train it in most decides what it becomes when it grows into a wyvern.'));
-      const feed = el('div', 'row');
-      feed.append(el('span', 'muted', 'Feed:'), ...[10, 50, 200].map((n) => chip(n + ' souls', () => act({ feed: n }).then((o) => o.ok || say(o.error, 3000)))));
-      // Its favourite food: a snail from the garden.
-      const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
-      if (snails) {
-        const treat = chip('A snail ♥ · ' + snails, async () => {
-          const o = await act({ snail: true });
-          if (!o.ok) return say(o.error, 3000);
-          sound.bell();
-          say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
-        }, 'solid');
-        treat.dataset.feed = 'snail';
-        treat.title = 'Its favourite food: worth far more than souls, and it loves you for it';
-        feed.appendChild(treat);
-      }
-      const train = el('div', 'row');
-      train.append(el('span', 'muted', 'Train:'), ...TRAIN.map(([k, label]) => {
-        const c = chip(label + ' · ' + d.train[k], () => drill(k));
-        c.disabled = !d.canTrain;
-        return c;
-      }));
-      page.append(feed, train);
-    }
-    // Ascension, and what the scales buy.
-    const asc = el('div', 'dragon-ascend');
-    if (d.ascend.scales) {
-      const go = chip('Ascend · +' + d.ascend.scales + ' scales', async () => {
-        const out = await act({ ascend: true });
-        if (out.ok) { sound.bell(); say('It ascends.\nA new egg: ' + NAMES[out.element].toLowerCase() + '. Lineage ' + (out.lineage + 1) + '.', 6000); }
-      }, 'solid');
-      asc.append(el('p', 'muted', 'Ascending returns it to an egg of a new element, a lineage higher, and leaves Dragon Scales, which you keep.'), go);
-    } else if (d.stage !== 'egg') {
-      asc.appendChild(el('p', 'muted', 'Ascension: ' + d.ascend.why));
-    }
-    page.appendChild(asc);
-    page.appendChild(el('p', 'dragon-scales', 'Dragon Scales: ' + d.scales));
-    for (const p of d.perks) {
-      const item = el('div', 'crypt-item');
-      const text = el('div');
-      text.append(el('b', null, p.name + ' ' + p.level + '/' + p.max), el('span', 'muted', p.blurb + ' Now: ' + p.now + '.'));
-      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))), 'solid');
-      get.dataset.perk = p.id;
-      get.disabled = p.cost === null || d.scales < p.cost;
-      item.append(text, get);
-      page.appendChild(item);
-    }
+    tabChips.forEach((c) => c.classList.toggle('is-on', c.dataset.tab === tab));
+    const path = d.branch ? ' · ' + d.branch : '';
+    page.appendChild(el('p', 'dragon-title', NAMES[d.element] + ' ' + d.stage + path + (d.lineage ? ' · line ' + (d.lineage + 1) : '')));
+    if (d.branch && tab === 'care') page.lastChild.title = BRANCH[d.branch];
+    if (tab === 'ascend') ascendPage(d);
+    else carePage(d);
     card.refit();
   }
 
-  function open() {
+  // Its own ring (opened from Dragon on his ring): what you do with it most,
+  // one click each. `note` is the small line under a name; `off` greys it
+  // out, with why in its tooltip.
+  function ringItems() {
+    const d = now;
+    if (!d) return [];
+    const item = (id, name, blurb, run, note = '', off = false) => ({ id: 'dragon-' + id, name, blurb, run, note, off, school: 'spirit' });
+    const items = [item('card', 'Card', 'Its card: how it is, feeding, training, ascension and perks.', () => open('care'), 'all of it')];
+    if (d.stage === 'egg') {
+      items.push(item('pet', 'Warm it', 'Rub the egg to warm it (a little a day).', () => petted(), d.warmth + '% warm'));
+      return items;
+    }
+    items.push(item('pet', 'Pet', 'A scratch: bond, and a little growth.', () => petted(), 'bond ' + d.bond));
+    const ap = d.appetite;
+    const bite = Math.min(10, ap.left);
+    items.push(item('feed', 'Bite', ap.left ? 'A bite: ' + bite * ap.souls + ' souls.' : 'It is full till tomorrow.',
+      () => act({ feed: bite * ap.souls }).then((o) => say(o.ok ? (o.full ? 'It is full.' : 'Nom.') : o.error, 2500)),
+      ap.left ? bite * ap.souls + ' souls' : 'full', !ap.left));
+    const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
+    if (snails && d.snailToday) {
+      items.push(item('snail', 'Snail ♥', 'Its favourite, once a day: one of your snails.', () => act({ snail: true }).then((o) => {
+        if (!o.ok) return say(o.error, 3000);
+        sound.bell();
+        say('Crunch. Its favourite.', 2500);
+      }), snails + ' in the garden'));
+    }
+    const tired = d.canTrain ? '' : 'Too tired: energy comes back with time.';
+    items.push(item('hunt', 'Hunt', tired || 'Target practice: click the lights.', () => drill('hunt'), 'drill · ' + d.train.hunt, !d.canTrain));
+    items.push(item('garden', 'Flight', tired || 'A flight lesson: lead it through the rings.', () => drill('garden'), 'drill · ' + d.train.garden, !d.canTrain));
+    items.push(item('tricks', 'Fetch', tired || 'Fetch: throw the ball.', () => drill('tricks'), 'drill · ' + d.train.tricks, !d.canTrain));
+    if (d.ascend.scales) items.push(item('ascend', 'Ascend', 'Ready to ascend: +' + d.ascend.scales + ' scales.', () => open('ascend'), '+' + d.ascend.scales + ' scales'));
+    return items;
+  }
+
+  function open(which) {
+    if (which === 'care' || which === 'ascend') tab = which;
     paint();
     card.open(box, 'spirit', owner);
   }
@@ -510,6 +591,7 @@ export function createDragon(ctx) {
     dive,
     fireworks,
     drill,
+    ringItems,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.
     holding: () => !!heldBall,
     // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.

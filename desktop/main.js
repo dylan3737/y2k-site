@@ -19,6 +19,9 @@ import * as crypt from './crypt.js';
 import { doorsOf, SIDES, OPPOSITE } from './screens.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// Tests run him with a data folder of their own, so they never touch the
+// user's save (or wait on the copy of him already running).
+if (process.env.REAPER_USER_DATA) app.setPath('userData', process.env.REAPER_USER_DATA);
 const asset = (name) => path.join(here, 'assets', name);
 
 const COME_KEY = 'CommandOrControl+Alt+R';
@@ -36,6 +39,8 @@ app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const state = {
   soul: 100, best: 0, wander: true, chatty: true, muted: false,
   ravens: [], hourglass: null, stats: {}, apiKey: null, memories: [], greeted: null,
+  // Whether the first-run guide has been seen (finished or skipped).
+  guided: false,
   // Whose mind Speak borrows: 'free' (built in, on this computer), 'claude' (an
   // API key), 'ollama' (the user's own Ollama) or 'offline' (plain commands only).
   brain: 'free', localModel: null,
@@ -382,7 +387,7 @@ function rebuildMenu() {
         { label: 'None (plain commands)', type: 'radio', checked: getBrain().kind === 'offline', click: () => setBrain({ kind: 'offline' }) },
         { type: 'separator' },
         {
-          label: 'Big jobs (working on himself with Claude)',
+          label: 'Working on himself (Claude model)',
           submenu: Object.entries(selfwork.CLAUDE_MODELS).map(([id, name]) => ({
             label: name, type: 'radio', checked: selfwork.pickClaudeModel(state.bigJobModel) === id,
             click: () => { state.bigJobModel = id; writeState(); }
@@ -496,6 +501,7 @@ function wireIpc() {
     chatty: state.chatty,
     muted: state.muted,
     greeted: state.greeted,
+    guided: state.guided,
     ravens: state.ravens,
     hourglass: state.hourglass,
     today: today(),
@@ -518,6 +524,7 @@ function wireIpc() {
     if (Array.isArray(patch.ravens)) state.ravens = patch.ravens.slice(0, 50);
     if ('hourglass' in patch) state.hourglass = patch.hourglass || null;
     if (typeof patch.greeted === 'string') state.greeted = patch.greeted.slice(0, 20);
+    if (patch.guided === true) state.guided = true;
     writeState();
   });
 
@@ -590,7 +597,9 @@ function wireIpc() {
   // Asked in the page first. The local coding mind needs the memory, so the
   // free mind is put to sleep first.
   ipcMain.handle('self-work', (_e, input = {}) => {
-    const engine = input.engine === 'claude' ? 'claude' : 'local';
+    // Claude Code unless his own coding mind is asked for by name: the local
+    // model proved unreliable on code this size.
+    const engine = input.engine === 'local' ? 'local' : 'claude';
     if (engine === 'local') freeMind.unload();
     return selfwork.start({
       request: input.request,

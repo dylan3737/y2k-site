@@ -34,6 +34,8 @@ npm start
 
 ## Handling him
 
+The first time he appears, he shows you around: a few steps at the top of the screen (drag him, open his ring, open the Garden, raise a first moss sprite, take the dragon egg, and Speak), each waiting until you have done it. Skip it any time; say **guide** to Speak to see it again.
+
 | Do this | And he… |
 |---|---|
 | Click him | opens his ring of abilities |
@@ -154,11 +156,11 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Rank | Score | Pays |
 |---|---|---|
 | Groundskeeper | 0 | |
-| Ghost catcher | 100 | 30 |
-| Soul warden | 400 | 80 |
-| Shade hunter | 1,200 | 200 |
-| Wraith lord | 3,000 | 500 |
-| The Reaper's hand | 8,000 | 1,200 |
+| Ghost catcher | 300 | 40 |
+| Soul warden | 1,000 | 120 |
+| Shade hunter | 5,000 | 300 |
+| Wraith lord | 14,000 | 800 |
+| The Reaper's hand | 60,000 | 2,500 |
 
 **Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
@@ -166,9 +168,10 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 
 Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise what hatches.
 
-- **The egg** has an element, which shows in its colour: **Ember** (plum, coral glow), **Frost** (navy, ice blue), **Shadow** (violet, pink) or **Storm** (slate, gold). It hatches when it is warm enough: it warms slowly on its own, more each time you click it, and most from every finished Hourglass.
-- **Growing:** hatchling, drake, wyvern, elder. It grows with experience: souls you feed it, training, petting, and every hunt it shares. **Bond** (from care) makes it grow faster, and fades if it is left alone for days. **Energy** pays for training and comes back with time.
-- **Its favourite food is snails.** With snails in the garden, the card offers one: worth far more than souls, and a big boost to its bond. (Then you have one snail fewer.) Now and then it goes and stares at one.
+- **The egg** has an element, which shows in its colour: **Ember** (plum, coral glow), **Frost** (navy, ice blue), **Shadow** (violet, pink) or **Storm** (slate, gold). It hatches when it is warm enough: it warms slowly on its own, a little each time you click it (up to 20 a day), and most from every finished Hourglass.
+- **Growing:** hatchling, drake, wyvern, elder. It grows with experience: training, finished Hourglasses, petting (a little a day), the ghosts it eats in hunts, and meals of souls. **Bond** (from care) makes it grow faster, and fades if it is left alone for days. **Energy** pays for training and comes back with time.
+- **Its appetite:** it can only eat so much in a day, shown as **Hunger** on its card. Ghosts from hunts fill up to half of it; meals of souls (a bite, or fill it up) the rest, and a bigger dragon needs more souls a mouthful. Full, it eats no more until tomorrow. So it grows over weeks, whatever the garden holds.
+- **Its favourite food is snails.** With snails in the garden, the card offers one, once a day: worth more than a day of meals, and a big boost to its bond. (Then you have one snail fewer.) Now and then it goes and stares at one.
 - **Training** is of three kinds, and whichever it had most decides what it becomes as a wyvern:
 
 | Path | Trained in | What it does |
@@ -178,11 +181,11 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
 
 - **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
-- **Ascension (prestige):** an elder with a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
+- **Ascension (prestige):** an elder that has matured (4,500 growth) and has a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
 
 | Perk | Levels | What it does |
 |---|---|---|
-| **Old blood** | 5 | +20% growth a level, and a hunter breathes on one more ghost |
+| **Old blood** | 5 | +15% growth a level, and a hunter breathes on one more ghost |
 | **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
 | **Gleam** | 3 | A glow, then an aura, then a blazing one |
 | **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
@@ -208,7 +211,7 @@ Open the **Garden** from his ring. It has three tabs: **Garden** (your workers, 
 
 ### Tuning the numbers
 
-The rates and prices are at the top of `crypt.js`. `tools/pacing.mjs` plays the game as three kinds of user (casual, typical, heavy) and prints when each purchase and milestone lands, so a change can be judged from what it does:
+The rates and prices are at the top of `crypt.js` and `dragon.js`. `tools/pacing.mjs` plays the whole game with the real rules, as three kinds of user (casual, typical, heavy): sprouts ripening, looking in to reap, hunts at a catch rate, the helpers, and the dragon's life through ascension. It prints when things land, where the souls and the dragon's growth come from, and checks each against a target, so a change can be judged from what it does. `npm run test:quick` fails if a change misses the targets (`npm run pacing -- --check`).
 
 ```bash
 npm run pacing
@@ -218,7 +221,7 @@ npm run pacing
 npm run pacing -- typical 60
 ```
 
-The first prints a line a day for all three over four weeks. The second prints every purchase for one of them over 60 days. With the current numbers, the typical user (three 25-minute hourglasses and a round of Summon on a working day) plants a moss sprite in the first two hours, has 10 by day 4 and 25 after about a month, and buys the last upgrade in week seven.
+The first prints the three over six weeks. The second prints a line a day for one of them over 60 days. With the current numbers, a typical user (nine hours a day on weekdays, looking in every 45 minutes, three hourglasses and a Gathering a day) has 5 workers in the first morning, 10 on day 2 and 25 by about day 16; reaches Wraith lord in week two and the top rank in week four; and hatches the egg on the first day, has a wyvern on day 4, an elder by day 15 and ascends it in week three.
 
 ## Speak
 
@@ -352,8 +355,8 @@ Ask him to change himself ("work on yourself: make the ghosts slower", "give you
 
 | Engine | When | What runs |
 |---|---|---|
-| **His own** (the default) | Small and medium changes: numbers, colours, words, simple features | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
-| **Claude** ("…with Claude") | Bigger jobs: new features | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Big jobs** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+| **Claude** (the default) | Any change | [Claude Code](https://claude.com/claude-code), on your own Claude Code plan (it must be installed). **Claude Haiku 5.5** unless you choose otherwise: in the tray, **Mind → Working on himself** (Haiku, Sonnet or Opus, kept), for one job by naming it ("work on yourself with Claude Opus: …"), or mid-job with Claude Code's own `/model`. |
+| **His own** ("…with your own mind") | Only when asked for: it is free, but not reliable on code this size (it has lost track of long files and claimed work it had not done; the checks stop that from being installed) | [OpenCode](https://opencode.ai) on **Qwen3-Coder 30B**, run by his own engine (llama-server) on your computer. Free; nothing leaves the machine. The model is a one-time 13.8 GB download, offered the first time. |
 
 The script in that window:
 

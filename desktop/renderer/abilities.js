@@ -911,6 +911,9 @@ export function createAbilities(ctx) {
         if (!(await ctx.speak.ask('Let him search your files for “' + input.query.slice(0, 40) + '”?'))) return { ok: false, error: 'The user said no.' };
         return companion.findFiles(input.query);
       }
+      // The first-run guide, shown again.
+      case 'show_guide':
+        return ctx.guide.start();
       // The dragon: its state, and what the user asks to do with it.
       case 'dragon': {
         const a = input.action;

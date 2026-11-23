@@ -19,11 +19,13 @@ let context = null;
 async function open(storage = {}) {
   if (context) await context.close();
   context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  // The first-run guide has been seen, and the garden starts empty (a real new
+  // one starts with enough for a sprite), unless a test says otherwise.
   await context.addInitScript((items) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.setItem('reaper-companion', JSON.stringify(items));
-  }, storage);
+  }, { guided: true, crypt: { souls: 0 }, ...storage });
   const page = await context.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
@@ -70,6 +72,52 @@ async function castFromRing(page, id) {
 }
 
 try {
+  // The first-run guide, walked through as a newcomer would.
+  {
+    const g = await open({ guided: false, wander: false, muted: true, crypt: undefined });
+    const step = () => g.evaluate(() => window.__reaper.guide.step);
+    check('the first time, the guide shows instead of a greeting', !!(await g.waitForSelector('.guide', { timeout: 4000 }).catch(() => null)) && (await step()) === 0);
+    const b = await g.locator('#body').boundingBox();
+    await g.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await g.mouse.down();
+    await g.mouse.move(b.x + b.width / 2 - 120, b.y + b.height / 2 - 60, { steps: 8 });
+    await g.mouse.up();
+    await g.waitForTimeout(600);
+    check('guide: dragging him and letting go is step one done', (await step()) === 1, String(await step()));
+    await g.evaluate(() => window.__reaper.retarget());
+    await g.click('#body', { force: true });
+    await g.waitForTimeout(600);
+    check('guide: opening his ring is step two', (await step()) === 2, String(await step()));
+    await g.click('.ring-btn[data-id="crypt"]', { force: true });
+    await g.waitForTimeout(600);
+    check('guide: opening the Garden is step three', (await step()) === 3, String(await step()));
+    check('a new garden has just enough for a moss sprite', (await g.evaluate(() => window.__reaper.crypt.get().souls)) >= 25);
+    await g.click('#card [aria-label^="Raise a moss sprite"]');
+    await g.waitForTimeout(600);
+    check('guide: raising a first sprite is step four; reaping is explained, with Next', (await step()) === 4 &&
+      /reap/.test(await g.textContent('.guide')) && !!(await g.$('.guide .chip:has-text("Next")')), String(await step()));
+    await g.click('.guide .chip:has-text("Next")');
+    await g.waitForTimeout(300);
+    await g.evaluate(() => window.__reaper.dragon.open());
+    await g.waitForTimeout(200);
+    await g.click('#card .chip:has-text("Take the egg")');
+    await g.waitForTimeout(600);
+    check('guide: taking the egg leads to the last step, about Speak', (await step()) === 6 && /Speak/.test(await g.textContent('.guide')), String(await step()));
+    await g.click('.guide .chip:has-text("Done")');
+    await g.waitForTimeout(300);
+    check('done, the guide goes, and is remembered', !(await g.$('.guide')) && (await g.evaluate(() => window.__companion.read().guided)) === true);
+    await g.reload();
+    await g.waitForSelector('#body');
+    await g.waitForTimeout(2200);
+    check('and does not come back by itself', !(await g.$('.guide')));
+    const shown = await g.evaluate(() => window.__reaper.abilities.runTool('show_guide', {}));
+    check('Speak can show it again', shown.ok && !!(await g.$('.guide')));
+    await g.click('.guide .chip:has-text("Skip the guide")');
+    await g.waitForTimeout(200);
+    check('and it can be skipped', !(await g.$('.guide')));
+    check('no errors in the guide', g.errors.length === 0, g.errors.join('; '));
+  }
+
   let page = await open({ wander: false });
   check('page loads without errors', page.errors.length === 0, page.errors.join('; '));
   check('reaper is drawn', await visible(page, '#body'));
@@ -80,8 +128,8 @@ try {
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
   const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
-  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') &&
-    buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
+  check('click opens the ring: nine buttons, the effects behind one', buttons.length === 9 && buttons.includes('effects') &&
+    !buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -98,7 +146,7 @@ try {
   check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
   await page.click('.ring-btn[data-id="back"]');
   await page.waitForTimeout(250);
-  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 9 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
@@ -591,11 +639,17 @@ try {
   check('the hatchling shows its own picture', /dragon-hatchling-[a-z]+\.png/.test(await page.$eval('.field .dragon', (n) => n.style.backgroundImage)));
   await page.evaluate(() => window.__reaper.dragon.open());
   await page.waitForTimeout(150);
-  await page.click('#card .chip:has-text("50 souls")');
+  check('the card shows how hungry it is', /Hunger/.test(await page.textContent('#card')));
+  await page.click('#card .chip[data-feed="bite"]');
   await page.waitForTimeout(250);
-  check('fed souls, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  check('fed a bite, it grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > 0 && (await page.evaluate(() => window.__reaper.crypt.get().souls)) < 2000);
+  await page.click('#card .chip[data-feed="fill"]');
+  await page.waitForTimeout(250);
+  check('filled up, it is full till tomorrow, and offers no more', /full till tomorrow/i.test(await page.textContent('#card')) &&
+    !(await page.$('#card .chip[data-feed="bite"]')), await page.textContent('#card'));
+  check('the card is small: no scrolling to reach training', await page.$eval('#card', (n) => n.scrollHeight <= n.clientHeight + 1 && n.getBoundingClientRect().height < 320));
   // Training starts its drill (a flight lesson); left alone, it still learns a little.
-  await page.click('#card .chip:has-text("Garden ·")');
+  await page.click('#card .chip[data-train="garden"]');
   check('training starts a drill', !!(await page.waitForSelector('.drill-ring', { timeout: 2000 }).catch(() => null)));
   await page.waitForTimeout(11800);
   check('trained, it learns, and tires', (await page.evaluate(() => window.__reaper.dragon.get().train.garden)) === 1 &&
@@ -621,7 +675,7 @@ try {
   // An elder with a strong bond ascends: scales, and an egg of a new element.
   await page.evaluate(() => {
     const saved = window.__companion.read();
-    Object.assign(saved.crypt.dragon, { stage: 4, xp: 2000, bond: 90, branch: 'hunter' });
+    Object.assign(saved.crypt.dragon, { stage: 4, xp: 5000, bond: 90, branch: 'hunter' });
     localStorage.setItem('reaper-companion', JSON.stringify(saved));
   });
   await page.reload();
@@ -631,7 +685,10 @@ try {
   check('an elder is drawn as one', !!(await page.$('.field .dragon.is-elder')));
   await page.evaluate(() => window.__reaper.dragon.open());
   await page.waitForTimeout(150);
-  await page.click('#card .chip:has-text("Ascend")');
+  check('ascension and perks are on their own tab', !(await page.$('#card .chip[data-perk]')));
+  await page.click('#card .chip[data-tab="ascend"]');
+  await page.waitForTimeout(150);
+  await page.click('#card .chip:has-text("Ascend ·")');
   await page.waitForTimeout(300);
   const ascended = await page.evaluate(() => window.__reaper.dragon.get());
   check('it ascends: an egg of a new element, a lineage higher, and scales kept', ascended.stage === 'egg' && ascended.element !== wasElement &&
@@ -680,6 +737,28 @@ try {
   check('fetch: throw the ball and it brings it back; three throws', fetched.ok && fetched.quality > 0.2 &&
     (await page.evaluate(() => window.__reaper.dragon.get().train.tricks)) === 1, JSON.stringify(fetched).slice(0, 120));
   check('three drills tire it', (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 25);
+  // The dragon's own ring, behind Dragon on his ring.
+  await page.evaluate(() => window.__reaper.retarget());
+  for (let i = 0; i < 6 && !(await visible(page, '#ring')); i++) { await page.click('#body', { force: true }); await page.waitForTimeout(260); }
+  await page.click('.ring-btn[data-id="dragon"]', { force: true });
+  await page.waitForTimeout(300);
+  const dragonRing = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
+  check('Dragon opens its own ring: card, pet, a bite, the three drills, its breath, and back',
+    ['dragon-card', 'dragon-pet', 'dragon-feed', 'dragon-hunt', 'dragon-garden', 'dragon-tricks', 'dragonbreath', 'back'].every((id) => dragonRing.includes(id)), dragonRing.join(','));
+  check('its drills are greyed out exactly when it is too tired to train', (await page.$eval('.ring-btn[data-id="dragon-hunt"]', (n) => n.classList.contains('is-locked'))) ===
+    !(await page.evaluate(() => window.__reaper.dragon.get().canTrain)));
+  const bond0 = await page.evaluate(() => window.__reaper.dragon.get().bond);
+  await page.click('.ring-btn[data-id="dragon-pet"]', { force: true });
+  await page.waitForTimeout(300);
+  check('Pet, from its ring, pets it and closes the ring', (await page.evaluate(() => window.__reaper.dragon.get().bond)) > bond0 && !(await visible(page, '#ring')));
+  for (let i = 0; i < 6 && !(await visible(page, '#ring')); i++) { await page.click('#body', { force: true }); await page.waitForTimeout(260); }
+  await page.click('.ring-btn[data-id="dragon"]', { force: true });
+  await page.waitForTimeout(300);
+  await page.click('.ring-btn[data-id="dragon-card"]', { force: true });
+  await page.waitForTimeout(300);
+  check('Card, from its ring, opens its card', await page.evaluate(() => window.__reaper.dragon.isOpen()));
+  await page.evaluate(() => window.__reaper.dragon.close());
+
   // Dragonbreath: a storm drake breathes lightning across the screen.
   const bolts = page.evaluate(() => new Promise((resolve) => {
     let n = 0;

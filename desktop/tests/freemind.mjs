@@ -77,7 +77,9 @@ try {
 }
 
 // --- Inside the app -------------------------------------------------------------------
-const env = { ...process.env, XDG_CONFIG_HOME: fs.mkdtempSync(path.join(tmpdir(), 'reaper-')), REAPER_MODELS_DIR: dir, OLLAMA_HOST: '127.0.0.1:1' };
+// Its own data folder on every system (XDG_CONFIG_HOME alone is Linux only).
+const scratch = fs.mkdtempSync(path.join(tmpdir(), 'reaper-'));
+const env = { ...process.env, XDG_CONFIG_HOME: scratch, REAPER_USER_DATA: path.join(scratch, 'Reaper'), REAPER_MODELS_DIR: dir, OLLAMA_HOST: '127.0.0.1:1' };
 delete env.ANTHROPIC_API_KEY;
 const app = await electron.launch({ executablePath: createRequire(import.meta.url)('electron'), args: [path.join(here, '..')], env });
 try {

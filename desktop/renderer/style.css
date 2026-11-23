@@ -471,6 +471,7 @@ body.is-capturing * { visibility: hidden !important; }
 .dragon-bar.is-xp span { background: #9ce6c7; }
 .dragon-bar.is-bond span { background: #ff9ec7; }
 .dragon-bar.is-energy span { background: #ffe58a; }
+.dragon-bar.is-hunger span { background: #ffb27a; }
 .dragon-branch { font-size: 9px; color: #ffe58a; margin: 8px 0; }
 .dragon-ascend { margin: 10px 0 6px; }
 .dragon-scales { font-size: 9px; color: #9ce6f2; margin: 6px 0; }
@@ -1061,3 +1062,24 @@ body.is-capturing * { visibility: hidden !important; }
 
 /* A ring button that opens another ring (Effects), or goes back. */
 .ring-btn.is-folder { border-style: dashed; }
+
+/* The first-run guide: a panel at the top of the screen, a step at a time. */
+.guide { position: fixed; top: 18px; left: 50%; translate: -50% 0; z-index: 20; width: min(340px, calc(100vw - 32px));
+  padding: 10px 14px 12px; background: linear-gradient(var(--pale), #ffe56a); color: #1a1028;
+  border: 2px solid #140c22; box-shadow: 3px 3px 0 var(--lilac); border-radius: 10px; font-size: 10px; line-height: 1.55;
+  animation: guide-in 0.25s ease-out; }
+.guide .guide-step { margin: 0 0 4px; font-size: 7px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.65; }
+.guide .guide-text { margin: 0 0 8px; white-space: pre-line; }
+.guide .row { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+@keyframes guide-in { from { translate: -50% -12px; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .guide { animation: none; } }
+
+/* The dragon's card, kept small: meters two by two, one row to feed, one to train. */
+.dragon-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin-bottom: 6px; }
+.dragon-meters .dragon-meter { grid-template-columns: 44px 1fr; margin: 2px 0; }
+.dragon-row { flex-wrap: nowrap; gap: 5px; margin: 6px 0 0; align-items: center; }
+.dragon-row > .muted { flex: none; width: 34px; font-size: 8px; }
+.dragon-row .chip { padding-left: 7px; padding-right: 7px; white-space: nowrap; }
+.dragon-hint { margin: 2px 0 4px; font-size: 8px; }
+.dragon-perk { margin: 5px 0; }
+.dragon-perk .muted { font-size: 8px; }

@@ -19,7 +19,7 @@ function browserStandIn() {
   const stats = { activeSec: 0, focus: 0, caught: 0, reaped: 0 };
   const freeStatus = () => window.__companion.free || { name: 'Qwen3 4B', bytes: 2497281120, installed: false, downloading: null, loaded: false };
   // The crypt, kept in localStorage here; the app keeps it in the main process.
-  const crypt = rules.clean(read().crypt);
+  const crypt = read().crypt ? rules.clean(read().crypt) : rules.fresh();
   const saveCrypt = () => write({ crypt });
 
   // In a tab the page gets real mouse events, so the cursor comes from them.
@@ -36,7 +36,7 @@ function browserStandIn() {
       saveCrypt();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
-        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, today: stats, hasKey: false, brain: s.brain || 'free',
+        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, guided: !!s.guided, today: stats, hasKey: false, brain: s.brain || 'free',
         minions: s.minions !== false, roam: s.roam !== false, doors: window.__companion.doors || [], crypt: { ...rules.view(crypt), dug },
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };
