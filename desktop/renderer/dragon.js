@@ -157,6 +157,8 @@ export function createDragon(ctx) {
 
   // --- In a hunt -------------------------------------------------------------------
   // A hunter breathes on a ghost: a burst of its element from its mouth to it.
+  // Each element breathes its own way: Ember a stream of fire and embers,
+  // Frost a spray of ice shards, Shadow rolling smoke, Storm a lightning bolt.
   function breathe(tx, ty) {
     if (!node) return;
     const r = node.getBoundingClientRect();
@@ -164,6 +166,34 @@ export function createDragon(ctx) {
     const fx = node.classList.contains('is-right') ? r.right - 10 : r.left + 10;
     const fy = r.top + r.height * 0.3;
     const len = Math.hypot(tx - fx, ty - fy);
+    const along = (t) => ({ x: fx + (tx - fx) * t, y: fy + (ty - fy) * t });
+    const bit = (cls, t, life, style = {}) => {
+      const p = along(t);
+      const b = el('div', cls);
+      b.style.left = Math.round(p.x) + 'px';
+      b.style.top = Math.round(p.y) + 'px';
+      Object.assign(b.style, style);
+      field.appendChild(b);
+      setTimeout(() => b.remove(), life);
+    };
+    if (now.element === 'storm') {
+      // A jagged bolt, drawn as a line that jumps about the straight path.
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'breath-bolt');
+      const pts = [];
+      for (let i = 0; i <= 8; i++) {
+        const p = along(i / 8);
+        const n = i === 0 || i === 8 ? 0 : rand(-14, 14);
+        const nx = -(ty - fy) / (len || 1), ny = (tx - fx) / (len || 1);
+        pts.push((p.x + nx * n).toFixed(1) + ',' + (p.y + ny * n).toFixed(1));
+      }
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('points', pts.join(' '));
+      svg.appendChild(line);
+      field.appendChild(svg);
+      setTimeout(() => svg.remove(), 380);
+      return;
+    }
     const beam = el('div', 'dragon-breath is-' + now.element);
     beam.style.left = fx + 'px';
     beam.style.top = fy + 'px';
@@ -171,6 +201,18 @@ export function createDragon(ctx) {
     beam.style.rotate = Math.atan2(ty - fy, tx - fx) + 'rad';
     field.appendChild(beam);
     setTimeout(() => beam.remove(), 450);
+    if (now.element === 'ember') for (let i = 0; i < 9; i++) bit('breath-ember', rand(0.2, 1), 900, { '--dx': Math.round(rand(-14, 14)) + 'px' });
+    if (now.element === 'frost') for (let i = 0; i < 7; i++) bit('breath-shard', rand(0.25, 1), 700, { rotate: Math.round(rand(0, 360)) + 'deg' });
+    if (now.element === 'shadow') for (let i = 0; i < 6; i++) bit('breath-smoke', rand(0.2, 1), 1000);
+  }
+
+  // Dragonbreath (a ring ability): it breathes right across the screen.
+  function breathAcross() {
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    const right = r.left < innerWidth / 2;
+    node.classList.toggle('is-right', right);
+    for (let i = 0; i < 4; i++) setTimeout(() => breathe(right ? innerWidth - 20 : 20, r.top + r.height * 0.3 + (i - 1.5) * 50), i * 120);
   }
   // A dive at a wraith (the Lore perk): it swoops through it.
   function dive(tx, ty) {
@@ -464,6 +506,7 @@ export function createDragon(ctx) {
     isOpen: () => card.isOpen(owner),
     get: () => now,
     breathe,
+    breathAcross,
     dive,
     fireworks,
     drill,

@@ -74,7 +74,7 @@ try {
   await page.click('#body', { force: true });
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
-  check('click opens the ring of fifteen abilities', buttons.length === 15 && buttons.includes('dragon'), buttons.join(','));
+  check('click opens the ring of sixteen abilities', buttons.length === 16 && buttons.includes('dragonbreath') && buttons.includes('dragon'), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -380,13 +380,18 @@ try {
   check('souls raise a skeleton', (await banked()) === '57 souls' &&
     (await page.textContent('#card')).includes('One worker gathers 1.5 souls an hour'), await page.textContent('#card'));
   check('the moss sprite works on screen', (await page.$$('.field .digger')).length === 1);
-  const bones = await page.locator('.field .digger').boundingBox();
-  await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
-  await page.waitForTimeout(50);
-  const fadedOver = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
-  await page.mouse.move(bones.x + bones.width / 2, bones.y - 120);
-  await page.waitForTimeout(50);
-  const fadedAway = await page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  // It wanders, so follow it with the cursor till it fades (or a second passes).
+  const isFaded = () => page.$eval('.field .digger', (n) => n.classList.contains('is-faded'));
+  let fadedOver = false, bones;
+  for (let i = 0; i < 20 && !fadedOver; i++) {
+    bones = await page.locator('.field .digger').boundingBox();
+    await page.mouse.move(bones.x + bones.width / 2, bones.y + bones.height / 2);
+    await page.waitForTimeout(50);
+    fadedOver = await isFaded();
+  }
+  await page.mouse.move(bones.x + bones.width / 2, Math.max(5, bones.y - 160));
+  let fadedAway = true;
+  for (let i = 0; i < 20 && fadedAway; i++) { await page.waitForTimeout(50); fadedAway = await isFaded(); }
   check('a skeleton fades while the cursor is over it, and comes back after', fadedOver && !fadedAway);
   check('the next one costs more', (await page.textContent('#card .chip.solid')).includes('32'));
   check('the other workers wait for a rank',
@@ -424,6 +429,8 @@ try {
   // Speak and the dragon.
   out = await tool('dragon', { action: 'status' });
   check('Speak knows when there is no dragon yet', out.ok && /egg to take/.test(out.result.dragon), JSON.stringify(out));
+  out = await tool('cast', { ability: 'dragonbreath' });
+  check('Dragonbreath needs a dragon', !out.ok && /no dragon/i.test(out.error), JSON.stringify(out));
   out = await tool('dragon', { action: 'adopt' });
   check('Speak can take the egg when asked', out.ok && out.result.stage === 'egg', JSON.stringify(out));
   out = await tool('dragon', { action: 'status' });
@@ -659,6 +666,17 @@ try {
   check('fetch: throw the ball and it brings it back; three throws', fetched.ok && fetched.quality > 0.2 &&
     (await page.evaluate(() => window.__reaper.dragon.get().train.tricks)) === 1, JSON.stringify(fetched).slice(0, 120));
   check('three drills tire it', (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 25);
+  // Dragonbreath: a storm drake breathes lightning across the screen.
+  const bolts = page.evaluate(() => new Promise((resolve) => {
+    let n = 0;
+    const seen = new MutationObserver((list) => {
+      for (const m of list) for (const a of m.addedNodes) if (a.classList && a.classList.contains('breath-bolt')) n++;
+    });
+    seen.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => { seen.disconnect(); resolve(n); }, 900);
+  }));
+  const breathed = await page.evaluate(() => window.__reaper.abilities.cast('dragonbreath'));
+  check('Dragonbreath: a storm dragon breathes lightning across the screen', breathed.ok !== false && (await bolts) >= 3, JSON.stringify(breathed));
 
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),

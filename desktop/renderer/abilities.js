@@ -731,6 +731,26 @@ export function createAbilities(ctx) {
       cast: () => card.open(ravenCard(), 'message', ravenOwner, { focus: true })
     },
     {
+      // The dragon's breath across the screen, then its element's ruin: Ember
+      // burns it, Frost shatters it, Shadow swallows it, Storm scrambles it.
+      id: 'dragonbreath', name: 'Dragonbreath', cost: 15, school: 'fire', blurb: 'Your dragon breathes across the screen: fire, ice, shadow or lightning, by its element.',
+      ready: () => {
+        const d = ctx.dragon && ctx.dragon.get();
+        if (!d) return 'There is no dragon yet.\n(Take the egg from the Dragon card.)';
+        if (d.stageIndex < 2) return 'Your dragon is too young.\nRaise it to a drake.';
+        return wreckReady();
+      },
+      cast: async () => {
+        const d = ctx.dragon.get();
+        ctx.dragon.breathAcross();
+        await new Promise((r) => setTimeout(r, 650));
+        const effect = { ember: 'burn', frost: 'shatter', shadow: 'vortex', storm: 'glitch' }[d.element];
+        const how = await wreck(effect);
+        if (how === 'nogl') say('Its breath fades.\n(This computer can’t draw it.)', 4000);
+        else say({ ember: 'Scorched.', frost: 'Frozen. Shattered.', shadow: 'Swallowed by shadow.', storm: 'Thunderstruck.' }[d.element], 3000);
+      }
+    },
+    {
       id: 'dragon', name: 'Dragon', cost: 0, school: 'spirit', blurb: 'Your dragon: its egg, raising and training it, and ascension.',
       free: true,
       active: () => ctx.dragon.isOpen(),
@@ -788,7 +808,7 @@ export function createAbilities(ctx) {
   }
 
   // Speak's tools. Inputs are checked here: they arrive as streamed JSON.
-  const CASTABLE = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'hum', 'vanish'];
+  const CASTABLE = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip', 'summon', 'dragonbreath', 'hum', 'vanish'];
 
   async function runTool(name, input) {
     switch (name) {
