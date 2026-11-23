@@ -540,6 +540,40 @@ export function createDragon(ctx) {
     card.refit();
   }
 
+  // Its own ring (opened from Dragon on his ring): what you do with it most,
+  // one click each. `note` is the small line under a name; `off` greys it
+  // out, with why in its tooltip.
+  function ringItems() {
+    const d = now;
+    if (!d) return [];
+    const item = (id, name, blurb, run, note = '', off = false) => ({ id: 'dragon-' + id, name, blurb, run, note, off, school: 'spirit' });
+    const items = [item('card', 'Card', 'Its card: how it is, feeding, training, ascension and perks.', () => open('care'), 'all of it')];
+    if (d.stage === 'egg') {
+      items.push(item('pet', 'Warm it', 'Rub the egg to warm it (a little a day).', () => petted(), d.warmth + '% warm'));
+      return items;
+    }
+    items.push(item('pet', 'Pet', 'A scratch: bond, and a little growth.', () => petted(), 'bond ' + d.bond));
+    const ap = d.appetite;
+    const bite = Math.min(10, ap.left);
+    items.push(item('feed', 'Bite', ap.left ? 'A bite: ' + bite * ap.souls + ' souls.' : 'It is full till tomorrow.',
+      () => act({ feed: bite * ap.souls }).then((o) => say(o.ok ? (o.full ? 'It is full.' : 'Nom.') : o.error, 2500)),
+      ap.left ? bite * ap.souls + ' souls' : 'full', !ap.left));
+    const snails = ((ctx.crypt.get().kinds || []).find((k) => k.id === 'snail') || { count: 0 }).count;
+    if (snails && d.snailToday) {
+      items.push(item('snail', 'Snail ♥', 'Its favourite, once a day: one of your snails.', () => act({ snail: true }).then((o) => {
+        if (!o.ok) return say(o.error, 3000);
+        sound.bell();
+        say('Crunch. Its favourite.', 2500);
+      }), snails + ' in the garden'));
+    }
+    const tired = d.canTrain ? '' : 'Too tired: energy comes back with time.';
+    items.push(item('hunt', 'Hunt', tired || 'Target practice: click the lights.', () => drill('hunt'), 'drill · ' + d.train.hunt, !d.canTrain));
+    items.push(item('garden', 'Flight', tired || 'A flight lesson: lead it through the rings.', () => drill('garden'), 'drill · ' + d.train.garden, !d.canTrain));
+    items.push(item('tricks', 'Fetch', tired || 'Fetch: throw the ball.', () => drill('tricks'), 'drill · ' + d.train.tricks, !d.canTrain));
+    if (d.ascend.scales) items.push(item('ascend', 'Ascend', 'Ready to ascend: +' + d.ascend.scales + ' scales.', () => open('ascend'), '+' + d.ascend.scales + ' scales'));
+    return items;
+  }
+
   function open(which) {
     if (which === 'care' || which === 'ascend') tab = which;
     paint();
@@ -557,6 +591,7 @@ export function createDragon(ctx) {
     dive,
     fireworks,
     drill,
+    ringItems,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.
     holding: () => !!heldBall,
     // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.

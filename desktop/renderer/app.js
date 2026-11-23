@@ -128,7 +128,7 @@ function paintSoul() {
   reaper.classList.toggle('is-faint', soulLevel < 20);
   reaper.querySelector('.soul').setAttribute('aria-valuenow', String(Math.round(soulLevel)));
   ring.querySelectorAll('.ring-btn').forEach((btn) => {
-    btn.classList.toggle('is-locked', soulLevel < Number(btn.dataset.cost));
+    btn.classList.toggle('is-locked', soulLevel < Number(btn.dataset.cost) || btn.dataset.off === '1');
   });
   clearTimeout(saveSoulTimer);
   saveSoulTimer = setTimeout(() => companion.save({ soul: Math.round(soulLevel) }), 1000);
@@ -277,20 +277,33 @@ companion.setAbilities(abilities.list.map((a) => ({ id: a.id, name: a.name })));
 
 let ringAt = null;
 
-// The screen effects live on a ring of their own, behind an Effects button.
+// The screen effects live on a ring of their own, behind an Effects button;
+// the dragon has its own ring too, behind Dragon (once there is a dragon).
 const EFFECTS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
 const FOLDERS = {
   effects: { id: 'effects', name: 'Effects', school: 'death', blurb: 'Slash, shatter, glitch, vortex, burn, melt and soulrip.', folder: 'effects' },
+  dragon: { id: 'dragon', name: 'Dragon', school: 'spirit', blurb: 'Your dragon: care for it, feed it, train it, its breath.', folder: 'dragon' },
   back: { id: 'back', name: 'Back', school: 'message', blurb: 'Back to all his abilities.', folder: null }
 };
+const IN_DRAGON_RING = ['dragonbreath'];
+
+function ringList(group) {
+  if (group === 'effects') return [...abilities.list.filter((a) => EFFECTS.includes(a.id)), FOLDERS.back];
+  if (group === 'dragon') return [...ctx.dragon.ringItems(), ...abilities.list.filter((a) => IN_DRAGON_RING.includes(a.id)), FOLDERS.back];
+  return abilities.list.flatMap((a) => {
+    if (a.id === EFFECTS[0]) return [FOLDERS.effects];
+    if (EFFECTS.includes(a.id) || IN_DRAGON_RING.includes(a.id)) return [];
+    // No dragon yet: Dragon opens its card, to take the egg.
+    if (a.id === 'dragon' && ctx.dragon.get()) return [FOLDERS.dragon];
+    return [a];
+  });
+}
 
 function openRing(group = null) {
   const keepAt = ringAt;
   ring.replaceChildren();
   ring.dataset.group = group || 'main';
-  const list = group === 'effects'
-    ? [...abilities.list.filter((a) => EFFECTS.includes(a.id)), FOLDERS.back]
-    : abilities.list.flatMap((a) => (a.id === EFFECTS[0] ? [FOLDERS.effects] : EFFECTS.includes(a.id) ? [] : [a]));
+  const list = ringList(group);
   // Wide enough that the buttons don't overlap, however many there are:
   // about 92 pixels of the ring for each.
   const radius = Math.max(116, Math.round((list.length * 92) / (Math.PI * 2)));
@@ -307,6 +320,7 @@ function openRing(group = null) {
     btn.dataset.id = a.id;
     btn.dataset.cost = a.cost || 0;
     if ('folder' in a) btn.classList.add('is-folder');
+    if (a.off) btn.dataset.off = '1';
     btn.setAttribute('role', 'menuitem');
     btn.style.setProperty('--school', `var(--${a.school})`);
     btn.style.setProperty('--x', Math.round(Math.cos(angle) * radius) + 'px');
@@ -317,11 +331,17 @@ function openRing(group = null) {
     btn.title = a.blurb;
     btn.innerHTML = '<span></span><small></small>';
     btn.firstChild.textContent = a.name;
-    btn.lastChild.textContent = 'folder' in a ? (a.folder ? EFFECTS.length + ' more' : '') : active ? 'stop' : (a.cost ? a.cost + ' soul' : 'free');
+    const folderNote = { effects: EFFECTS.length + ' more', dragon: ctx.dragon.get() ? ctx.dragon.get().stage : '' };
+    btn.lastChild.textContent = 'folder' in a ? (folderNote[a.folder] || '') : a.run ? a.note : active ? 'stop' : (a.cost ? a.cost + ' soul' : 'free');
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       if ('folder' in a) openRing(a.folder);
-      else abilities.cast(a.id);
+      else if (a.run) {
+        // One of the dragon's: greyed out, it says why; otherwise it is done.
+        if (a.off) { say(a.blurb, 3000); return; }
+        closeRing();
+        a.run();
+      } else abilities.cast(a.id);
     });
     ring.appendChild(btn);
   });

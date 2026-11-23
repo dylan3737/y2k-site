@@ -128,8 +128,8 @@ try {
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
   const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
-  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') &&
-    buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
+  check('click opens the ring: nine buttons, the effects behind one', buttons.length === 9 && buttons.includes('effects') &&
+    !buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
     return boxes.some((a, i) => boxes.some((c, j) => i < j && a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom));
@@ -146,7 +146,7 @@ try {
   check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
   await page.click('.ring-btn[data-id="back"]');
   await page.waitForTimeout(250);
-  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 9 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
@@ -737,6 +737,28 @@ try {
   check('fetch: throw the ball and it brings it back; three throws', fetched.ok && fetched.quality > 0.2 &&
     (await page.evaluate(() => window.__reaper.dragon.get().train.tricks)) === 1, JSON.stringify(fetched).slice(0, 120));
   check('three drills tire it', (await page.evaluate(() => window.__reaper.dragon.get().energy)) === 25);
+  // The dragon's own ring, behind Dragon on his ring.
+  await page.evaluate(() => window.__reaper.retarget());
+  for (let i = 0; i < 6 && !(await visible(page, '#ring')); i++) { await page.click('#body', { force: true }); await page.waitForTimeout(260); }
+  await page.click('.ring-btn[data-id="dragon"]', { force: true });
+  await page.waitForTimeout(300);
+  const dragonRing = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
+  check('Dragon opens its own ring: card, pet, a bite, the three drills, its breath, and back',
+    ['dragon-card', 'dragon-pet', 'dragon-feed', 'dragon-hunt', 'dragon-garden', 'dragon-tricks', 'dragonbreath', 'back'].every((id) => dragonRing.includes(id)), dragonRing.join(','));
+  check('its drills are greyed out exactly when it is too tired to train', (await page.$eval('.ring-btn[data-id="dragon-hunt"]', (n) => n.classList.contains('is-locked'))) ===
+    !(await page.evaluate(() => window.__reaper.dragon.get().canTrain)));
+  const bond0 = await page.evaluate(() => window.__reaper.dragon.get().bond);
+  await page.click('.ring-btn[data-id="dragon-pet"]', { force: true });
+  await page.waitForTimeout(300);
+  check('Pet, from its ring, pets it and closes the ring', (await page.evaluate(() => window.__reaper.dragon.get().bond)) > bond0 && !(await visible(page, '#ring')));
+  for (let i = 0; i < 6 && !(await visible(page, '#ring')); i++) { await page.click('#body', { force: true }); await page.waitForTimeout(260); }
+  await page.click('.ring-btn[data-id="dragon"]', { force: true });
+  await page.waitForTimeout(300);
+  await page.click('.ring-btn[data-id="dragon-card"]', { force: true });
+  await page.waitForTimeout(300);
+  check('Card, from its ring, opens its card', await page.evaluate(() => window.__reaper.dragon.isOpen()));
+  await page.evaluate(() => window.__reaper.dragon.close());
+
   // Dragonbreath: a storm drake breathes lightning across the screen.
   const bolts = page.evaluate(() => new Promise((resolve) => {
     let n = 0;
