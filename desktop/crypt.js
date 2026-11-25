@@ -29,6 +29,11 @@ export const BASE_COST = 25;      // the first skeleton
 export const GROWTH = 1.25;      // each one costs this much more than the last
 // These numbers were tuned with tools/pacing.mjs; run it after changing any.
 export const MAX_SKELETONS = 200;
+// How many workers the garden draws on screen (the oldest first, of the
+// kinds the user has not hidden).
+export const SHOWN = 16;
+// How many workers the page is told about (it picks the ones to draw).
+const LISTED = 60;
 
 // What each deed is worth, per unit: a ghost, a file, a minute of finished focus.
 export const WORTH = { caught: 1, reaped: 5, focus: 1 };
@@ -72,7 +77,7 @@ export const KINDS = [
   { id: 'moth', name: 'Moth', blurb: 'Starts as a caterpillar, spins a cocoon, and becomes a moth that catches two ghosts that would get away when a hunt runs out. Reaped, it gives two spirit-lights.', dig: 0, ghosts: false, lights: 2, price: 2, rank: 2, most: 3 },
   { id: 'robin', name: 'Robin', blurb: 'Hops about and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two.', dig: 0, ghosts: false, price: 3, rank: 3, most: 2 },
   { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 },
-  { id: 'ladybug', name: 'Ladybug', blurb: 'Brings luck: each one makes spirit-lights more likely in a hunt.', dig: 0, ghosts: false, price: 3, rank: 4, most: 3 }
+  { id: 'ladybug', name: 'Ladybug', blurb: 'Brings luck: each one makes spirit-lights more likely in a hunt.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
 ];
 // Each moth saves this many ghosts a hunt.
 export const MOTH_CATCHES = 2;
@@ -175,7 +180,7 @@ export function clean(raw, now = Date.now()) {
     loose: Math.floor(whole(c.loose, MAX_LOOSE)),
     // Pollen from the bees, by worker; and when a bee last pollinated.
     boosts: c.boosts && typeof c.boosts === 'object' ? Object.fromEntries(Object.entries(c.boosts)
-      .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(0, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
+      .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(-6, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
     pollenAt: Number.isFinite(c.pollenAt) && c.pollenAt <= now ? c.pollenAt : 0,
     // The reaper's dragon (dragon.js), once it has one.
     dragon: dragons.cleanDragon(c.dragon, now),
@@ -211,7 +216,7 @@ const shares = (c, now = c.at) => {
 export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels')) * (1 + dragons.gardenSouls(c.dragon));
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
-export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug')) * 100) / 100;
+export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug') + dragons.lightBonus(c.dragon)) * 100) / 100;
 // How long a reaped worker rests: shorter with robins about.
 export const restMs = (c) => [30, 20, 15][Math.min(2, counted(c, 'robin'))] * 60000;
 
@@ -234,7 +239,7 @@ export function earn(c, deed, n) {
   const count = Math.min(1000, n);
   let gained = count * WORTH[deed];
   if (deed === 'focus') {
-    gained = Math.round(gained * SAND[level(c, 'sand')]);
+    gained = Math.round(gained * SAND[level(c, 'sand')] * (1 + dragons.sandBonus(c.dragon)));
     c.deeds.glasses += 1;
     c.deeds.longest = Math.max(c.deeds.longest, Math.min(180, count));
   } else {
@@ -277,7 +282,8 @@ const holds = (c, i, now) => {
   const k = kindOf(c, i);
   if (!k.ghosts || !awake(c, i, now)) return 0;
   const pollen = (c.boosts && c.boosts[c.born[i]] && c.boosts[c.born[i]].n) || 0;
-  return Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every) + pollen);
+  // (A crow that got through leaves it a ghost short: never below none.)
+  return Math.max(0, Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every) + pollen));
 };
 
 // A bee pollinates the worker at `index`: one more ghost, at once. Each worker
@@ -397,7 +403,8 @@ export function hunted(c, result, now = Date.now()) {
   const points = Math.min(caught * GHOST_POINTS * 3 * 5, Math.floor(whole(r.points, 1e9)));
   c.loose = 0;
   c.deeds.caught += caught;
-  const gained = (caught + 2 * golden) * GHOST_SOULS;
+  // (Star shards in the dragon's hoard add to it.)
+  const gained = Math.round((caught + 2 * golden) * GHOST_SOULS * (1 + dragons.huntBonus(c.dragon)));
   bank(c, gained);
   c.score += points;
   // The dragon learns from every hunt it shares.
@@ -498,8 +505,11 @@ export function dragonAct(c, a, now = Date.now()) {
     const play = out.ok ? dragons.playSouls(d) : 0;
     if (play) { bank(c, play); out.gained = play; }
   } else if (a.snail) {
-    // Its favourite: one of the garden's snails (one that is up, not a seed).
-    const i = c.kinds.findIndex((k, j) => k === 'snail' && awake(c, j, now));
+    // Its favourite: one of the garden's snails (one that is up, not a seed):
+    // the one it was dropped on (`snail` is its place), or the first.
+    const asked = Number.isInteger(a.snail) ? a.snail : -1;
+    if (asked >= 0 && !(c.kinds[asked] === 'snail' && awake(c, asked, now))) return { ok: false, error: 'That is not a snail it can eat.' };
+    const i = asked >= 0 ? asked : c.kinds.findIndex((k, j) => k === 'snail' && awake(c, j, now));
     if (i < 0) return { ok: false, error: 'There are no snails in the garden. (It checked.)' };
     out = dragons.snack(d, now);
     if (out.ok) {
@@ -514,6 +524,44 @@ export function dragonAct(c, a, now = Date.now()) {
     if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
     out = dragons.feed(d, n, now);
     if (out.ok) c.souls -= out.ate;
+  } else if (a.burst) {
+    // Its breath burst, spent: in a hunt (the page freezes or strikes the
+    // ghosts), or on the garden: sprouts ripen, those it was aimed at (`at`,
+    // their places), or for Shadow every one.
+    const inHunt = a.burst.hunt === true;
+    if (inHunt && !dragons.BURST_IN_HUNTS.includes(d.element)) return { ok: false, error: 'Its breath does nothing to a hunt.' };
+    out = dragons.burst(d, now);
+    if (out.ok && !inHunt) {
+      const more = dragons.BURST_GHOSTS[d.element] || 1;
+      const asked = Array.isArray(a.burst.at) ? a.burst.at.slice(0, 16).map((n) => Math.floor(Number(n))) : [];
+      const which = c.kinds.map((_, i) => i).filter((i) => kindOf(c, i).ghosts && awake(c, i, now) &&
+        (d.element === 'shadow' || asked.includes(i)));
+      for (const i of which) {
+        const id = c.born[i];
+        const b = (c.boosts && c.boosts[id]) || { n: 0, at: 0 };
+        c.boosts = { ...(c.boosts || {}), [id]: { n: Math.min(6, b.n + more), at: Number.isFinite(b.at) ? b.at : 0 } };
+      }
+      out.ripened = which.length;
+    }
+  } else if (a.crow) {
+    // A crow at the garden: stopped (souls), or through (it takes a ghost from
+    // the worker it went for: its place, `a.crow.at`).
+    const stopped = a.crow.stopped === true;
+    const at = Math.floor(Number(a.crow.at));
+    if (!stopped && !(at >= 0 && at < c.skeletons && kindOf(c, at).ghosts)) return { ok: false, error: 'No such sprout.' };
+    out = dragons.crow(d, stopped, now);
+    if (out.ok && stopped) { bank(c, out.souls); out.gained = out.souls; }
+    if (out.ok && !stopped) {
+      const id = c.born[at];
+      const b = (c.boosts && c.boosts[id]) || { n: 0, at: -Infinity };
+      // (Its time kept as a number, so the theft survives a save.)
+      c.boosts = { ...(c.boosts || {}), [id]: { n: b.n - 1, at: Number.isFinite(b.at) ? b.at : 0 } };
+      out.stole = { at, ripe: holds(c, at, now) };
+    }
+  } else if (a.treasure) {
+    // It caught something shiny and brought it home.
+    out = dragons.treasure(d, now);
+    if (out.ok) { bank(c, out.souls); out.gained = out.souls; }
   } else if (a.train) {
     out = dragons.train(d, a.train, now, a.quality);
   } else if (a.ascend) {
@@ -565,10 +613,10 @@ export function view(c, now = Date.now()) {
     total: Math.floor(c.total),
     awayCapHours: capHours(c),
     goldenChance: goldenChance(c),
-    // The skeletons drawn on screen (the oldest eight): how each is known,
+    // The workers, oldest first (the page draws SHOWN of them): how each is known,
     // how many ghosts it holds, and what kind it is.
     // A resting one has `rest`: the minutes until it rises.
-    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
+    bones: (c.born || []).slice(0, LISTED).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
       ...(t > now + 1000 ? { rest: Math.max(1, Math.round((t - now) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,

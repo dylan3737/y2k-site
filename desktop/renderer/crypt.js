@@ -2,9 +2,8 @@
 // sprites that work along the bottom of the screen. The rules and the saved
 // numbers live in the main process (../crypt.js); this draws what it is told.
 import { el, chip } from './dom.js';
-
-// How many sprites are drawn; the rest work out of sight.
-const SHOWN = 8;
+// How many sprites are drawn (the rules' number); the rest work out of sight.
+import { SHOWN } from '../crypt.js';
 
 const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
 
@@ -13,6 +12,9 @@ export function createCrypt(ctx) {
   const owner = {};
   let now = { kinds: [], souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [], bones: [], score: 0, rank: 'Gravekeeper', nextRank: null };
   let shown = true;
+  // Kinds the user keeps off the screen (they still work, and a Gathering
+  // still reaps them).
+  let hidden = new Set();
   let tab = 'dig';
   const diggers = [];
 
@@ -54,7 +56,23 @@ export function createCrypt(ctx) {
       get.dataset.kind = k.id;
       get.disabled = !k.open || full || now.souls < k.cost;
       get.setAttribute('aria-label', 'Raise a ' + k.name.toLowerCase() + (k.open ? ' for ' + k.cost + ' souls' : ''));
-      item.append(text, get);
+      // Shown on screen, or kept out of sight (it works all the same).
+      const buttons = el('div', 'crypt-buttons');
+      if (k.count) {
+        const off = hidden.has(k.id);
+        const eye = chip(off ? 'Hidden' : 'Shown', () => {
+          if (hidden.has(k.id)) hidden.delete(k.id); else hidden.add(k.id);
+          companion.save({ hiddenKinds: [...hidden] });
+          crew();
+          paint();
+        });
+        eye.dataset.eye = k.id;
+        eye.classList.toggle('is-off', off);
+        eye.title = off ? 'Kept off the screen; it still works. Click to show it.' : 'On the screen. Click to hide it (it still works).';
+        buttons.appendChild(eye);
+      }
+      buttons.appendChild(get);
+      item.append(text, buttons);
       kinds.appendChild(item);
     }
     const row = el('div');
@@ -118,15 +136,20 @@ export function createCrypt(ctx) {
   const CRAWLS = new Set(['snail', 'caterpillar', 'ladybug']);
   // Which can be reaped: the ones that grow ghosts.
   const REAPABLE = new Set(['digger', 'snail', 'frog']);
-  const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90];
+  const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90, 34, 71, 11, 57, 86, 20, 47, 75];
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fallen = [];
   const rand = (a, b) => a + Math.random() * (b - a);
   const span = () => Math.max(W_BONE, innerWidth - W_BONE - 8);
 
   // Transitions, in order: left (walking), opacity (fading), bottom (falling).
+  // The left edge they keep to: clear of the dragon's hoard, when there is one.
+  const leftEdge = () => {
+    const h = document.querySelector('.hoard');
+    return h ? Math.round(h.getBoundingClientRect().right + 8) : 8;
+  };
   function setX(d, x, seconds = 0) {
-    d.x = Math.max(8, Math.min(span(), x));
+    d.x = Math.max(leftEdge(), Math.min(span(), x));
     d.node.style.transitionDuration = (seconds ? seconds.toFixed(2) : '0') + 's, 0.2s, 0.35s';
     d.node.style.left = Math.round(d.x) + 'px';
   }
@@ -418,7 +441,7 @@ export function createCrypt(ctx) {
   }
 
   function crew() {
-    const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
+    const want = shown ? (now.bones || []).filter((b) => !hidden.has(b.kind)).slice(0, SHOWN) : [];
     const as = new Map(want.map((b) => [b.id, shape(b)]));
     for (let i = diggers.length - 1; i >= 0; i--) {
       const look = as.get(diggers[i].id);
@@ -549,6 +572,18 @@ export function createCrypt(ctx) {
     return hit ? (now.bones || []).findIndex((b) => b.id === hit.id) : -1;
   }
 
+  // A snail the dragon (its box) is over, as its place among the garden's, or
+  // -1; it lights up (null puts the light out).
+  function snailUnder(box) {
+    const hit = box && diggers.find(({ node, mode, kind }) => {
+      if (kind !== 'snail' || mode === 'held') return false;
+      const r = node.getBoundingClientRect();
+      return box.left < r.right && box.right > r.left && box.top < r.bottom + 10 && box.bottom > r.top - 10;
+    });
+    for (const d of diggers) d.node.classList.toggle('is-aimed', !!hit && d === hit);
+    return hit ? (now.bones || []).findIndex((b) => b.id === hit.id && !b.rest) : -1;
+  }
+
   // Light up the sprite under a point; null puts the light out.
   function aim(p, box) {
     const i = diggerAt(p, box);
@@ -625,9 +660,10 @@ export function createCrypt(ctx) {
   function update(next, event = {}) {
     const before = now;
     now = { ...now, ...next };
-    paint();
-    // The dragon lives in the garden's state.
+    // The dragon lives in the garden's state. (First: its hoard is a place the
+    // workers keep clear of.)
     if (ctx.dragon && 'dragon' in next) ctx.dragon.update(next.dragon);
+    paint();
     // Souls for a deed pop over the reaper; what the garden gathered, over them.
     if (event.gained) ctx.pop('+' + event.gained, 'is-souls');
     else if (event.dug && next.souls > before.souls) unearthed(next.souls - before.souls);
@@ -660,6 +696,34 @@ export function createCrypt(ctx) {
     raise,
     buy,
     diggerAt,
+    snailUnder,
+    // The ripest sprout on screen (for a crow to go after): its id and where it is.
+    ripest() {
+      let best = null;
+      for (const d of diggers) {
+        const b = (now.bones || []).find((x) => x.id === d.id);
+        if (!b || b.rest || !REAPABLE.has(d.kind) || d.mode === 'held' || b.ripe < 1) continue;
+        if (!best || b.ripe > best.ripe) best = { id: b.id, ripe: b.ripe, box: d.node.getBoundingClientRect() };
+      }
+      return best;
+    },
+    // The sprouts within `r` of a point, as their places in the garden.
+    sproutsNear(x, y, r) {
+      const out = [];
+      for (const d of diggers) {
+        if (!REAPABLE.has(d.kind) || d.mode === 'held') continue;
+        const b = d.node.getBoundingClientRect();
+        const i = (now.bones || []).findIndex((x2) => x2.id === d.id && !x2.rest);
+        if (i >= 0 && Math.hypot(b.left + b.width / 2 - x, b.top + b.height / 2 - y) <= r) out.push(i);
+      }
+      return out;
+    },
+    // Where a worker is now, by its id, and its place in the garden (or null).
+    whereIs(id) {
+      const d = diggers.find((x) => x.id === id);
+      const i = (now.bones || []).findIndex((b) => b.id === id && !b.rest);
+      return d && i >= 0 ? { index: i, box: d.node.getBoundingClientRect() } : null;
+    },
     aim,
     diggerBox,
     diggerBoxes,
@@ -675,6 +739,7 @@ export function createCrypt(ctx) {
     stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
+    setHidden(list) { hidden = new Set(Array.isArray(list) ? list : []); crew(); },
     // "The sprites gathered 12 souls." for the away report, or '' for nothing.
     report(dug) {
       if (!(dug >= 1)) return '';

@@ -119,7 +119,7 @@ Souls raise **moss sprites**: small round moss creatures, each tending a sprout.
 
 - When you come back to the computer, he tells you what the garden gathered while you were gone.
 - When the app was shut or the computer asleep, they are paid for up to 8 hours of it.
-- Up to eight workers live along the bottom of your screen. Each works a while, then wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and works there. Each half fades while your cursor is over it.
+- Up to sixteen workers live along the bottom of your screen. Each works a while, then wanders somewhere new; now and then one hops, looks about or naps. They hop out of his way when he comes near. **Pick one up** and it dangles from your cursor; let go and it drops to the ground and works there. Each half fades while your cursor is over it.
 
 #### Workers
 
@@ -134,7 +134,7 @@ Higher ranks open other workers, each its own creature (all pixel art, like him)
 | **Moth** | Soul warden | ×2 | Starts as a **caterpillar** that inches about for a few hours, spins a cocoon at the top of the screen, and comes out a moth. The moth flutters about the top and rests against it; pick it up and put it anywhere. When a hunt runs out it catches two ghosts that would get away (at base points, no combo). Reap it (drop him so he touches it, or carry it down to him) for **two spirit-lights**; it rests as a cocoon meanwhile. Three at most. |
 | **Robin** | Shade hunter | ×3 | Hops about, pecks, and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two. Two at most. |
 | **Will-o'-wisp** | Shade hunter | ×3 | A small floating flame that drifts over the sprites. Every sprout grows a quarter faster for each one. Three at most. |
-| **Ladybug** | Wraith lord | ×3 | Crawls along the bottom of the screen. Each makes spirit-lights 5% more likely in a hunt, on top of the Ghost lure. Three at most. |
+| **Ladybug** | Shade hunter | ×3 | Crawls along the bottom of the screen. Each makes spirit-lights 5% more likely in a hunt, on top of the Ghost lure. Three at most. |
 
 The sprite, the snail and the frog grow ghosts and can be reaped; so can a moth. The rest can't, and gather nothing: their help is their job.
 
@@ -180,6 +180,9 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Guardian** | Garden | Every sprout in the garden grows faster: a quarter as a wyvern, a half as an elder. |
 | **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
 
+- **Treasure and its hoard:** now and then (every few minutes at most, fifteen a day) something shiny drifts across your screen: a star, a coin, a gem. The dragon spots it, swoops and catches it, and carries it to its **hoard**, a pile in the bottom-left corner that grows as it fills. (Click a treasure to send it at once.) Each pays souls, more from a bigger dragon, and about one in five is a **relic**, which levels up a lasting boost: **Star shard** (hunts pay more), **Old coin** (the garden gathers more), **Moon pearl** (it grows faster), **Ghost lantern** (more spirit-lights) and **Sand of ages** (hourglasses pay more), 5 levels each. Click the hoard to see them.
+- **Guarding the garden:** now and then (every six minutes at most, twelve a day) a **shadow crow** swoops at your ripest sprout. As often as the dragon is watchful (a Guardian nearly always, others more as they grow) it goes after it by itself; click the crow to send it. Caught, the crow pays souls; if it gets there first, it pecks and flies off with one of the sprout's ghosts.
+- **Its breath burst:** a drake or older builds up a burst of breath over 90 minutes (**Burst** in its ring shows how full). When it is ready, click Burst and aim: a ring follows your cursor; click, and it flies over and breathes there. On the garden, sprouts ripen: **Ember** gives two ghosts to each sprout it hits, **Frost** and **Storm** one, and **Shadow** one to every sprout on the screen. In a hunt, **Frost** freezes the ghosts it hits (they hang still, easy to catch) and **Storm** strikes them with lightning, caught at once.
 - **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
 - **Ascension (prestige):** an elder that has matured (4,500 growth) and has a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
 
@@ -206,6 +209,8 @@ Souls also buy upgrades, which change the rules instead of adding diggers. Each 
 There are 17 milestones, such as planting your first moss sprite, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
 
 ### Using it
+
+Each kind of worker in the Garden card has a **Shown / Hidden** switch: hidden ones keep working (and a Gathering still reaps them), just off the screen.
 
 Open the **Garden** from his ring. It has three tabs: **Garden** (your workers, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("plant two moss sprites", "buy green thumbs", "how's the garden?"), and so can the plain commands.
 

@@ -262,6 +262,9 @@ export function createAbilities(ctx) {
   }
 
   function drift(g, dt, now, w, h) {
+    // Frozen by a dragon's frost: it hangs where it is, for a while.
+    if (g.frozenUntil && performance.now() < g.frozenUntil) return;
+    if (g.frozenUntil) { g.frozenUntil = 0; g.node.classList.remove('is-frozen'); }
     g.x += g.vx * dt;
     g.y += g.vy * dt + Math.sin(now / 300 + g.phase) * 0.3;
     if ((g.x < 0 && g.vx < 0) || (g.x > innerWidth - w && g.vx > 0)) g.vx = -g.vx;
@@ -993,6 +996,20 @@ export function createAbilities(ctx) {
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },
+    // A dragon's burst in a hunt: the loose ghosts near a point are frozen
+    // (they hang still for `ms`), or struck (caught at once). How many.
+    freezeNear(x, y, r, ms) {
+      if (!hunt || hunt.wraith) return 0;
+      const near = hunt.ghosts.filter((g) => !g.caught && Math.hypot(g.x + GHOST_W / 2 - x, g.y + GHOST_H / 2 - y) <= r);
+      for (const g of near) { g.frozenUntil = performance.now() + ms; g.node.classList.add('is-frozen'); }
+      return near.length;
+    },
+    strikeNear(x, y, r) {
+      if (!hunt || hunt.wraith) return 0;
+      const near = hunt.ghosts.filter((g) => !g.caught && Math.hypot(g.x + GHOST_W / 2 - x, g.y + GHOST_H / 2 - y) <= r);
+      for (const g of near) catchGhost(g, { byMoth: true });
+      return near.length;
+    },
     reapAt,
     dueToday() {
       const end = new Date();

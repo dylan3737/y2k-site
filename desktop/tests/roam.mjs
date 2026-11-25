@@ -107,7 +107,8 @@ try {
     check('the window is now the landscape monitor', at.w === 1920 && at.h === 1080, JSON.stringify(at));
     // His middle was at y 528 on the desktop, which is 108 on a monitor that starts at 420.
     check('he comes in at the left edge, at the same height on the desktop', at.x < 20 && Math.abs(at.y + 57 - 108) <= 2, JSON.stringify(at));
-    check('and walks on in, away from the doorway', await page.waitForFunction(() => window.__reaper.pos.x > 40, null, { timeout: 8000 }).then(() => true, () => false));
+    // (Given time: on CI's virtual display the animation frames can be slow after the window moves.)
+    check('and walks on in, away from the doorway', await page.waitForFunction(() => window.__reaper.pos.x > 40, null, { timeout: 15000 }).then(() => true, () => false));
     await page.reload();
     await page.waitForSelector('#body');
     await page.waitForTimeout(600);

@@ -48,6 +48,8 @@ const state = {
   bigJobModel: 'haiku',
   // The idle game: banked souls and the skeletons that dig for more.
   crypt: crypt.fresh(), minions: true,
+  // Kinds of worker kept off the screen.
+  hiddenKinds: [],
   // Whether he walks (and can be flung) from one monitor to the next.
   roam: true
 };
@@ -508,6 +510,7 @@ function wireIpc() {
     hasKey: hasKey(),
     brain: getBrain().kind,
     minions: state.minions,
+    hiddenKinds: state.hiddenKinds,
     roam: state.roam,
     free: freeMind.status(),
     doors: doors(),
@@ -525,6 +528,7 @@ function wireIpc() {
     if ('hourglass' in patch) state.hourglass = patch.hourglass || null;
     if (typeof patch.greeted === 'string') state.greeted = patch.greeted.slice(0, 20);
     if (patch.guided === true) state.guided = true;
+    if (Array.isArray(patch.hiddenKinds)) state.hiddenKinds = patch.hiddenKinds.filter((k) => typeof k === 'string' && k.length < 20).slice(0, 20);
     writeState();
   });
 

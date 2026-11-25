@@ -74,6 +74,71 @@ const youngElder = dragon.freshDragon(T0, seq(0.1));
 youngElder.stage = 4; youngElder.xp = dragon.XP_AT[4]; youngElder.bond = 90;
 check('a young elder must mature before it can ascend', /young elder/.test(dragon.ascendable(youngElder).why || ''));
 
+// Treasure, and the hoard.
+const finder = dragon.freshDragon(T0, seq(0.1));
+check('an egg finds no treasure', !dragon.treasure(finder, T0).ok);
+finder.stage = 2;
+out = dragon.treasure(finder, T0, seq(0.9));
+check('a treasure pays souls by its stage, and is counted', out.ok && out.souls === dragon.TREASURE_SOULS * 2 && !out.relic && finder.hoard.treasures === 1, JSON.stringify(out));
+check('not again straight away', !dragon.treasure(finder, T0 + 1000).ok && !dragon.treasureReady(finder, T0 + 1000).ok);
+out = dragon.treasure(finder, T0 + dragon.TREASURE_GAP_MS, seq(0.1, 0.1));
+check('now and then a relic, which levels up', out.ok && out.relic && out.relic.level === 1 && finder.hoard.relics[out.relic.id] === 1, JSON.stringify(out));
+let found = 2;
+for (let i = 2; i < 40; i++) if (dragon.treasure(finder, T0 + i * dragon.TREASURE_GAP_MS, seq(0.9)).ok) found++;
+check('only so many a day', found === dragon.TREASURES_A_DAY, String(found));
+check('the hoard survives a save', JSON.stringify(dragon.cleanDragon(JSON.parse(JSON.stringify(finder)), T0 + 40 * dragon.TREASURE_GAP_MS).hoard) === JSON.stringify(finder.hoard));
+const rich = dragon.freshDragon(T0, seq(0.1));
+rich.stage = 2; rich.hoard.relics = { star: 2, coin: 1, lantern: 5, sand: 3 };
+check('relics boost hunts, the garden, spirit-lights and hourglasses', dragon.huntBonus(rich) === 0.1 && dragon.gardenSouls(rich) === 0.05 &&
+  Math.abs(dragon.lightBonus(rich) - 0.1) < 1e-9 && Math.abs(dragon.sandBonus(rich) - 0.15) < 1e-9);
+const tg = crypt.fresh(T0);
+tg.souls = 0;
+crypt.act(tg, { dragon: { adopt: true } }, T0);
+tg.dragon.stage = 1;
+out = crypt.act(tg, { dragon: { treasure: true } }, T0);
+check('through the garden, a treasure banks its souls', out.ok && Math.floor(tg.souls) === dragon.TREASURE_SOULS && crypt.view(tg, T0).dragon.hoard.treasures === 1, JSON.stringify(out));
+
+// Crows at the garden.
+const cg = crypt.fresh(T0);
+cg.souls = 1000;
+crypt.act(cg, { raise: 1 }, T0);
+check('no crows before there is a dragon to guard', !crypt.act(cg, { dragon: { crow: { stopped: true } } }, T0 + 3 * HOUR).ok);
+crypt.act(cg, { dragon: { adopt: true } }, T0);
+cg.dragon.stage = 2;
+const t3 = T0 + 3 * HOUR;
+const ripe0 = crypt.view(cg, t3).bones[0].ripe;
+out = crypt.act(cg, { dragon: { crow: { at: 0 } } }, t3);
+check('a crow that gets through takes a ghost from the sprout', out.ok && out.stole && crypt.view(cg, t3).bones[0].ripe === ripe0 - 1, JSON.stringify(out));
+check('and the theft survives a save', crypt.view(crypt.clean(JSON.parse(JSON.stringify(cg)), t3), t3).bones[0].ripe === ripe0 - 1);
+check('no second crow straight away', !crypt.act(cg, { dragon: { crow: { stopped: true } } }, t3 + 1000).ok);
+const sc = Math.floor(cg.souls);
+out = crypt.act(cg, { dragon: { crow: { stopped: true } } }, t3 + dragon.CROW_GAP_MS);
+check('one the dragon stops pays souls by its stage', out.ok && out.stopped && Math.floor(cg.souls) === sc + dragon.CROW_SOULS * 2 && cg.dragon.guard.stopped === 1, JSON.stringify(out));
+check('a guardian is the most watchful', dragon.watchfulness({ stage: 3, branch: 'guardian' }) > dragon.watchfulness({ stage: 3, branch: 'hunter' }) &&
+  dragon.watchfulness({ stage: 0 }) === 0);
+
+// The breath burst.
+const bg = crypt.fresh(T0);
+bg.souls = 1000;
+crypt.act(bg, { raise: 2 }, T0);
+crypt.act(bg, { dragon: { adopt: true } }, T0);
+bg.dragon.stage = 1; bg.dragon.element = 'ember';
+check('a hatchling has no burst', !crypt.act(bg, { dragon: { burst: { at: [0] } } }, T0 + 2 * HOUR).ok);
+bg.dragon.stage = 2;
+check('it charges over time', dragon.burstCharge(bg.dragon, T0 + dragon.BURST_MS / 2) === 0.5 && !crypt.act(bg, { dragon: { burst: { at: [0] } } }, T0 + dragon.BURST_MS / 2).ok);
+const tb = T0 + dragon.BURST_MS;
+const r0 = crypt.view(bg, tb).bones.map((b) => b.ripe);
+out = crypt.act(bg, { dragon: { burst: { at: [0] } } }, tb);
+const r1 = crypt.view(bg, tb).bones.map((b) => b.ripe);
+check('Ember ripens the sprouts it is aimed at, by two', out.ok && out.ripened === 1 && r1[0] === Math.min(6, r0[0] + 2) && r1[1] === r0[1], JSON.stringify([r0, r1]));
+check('spent, it charges again', !crypt.act(bg, { dragon: { burst: { at: [0] } } }, tb + 1000).ok);
+bg.dragon.element = 'shadow';
+out = crypt.act(bg, { dragon: { burst: { at: [] } } }, tb + dragon.BURST_MS);
+check('Shadow ripens every sprout a little', out.ok && out.ripened === 2, JSON.stringify(out));
+check('only Frost and Storm work in a hunt', !crypt.act(bg, { dragon: { burst: { hunt: true } } }, tb + 3 * dragon.BURST_MS).ok);
+bg.dragon.element = 'storm';
+check('Storm does', crypt.act(bg, { dragon: { burst: { hunt: true } } }, tb + 3 * dragon.BURST_MS).ok);
+
 // Bond.
 const lonely = dragon.freshDragon(T0, seq(0.3));
 lonely.bond = 50;

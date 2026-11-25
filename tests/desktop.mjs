@@ -672,6 +672,70 @@ try {
   check('it eats the snail, and grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > xpSnail &&
     !(await page.$('.field .digger.is-snail')) && !(await page.$('#card .chip[data-feed="snail"]')));
 
+  // Dragged onto a snail, it eats that one. (A new day: it has not had one.)
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    const t = Date.now() - 3600000;
+    Object.assign(saved.crypt, { skeletons: 2, born: [t, t + 1], kinds: ['snail', 'snail'], rank: 1 });
+    saved.crypt.dragon.today = null;
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__reaper.dragon.close());
+  const snailBox = await page.locator('.field .digger.is-snail').last().boundingBox();
+  const snailId = await page.locator('.field .digger.is-snail').last().evaluate((n) => n.dataset.id || null);
+  const dragonBox = await page.locator('.field .dragon').boundingBox();
+  const xpDrag = await page.evaluate(() => window.__reaper.dragon.get().xp);
+  await page.mouse.move(dragonBox.x + dragonBox.width / 2, dragonBox.y + dragonBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(snailBox.x + snailBox.width / 2, snailBox.y + snailBox.height / 2 - 10, { steps: 12 });
+  check('carried over a snail, the snail lights up', await page.locator('.field .digger.is-snail.is-aimed').count() === 1);
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  const snailsLeft = await page.evaluate(() => window.__reaper.crypt.get().kinds.find((k) => k.id === 'snail').count);
+  check('dropped on a snail, it eats it, and grows', snailsLeft === 1 && (await page.evaluate(() => window.__reaper.dragon.get().xp)) > xpDrag,
+    JSON.stringify({ snailsLeft, snailId }));
+  const bondNow = await page.evaluate(() => window.__reaper.dragon.get().bond);
+  const db = await page.locator('.field .dragon').boundingBox();
+  await page.mouse.click(db.x + db.width / 2, db.y + db.height / 2);
+  await page.waitForTimeout(300);
+  check('a click (no drag) still pets it', (await page.evaluate(() => window.__reaper.dragon.get().bond)) >= bondNow);
+
+  // A garden of ten shows all ten (it once drew only the oldest eight, so the
+  // newest, frogs, never appeared).
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    const t = Date.now() - 3600000;
+    const kinds = ['wisp', 'moth', 'digger', 'digger', 'snail', 'digger', 'robin', 'bee', 'frog', 'frog'];
+    Object.assign(saved.crypt, { skeletons: 10, born: kinds.map((_, i) => t + i), kinds, rank: 3 });
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  check('all ten workers are drawn, the frogs too', (await page.evaluate(() => window.__reaper.crypt.get().bones.length)) === 10 &&
+    (await page.$$('.field .is-frog')).length === 2, String(await page.evaluate(() => window.__reaper.crypt.get().bones.length)));
+  // Which kinds are on screen: the frogs hidden, they leave, and room is made; shown, back.
+  await page.evaluate(() => window.__reaper.crypt.open());
+  await page.waitForTimeout(200);
+  await page.click('#card .chip[data-eye="frog"]');
+  await page.waitForTimeout(300);
+  check('a kind can be hidden from the screen, and is remembered', (await page.$$('.field .is-frog')).length === 0 &&
+    JSON.stringify(await page.evaluate(() => window.__companion.read().hiddenKinds)) === '["frog"]' &&
+    (await page.evaluate(() => window.__reaper.crypt.get().skeletons)) === 10);
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  check('still hidden after a restart', (await page.$$('.field .is-frog')).length === 0);
+  await page.evaluate(() => window.__reaper.crypt.open());
+  await page.waitForTimeout(200);
+  await page.click('#card .chip[data-eye="frog"]');
+  await page.waitForTimeout(300);
+  check('and shown again', (await page.$$('.field .is-frog')).length === 2);
+  check('ladybugs open at Shade hunter', await page.evaluate(() => window.__reaper.crypt.get().kinds.find((k) => k.id === 'ladybug').open));
+
   // An elder with a strong bond ascends: scales, and an egg of a new element.
   await page.evaluate(() => {
     const saved = window.__companion.read();
@@ -697,8 +761,10 @@ try {
   await page.waitForTimeout(250);
   check('scales buy a perk', (await page.evaluate(() => window.__reaper.dragon.get().perks.find((p) => p.id === 'power').level)) === 1);
   // Training you play: target practice, a flight lesson, fetch.
+  // (Treasures that turn up by themselves are turned off, so the one below is the first.)
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 0, total: 0, at: Date.now(),
     dragon: { element: 'storm', stage: 2, xp: 150, bond: 50, energy: 100, lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });
+  await page.evaluate(() => window.__reaper.dragon.setFinding(false));
   const xpStart = await page.evaluate(() => window.__reaper.dragon.get().xp);
   const practice = page.evaluate(() => window.__reaper.dragon.drill('hunt'));
   for (let i = 0; i < 30; i++) {
@@ -770,6 +836,83 @@ try {
   }));
   const breathed = await page.evaluate(() => window.__reaper.abilities.cast('dragonbreath'));
   check('Dragonbreath: a storm dragon breathes lightning across the screen', breathed.ok !== false && (await bolts) >= 3, JSON.stringify(breathed));
+
+  // Treasure: something shiny drifts by; sent after it, the dragon catches it and starts a hoard.
+  await page.waitForTimeout(1500);
+  const souls0t = await page.evaluate(() => window.__reaper.crypt.get().souls);
+  check('a treasure drifts onto the screen', await page.evaluate(() => window.__reaper.dragon.spawnTreasure()) && !!(await page.$('.treasure')));
+  // (It drifts in from the edge, so the click is sent to it directly.)
+  await page.$eval('.treasure', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.waitForFunction(() => !document.querySelector('.treasure'), null, { timeout: 20000 }).catch(() => {});
+  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0 && document.querySelector('.hoard.is-1'), souls0t, { timeout: 3000 }).catch(() => {});
+  const hoard = await page.evaluate(() => window.__reaper.dragon.get().hoard);
+  check('the dragon catches it and brings it home: souls, and a hoard in the corner', hoard.treasures === 1 && !!(await page.$('.hoard.is-1')) &&
+    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t,
+    JSON.stringify({ before: souls0t, after: await page.evaluate(() => window.__reaper.crypt.get().souls), pile: !!(await page.$('.hoard.is-1')), n: hoard.treasures }));
+  check('no second treasure straight away', !(await page.evaluate(() => window.__reaper.dragon.get().hoard.findable)));
+  await page.click('.hoard', { force: true });
+  await page.waitForTimeout(250);
+  check('the hoard opens its tab: the relics, found or not', (await page.$$('#card .dragon-perk')).length === 5 && /treasure/.test(await page.textContent('#card')));
+  await page.evaluate(() => window.__reaper.dragon.close());
+
+  // Crows at the garden: one sent after is caught (souls); one let be takes a ghost.
+  {
+    const t0 = Date.now() - 3 * 3600000;
+    const cp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 2, born: [t0, t0 + 1], kinds: ['digger', 'digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, at: Date.now(), caredAt: Date.now() } } });
+    await cp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await cp.waitForTimeout(300);
+    // It will not notice by itself (the dice say no), so the click is what sends it.
+    await cp.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });
+    check('a crow comes for the ripest sprout', await cp.evaluate(() => window.__reaper.dragon.spawnCrow()) && !!(await cp.$('.crow')));
+    await cp.evaluate(() => { Math.random = window.realRandom; });
+    const s0 = await cp.evaluate(() => window.__reaper.crypt.get().souls);
+    await cp.$eval('.crow', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await cp.waitForFunction(() => !document.querySelector('.crow'), null, { timeout: 12000 }).catch(() => {});
+    await cp.waitForFunction((s) => window.__reaper.crypt.get().souls > s, s0, { timeout: 3000 }).catch(() => {});
+    check('sent after it, the dragon catches it: souls', (await cp.evaluate(() => window.__reaper.crypt.get().souls)) >= s0 + 16 &&
+      (await cp.evaluate(() => window.__reaper.dragon.get().hoard.stopped)) === 1, String(await cp.evaluate(() => window.__reaper.crypt.get().souls)));
+
+    // Let one through: a new day's garden, the dragon looking the other way.
+    const cp2 = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [t0], kinds: ['digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, at: Date.now(), caredAt: Date.now() } } });
+    await cp2.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await cp2.waitForTimeout(300);
+    const ripeBefore = await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe);
+    await cp2.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });
+    await cp2.evaluate(() => window.__reaper.dragon.spawnCrow());
+    await cp2.evaluate(() => { Math.random = window.realRandom; });
+    await cp2.waitForFunction((r) => window.__reaper.crypt.get().bones[0].ripe < r, ripeBefore, { timeout: 13000 }).catch(() => {});
+    check('one that gets there first takes a ghost', (await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)) === ripeBefore - 1,
+      ripeBefore + ' -> ' + (await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)));
+    check('no errors with crows', cp.errors.length === 0 && cp2.errors.length === 0, cp.errors.concat(cp2.errors).join('; '));
+  }
+
+  // Its breath burst, aimed from its ring: Ember ripens the sprout it is aimed at.
+  {
+    const t1 = Date.now() - 3600000;
+    const bp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 2, born: [t1, t1 + 1], kinds: ['digger', 'digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now() } } });
+    await bp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await bp.waitForTimeout(300);
+    for (let i = 0; i < 6 && !(await visible(bp, '#ring')); i++) { await bp.click('#body', { force: true }); await bp.waitForTimeout(260); }
+    await bp.click('.ring-btn[data-id="dragon"]', { force: true });
+    await bp.waitForTimeout(300);
+    check('charged, its ring offers a burst', !(await bp.$eval('.ring-btn[data-id="dragon-burst"]', (n) => n.classList.contains('is-locked'))));
+    await bp.click('.ring-btn[data-id="dragon-burst"]', { force: true });
+    await bp.waitForTimeout(200);
+    check('a burst is aimed: a ring follows the cursor', !!(await bp.$('.burst-aim .burst-ring')));
+    const bones = await bp.evaluate(() => window.__reaper.crypt.get().bones.map((b) => b.ripe));
+    const target = await bp.locator('.field .digger').first().boundingBox();
+    const targetId = await bp.evaluate(() => window.__reaper.crypt.get().bones[0].id);
+    await bp.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
+    await bp.waitForFunction((r) => window.__reaper.crypt.get().bones.some((b, i) => b.ripe > r[i]), bones, { timeout: 4000 }).catch(() => {});
+    const after = await bp.evaluate(() => window.__reaper.crypt.get().bones.map((b) => b.ripe));
+    check('it breathes where it was aimed, and those sprouts ripen by two', after.some((r, i) => r === Math.min(6, bones[i] + 2)) && !(await bp.$('.burst-aim')),
+      JSON.stringify({ bones, after, targetId }));
+    check('spent, it builds again', (await bp.evaluate(() => window.__reaper.dragon.get().hoard.burst)) < 100);
+    check('no errors with the burst', bp.errors.length === 0, bp.errors.join('; '));
+  }
 
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
