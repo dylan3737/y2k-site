@@ -29,6 +29,8 @@ export const BASE_COST = 25;      // the first skeleton
 export const GROWTH = 1.25;      // each one costs this much more than the last
 // These numbers were tuned with tools/pacing.mjs; run it after changing any.
 export const MAX_SKELETONS = 200;
+// How many workers the garden draws on screen (the oldest first).
+export const SHOWN = 16;
 
 // What each deed is worth, per unit: a ghost, a file, a minute of finished focus.
 export const WORTH = { caught: 1, reaped: 5, focus: 1 };
@@ -72,7 +74,7 @@ export const KINDS = [
   { id: 'moth', name: 'Moth', blurb: 'Starts as a caterpillar, spins a cocoon, and becomes a moth that catches two ghosts that would get away when a hunt runs out. Reaped, it gives two spirit-lights.', dig: 0, ghosts: false, lights: 2, price: 2, rank: 2, most: 3 },
   { id: 'robin', name: 'Robin', blurb: 'Hops about and sings. Reaped workers come back sooner: 20 minutes with one robin, 15 with two.', dig: 0, ghosts: false, price: 3, rank: 3, most: 2 },
   { id: 'wisp', name: "Will-o'-wisp", blurb: 'A drifting flame. Gathers nothing, but every sprout grows a quarter faster for each.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 },
-  { id: 'ladybug', name: 'Ladybug', blurb: 'Brings luck: each one makes spirit-lights more likely in a hunt.', dig: 0, ghosts: false, price: 3, rank: 4, most: 3 }
+  { id: 'ladybug', name: 'Ladybug', blurb: 'Brings luck: each one makes spirit-lights more likely in a hunt.', dig: 0, ghosts: false, price: 3, rank: 3, most: 3 }
 ];
 // Each moth saves this many ghosts a hunt.
 export const MOTH_CATCHES = 2;
@@ -498,8 +500,11 @@ export function dragonAct(c, a, now = Date.now()) {
     const play = out.ok ? dragons.playSouls(d) : 0;
     if (play) { bank(c, play); out.gained = play; }
   } else if (a.snail) {
-    // Its favourite: one of the garden's snails (one that is up, not a seed).
-    const i = c.kinds.findIndex((k, j) => k === 'snail' && awake(c, j, now));
+    // Its favourite: one of the garden's snails (one that is up, not a seed):
+    // the one it was dropped on (`snail` is its place), or the first.
+    const asked = Number.isInteger(a.snail) ? a.snail : -1;
+    if (asked >= 0 && !(c.kinds[asked] === 'snail' && awake(c, asked, now))) return { ok: false, error: 'That is not a snail it can eat.' };
+    const i = asked >= 0 ? asked : c.kinds.findIndex((k, j) => k === 'snail' && awake(c, j, now));
     if (i < 0) return { ok: false, error: 'There are no snails in the garden. (It checked.)' };
     out = dragons.snack(d, now);
     if (out.ok) {
@@ -565,10 +570,10 @@ export function view(c, now = Date.now()) {
     total: Math.floor(c.total),
     awayCapHours: capHours(c),
     goldenChance: goldenChance(c),
-    // The skeletons drawn on screen (the oldest eight): how each is known,
+    // The workers drawn on screen (the oldest SHOWN): how each is known,
     // how many ghosts it holds, and what kind it is.
     // A resting one has `rest`: the minutes until it rises.
-    bones: (c.born || []).slice(0, 8).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
+    bones: (c.born || []).slice(0, SHOWN).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
       ...(t > now + 1000 ? { rest: Math.max(1, Math.round((t - now) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,

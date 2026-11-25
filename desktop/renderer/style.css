@@ -1083,3 +1083,6 @@ body.is-capturing * { visibility: hidden !important; }
 .dragon-hint { margin: 2px 0 4px; font-size: 8px; }
 .dragon-perk { margin: 5px 0; }
 .dragon-perk .muted { font-size: 8px; }
+
+/* Carried: a little bigger, with a shadow, and no gliding. */
+.dragon.is-held { cursor: grabbing; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.45)); transition: none !important; }

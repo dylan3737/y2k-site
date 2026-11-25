@@ -65,11 +65,12 @@ export function createDragon(ctx) {
     const look = now.stage + '-' + now.element;
     if (!node) {
       node = el('div', 'dragon hit');
-      node.addEventListener('pointerdown', (e) => {
-        if (e.button !== 0) return;
-        e.stopPropagation();
-        petted(e);
-      });
+      // A click pets it; pressed and dragged, it is carried. Dropped on a
+      // snail, it eats it.
+      node.addEventListener('pointerdown', grab);
+      node.addEventListener('pointermove', carry);
+      node.addEventListener('pointerup', drop);
+      node.addEventListener('pointercancel', drop);
       node.addEventListener('dblclick', (e) => { e.stopPropagation(); open(); });
       field.appendChild(node);
     }
@@ -95,6 +96,51 @@ export function createDragon(ctx) {
       : 'Your ' + NAMES[now.element].toLowerCase() + ' ' + now.stage + '. Click to pet; double-click for its card.';
   }
 
+  // --- Carrying it -----------------------------------------------------------------
+  let held = null; // { id, offX, offY, startX, startY, moved }
+  function grab(e) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const r = node.getBoundingClientRect();
+    held = { id: e.pointerId, offX: e.clientX - r.left, offY: e.clientY - r.top, startX: e.clientX, startY: e.clientY, moved: false };
+    try { node.setPointerCapture(e.pointerId); } catch {}
+  }
+  function carry(e) {
+    if (!held || e.pointerId !== held.id) return;
+    if (!held.moved && Math.hypot(e.clientX - held.startX, e.clientY - held.startY) < 6) return;
+    // Eggs are rubbed, not carried.
+    if (now.stage === 'egg') return;
+    held.moved = true;
+    mode = 'held';
+    node.classList.add('is-held');
+    node.classList.remove('is-napping');
+    x = e.clientX - held.offX;
+    y = e.clientY - held.offY;
+    place(0);
+    ctx.crypt.snailUnder(node.getBoundingClientRect());
+  }
+  async function drop(e) {
+    if (!held || e.pointerId !== held.id) return;
+    const was = held;
+    held = null;
+    try { node.releasePointerCapture(e.pointerId); } catch {}
+    if (!was.moved) return petted(e);
+    node.classList.remove('is-held');
+    const snail = ctx.crypt.snailUnder(node.getBoundingClientRect());
+    ctx.crypt.snailUnder(null);
+    // Down to the ground, then back to following him a while later.
+    const [, h] = SIZE[now.stage];
+    y = innerHeight - h;
+    place(0.35);
+    mode = 'stare';
+    until = performance.now() + 6000;
+    if (snail < 0) return;
+    const out = await act({ snail });
+    if (!out.ok) return say(out.error, 3000);
+    sound.bell();
+    say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
+  }
+
   async function petted(e) {
     const out = await act({ pet: true });
     const r = node.getBoundingClientRect();
@@ -111,7 +157,7 @@ export function createDragon(ctx) {
   // Where it goes: after the reaper, a little behind him; now and then off to
   // nap by the garden or to perch at the top of the screen.
   function wander() {
-    if (!now || now.stage === 'egg' || document.hidden || mode === 'drill') return;
+    if (!now || now.stage === 'egg' || document.hidden || mode === 'drill' || mode === 'held') return;
     const t = performance.now();
     const [w, h] = SIZE[now.stage];
     if (t < until && mode !== 'follow') return;
@@ -593,7 +639,7 @@ export function createDragon(ctx) {
     drill,
     ringItems,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.
-    holding: () => !!heldBall,
+    holding: () => !!heldBall || !!held,
     // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.
     breaths: () => (now ? now.breaths : 0),
     lore: () => (now ? (now.perks.find((p) => p.id === 'tricks') || { level: 0 }).level : 0),

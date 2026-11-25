@@ -672,6 +672,53 @@ try {
   check('it eats the snail, and grows', (await page.evaluate(() => window.__reaper.dragon.get().xp)) > xpSnail &&
     !(await page.$('.field .digger.is-snail')) && !(await page.$('#card .chip[data-feed="snail"]')));
 
+  // Dragged onto a snail, it eats that one. (A new day: it has not had one.)
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    const t = Date.now() - 3600000;
+    Object.assign(saved.crypt, { skeletons: 2, born: [t, t + 1], kinds: ['snail', 'snail'], rank: 1 });
+    saved.crypt.dragon.today = null;
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.__reaper.dragon.close());
+  const snailBox = await page.locator('.field .digger.is-snail').last().boundingBox();
+  const snailId = await page.locator('.field .digger.is-snail').last().evaluate((n) => n.dataset.id || null);
+  const dragonBox = await page.locator('.field .dragon').boundingBox();
+  const xpDrag = await page.evaluate(() => window.__reaper.dragon.get().xp);
+  await page.mouse.move(dragonBox.x + dragonBox.width / 2, dragonBox.y + dragonBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(snailBox.x + snailBox.width / 2, snailBox.y + snailBox.height / 2 - 10, { steps: 12 });
+  check('carried over a snail, the snail lights up', await page.locator('.field .digger.is-snail.is-aimed').count() === 1);
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  const snailsLeft = await page.evaluate(() => window.__reaper.crypt.get().kinds.find((k) => k.id === 'snail').count);
+  check('dropped on a snail, it eats it, and grows', snailsLeft === 1 && (await page.evaluate(() => window.__reaper.dragon.get().xp)) > xpDrag,
+    JSON.stringify({ snailsLeft, snailId }));
+  const bondNow = await page.evaluate(() => window.__reaper.dragon.get().bond);
+  const db = await page.locator('.field .dragon').boundingBox();
+  await page.mouse.click(db.x + db.width / 2, db.y + db.height / 2);
+  await page.waitForTimeout(300);
+  check('a click (no drag) still pets it', (await page.evaluate(() => window.__reaper.dragon.get().bond)) >= bondNow);
+
+  // A garden of ten shows all ten (it once drew only the oldest eight, so the
+  // newest, frogs, never appeared).
+  await page.evaluate(() => {
+    const saved = window.__companion.read();
+    const t = Date.now() - 3600000;
+    const kinds = ['wisp', 'moth', 'digger', 'digger', 'snail', 'digger', 'robin', 'bee', 'frog', 'frog'];
+    Object.assign(saved.crypt, { skeletons: 10, born: kinds.map((_, i) => t + i), kinds, rank: 3 });
+    localStorage.setItem('reaper-companion', JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  check('all ten workers are drawn, the frogs too', (await page.evaluate(() => window.__reaper.crypt.get().bones.length)) === 10 &&
+    (await page.$$('.field .is-frog')).length === 2, String(await page.evaluate(() => window.__reaper.crypt.get().bones.length)));
+  check('ladybugs open at Shade hunter', await page.evaluate(() => window.__reaper.crypt.get().kinds.find((k) => k.id === 'ladybug').open));
+
   // An elder with a strong bond ascends: scales, and an egg of a new element.
   await page.evaluate(() => {
     const saved = window.__companion.read();

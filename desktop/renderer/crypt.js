@@ -2,9 +2,8 @@
 // sprites that work along the bottom of the screen. The rules and the saved
 // numbers live in the main process (../crypt.js); this draws what it is told.
 import { el, chip } from './dom.js';
-
-// How many sprites are drawn; the rest work out of sight.
-const SHOWN = 8;
+// How many sprites are drawn (the rules' number); the rest work out of sight.
+import { SHOWN } from '../crypt.js';
 
 const souls = (n) => n + (n === 1 ? ' soul' : ' souls');
 
@@ -118,7 +117,7 @@ export function createCrypt(ctx) {
   const CRAWLS = new Set(['snail', 'caterpillar', 'ladybug']);
   // Which can be reaped: the ones that grow ghosts.
   const REAPABLE = new Set(['digger', 'snail', 'frog']);
-  const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90];
+  const SPOTS = [6, 43, 80, 25, 62, 15, 52, 90, 34, 71, 11, 57, 86, 20, 47, 75];
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fallen = [];
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -549,6 +548,18 @@ export function createCrypt(ctx) {
     return hit ? (now.bones || []).findIndex((b) => b.id === hit.id) : -1;
   }
 
+  // A snail the dragon (its box) is over, as its place among the garden's, or
+  // -1; it lights up (null puts the light out).
+  function snailUnder(box) {
+    const hit = box && diggers.find(({ node, mode, kind }) => {
+      if (kind !== 'snail' || mode === 'held') return false;
+      const r = node.getBoundingClientRect();
+      return box.left < r.right && box.right > r.left && box.top < r.bottom + 10 && box.bottom > r.top - 10;
+    });
+    for (const d of diggers) d.node.classList.toggle('is-aimed', !!hit && d === hit);
+    return hit ? (now.bones || []).findIndex((b) => b.id === hit.id && !b.rest) : -1;
+  }
+
   // Light up the sprite under a point; null puts the light out.
   function aim(p, box) {
     const i = diggerAt(p, box);
@@ -660,6 +671,7 @@ export function createCrypt(ctx) {
     raise,
     buy,
     diggerAt,
+    snailUnder,
     aim,
     diggerBox,
     diggerBoxes,
