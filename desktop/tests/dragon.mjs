@@ -98,6 +98,25 @@ tg.dragon.stage = 1;
 out = crypt.act(tg, { dragon: { treasure: true } }, T0);
 check('through the garden, a treasure banks its souls', out.ok && Math.floor(tg.souls) === dragon.TREASURE_SOULS && crypt.view(tg, T0).dragon.hoard.treasures === 1, JSON.stringify(out));
 
+// Crows at the garden.
+const cg = crypt.fresh(T0);
+cg.souls = 1000;
+crypt.act(cg, { raise: 1 }, T0);
+check('no crows before there is a dragon to guard', !crypt.act(cg, { dragon: { crow: { stopped: true } } }, T0 + 3 * HOUR).ok);
+crypt.act(cg, { dragon: { adopt: true } }, T0);
+cg.dragon.stage = 2;
+const t3 = T0 + 3 * HOUR;
+const ripe0 = crypt.view(cg, t3).bones[0].ripe;
+out = crypt.act(cg, { dragon: { crow: { at: 0 } } }, t3);
+check('a crow that gets through takes a ghost from the sprout', out.ok && out.stole && crypt.view(cg, t3).bones[0].ripe === ripe0 - 1, JSON.stringify(out));
+check('and the theft survives a save', crypt.view(crypt.clean(JSON.parse(JSON.stringify(cg)), t3), t3).bones[0].ripe === ripe0 - 1);
+check('no second crow straight away', !crypt.act(cg, { dragon: { crow: { stopped: true } } }, t3 + 1000).ok);
+const sc = Math.floor(cg.souls);
+out = crypt.act(cg, { dragon: { crow: { stopped: true } } }, t3 + dragon.CROW_GAP_MS);
+check('one the dragon stops pays souls by its stage', out.ok && out.stopped && Math.floor(cg.souls) === sc + dragon.CROW_SOULS * 2 && cg.dragon.guard.stopped === 1, JSON.stringify(out));
+check('a guardian is the most watchful', dragon.watchfulness({ stage: 3, branch: 'guardian' }) > dragon.watchfulness({ stage: 3, branch: 'hunter' }) &&
+  dragon.watchfulness({ stage: 0 }) === 0);
+
 // Bond.
 const lonely = dragon.freshDragon(T0, seq(0.3));
 lonely.bond = 50;

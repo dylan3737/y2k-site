@@ -180,7 +180,7 @@ export function clean(raw, now = Date.now()) {
     loose: Math.floor(whole(c.loose, MAX_LOOSE)),
     // Pollen from the bees, by worker; and when a bee last pollinated.
     boosts: c.boosts && typeof c.boosts === 'object' ? Object.fromEntries(Object.entries(c.boosts)
-      .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(0, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
+      .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(-6, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
     pollenAt: Number.isFinite(c.pollenAt) && c.pollenAt <= now ? c.pollenAt : 0,
     // The reaper's dragon (dragon.js), once it has one.
     dragon: dragons.cleanDragon(c.dragon, now),
@@ -282,7 +282,8 @@ const holds = (c, i, now) => {
   const k = kindOf(c, i);
   if (!k.ghosts || !awake(c, i, now)) return 0;
   const pollen = (c.boosts && c.boosts[c.born[i]] && c.boosts[c.born[i]].n) || 0;
-  return Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every) + pollen);
+  // (A crow that got through leaves it a ghost short: never below none.)
+  return Math.max(0, Math.min(k.ripest, 1 + Math.floor(Math.max(0, now - c.born[i]) * ripenSpeed(c) / HOUR / k.every) + pollen));
 };
 
 // A bee pollinates the worker at `index`: one more ghost, at once. Each worker
@@ -523,6 +524,21 @@ export function dragonAct(c, a, now = Date.now()) {
     if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
     out = dragons.feed(d, n, now);
     if (out.ok) c.souls -= out.ate;
+  } else if (a.crow) {
+    // A crow at the garden: stopped (souls), or through (it takes a ghost from
+    // the worker it went for: its place, `a.crow.at`).
+    const stopped = a.crow.stopped === true;
+    const at = Math.floor(Number(a.crow.at));
+    if (!stopped && !(at >= 0 && at < c.skeletons && kindOf(c, at).ghosts)) return { ok: false, error: 'No such sprout.' };
+    out = dragons.crow(d, stopped, now);
+    if (out.ok && stopped) { bank(c, out.souls); out.gained = out.souls; }
+    if (out.ok && !stopped) {
+      const id = c.born[at];
+      const b = (c.boosts && c.boosts[id]) || { n: 0, at: -Infinity };
+      // (Its time kept as a number, so the theft survives a save.)
+      c.boosts = { ...(c.boosts || {}), [id]: { n: b.n - 1, at: Number.isFinite(b.at) ? b.at : 0 } };
+      out.stole = { at, ripe: holds(c, at, now) };
+    }
   } else if (a.treasure) {
     // It caught something shiny and brought it home.
     out = dragons.treasure(d, now);

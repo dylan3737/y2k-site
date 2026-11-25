@@ -181,6 +181,18 @@ function play(name, days, log) {
           grow('pets', () => crypt.act(c, { dragon: { pet: true } }, now + n * 9000));
           income.other += c.souls - s;
         }
+        // A crow swoops at the ripest sprout now and then: stopped, as often as
+        // the dragon is watchful; otherwise it takes a ghost.
+        if (c.dragon && dragons.crowReady(c.dragon, now).ok) {
+          const s = before();
+          if (Math.random() < dragons.watchfulness(c.dragon)) crypt.act(c, { dragon: { crow: { stopped: true } } }, now);
+          else {
+            const bones = crypt.view(c, now).bones;
+            const at = bones.reduce((best, b, i) => (b.most && !b.rest && b.ripe > (best < 0 ? 0 : bones[best].ripe) ? i : best), -1);
+            if (at >= 0) crypt.act(c, { dragon: { crow: { at } } }, now);
+          }
+          income.other += c.souls - s;
+        }
         // A treasure drifts by now and then, and the dragon brings it home.
         if (c.dragon && dragons.treasureReady(c.dragon, now).ok) { const s = before(); crypt.act(c, { dragon: { treasure: true } }, now); income.other += c.souls - s; }
         if (drills > 0 && c.dragon && c.dragon.stage > 0 && c.dragon.energy >= dragons.TRAIN_COST) {

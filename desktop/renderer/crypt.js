@@ -697,6 +697,22 @@ export function createCrypt(ctx) {
     buy,
     diggerAt,
     snailUnder,
+    // The ripest sprout on screen (for a crow to go after): its id and where it is.
+    ripest() {
+      let best = null;
+      for (const d of diggers) {
+        const b = (now.bones || []).find((x) => x.id === d.id);
+        if (!b || b.rest || !REAPABLE.has(d.kind) || d.mode === 'held' || b.ripe < 1) continue;
+        if (!best || b.ripe > best.ripe) best = { id: b.id, ripe: b.ripe, box: d.node.getBoundingClientRect() };
+      }
+      return best;
+    },
+    // Where a worker is now, by its id, and its place in the garden (or null).
+    whereIs(id) {
+      const d = diggers.find((x) => x.id === id);
+      const i = (now.bones || []).findIndex((b) => b.id === id && !b.rest);
+      return d && i >= 0 ? { index: i, box: d.node.getBoundingClientRect() } : null;
+    },
     aim,
     diggerBox,
     diggerBoxes,

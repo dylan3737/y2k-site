@@ -855,6 +855,39 @@ try {
   check('the hoard opens its tab: the relics, found or not', (await page.$$('#card .dragon-perk')).length === 5 && /treasure/.test(await page.textContent('#card')));
   await page.evaluate(() => window.__reaper.dragon.close());
 
+  // Crows at the garden: one sent after is caught (souls); one let be takes a ghost.
+  {
+    const t0 = Date.now() - 3 * 3600000;
+    const cp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 2, born: [t0, t0 + 1], kinds: ['digger', 'digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, at: Date.now(), caredAt: Date.now() } } });
+    await cp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await cp.waitForTimeout(300);
+    // It will not notice by itself (the dice say no), so the click is what sends it.
+    await cp.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });
+    check('a crow comes for the ripest sprout', await cp.evaluate(() => window.__reaper.dragon.spawnCrow()) && !!(await cp.$('.crow')));
+    await cp.evaluate(() => { Math.random = window.realRandom; });
+    const s0 = await cp.evaluate(() => window.__reaper.crypt.get().souls);
+    await cp.$eval('.crow', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await cp.waitForFunction(() => !document.querySelector('.crow'), null, { timeout: 12000 }).catch(() => {});
+    await cp.waitForFunction((s) => window.__reaper.crypt.get().souls > s, s0, { timeout: 3000 }).catch(() => {});
+    check('sent after it, the dragon catches it: souls', (await cp.evaluate(() => window.__reaper.crypt.get().souls)) >= s0 + 16 &&
+      (await cp.evaluate(() => window.__reaper.dragon.get().hoard.stopped)) === 1, String(await cp.evaluate(() => window.__reaper.crypt.get().souls)));
+
+    // Let one through: a new day's garden, the dragon looking the other way.
+    const cp2 = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [t0], kinds: ['digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, at: Date.now(), caredAt: Date.now() } } });
+    await cp2.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await cp2.waitForTimeout(300);
+    const ripeBefore = await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe);
+    await cp2.evaluate(() => { window.realRandom = Math.random; Math.random = () => 0.99; });
+    await cp2.evaluate(() => window.__reaper.dragon.spawnCrow());
+    await cp2.evaluate(() => { Math.random = window.realRandom; });
+    await cp2.waitForFunction((r) => window.__reaper.crypt.get().bones[0].ripe < r, ripeBefore, { timeout: 13000 }).catch(() => {});
+    check('one that gets there first takes a ghost', (await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)) === ripeBefore - 1,
+      ripeBefore + ' -> ' + (await cp2.evaluate(() => window.__reaper.crypt.get().bones[0].ripe)));
+    check('no errors with crows', cp.errors.length === 0 && cp2.errors.length === 0, cp.errors.concat(cp2.errors).join('; '));
+  }
+
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
     dragon: { element: 'ember', stage: 3, xp: 500, bond: 80, energy: 100, branch: 'hunter', lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });

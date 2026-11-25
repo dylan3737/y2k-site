@@ -244,6 +244,86 @@ export function createDragon(ctx) {
   let finding = true;
   setInterval(() => { if (finding && canFind() && Math.random() < 0.35) spawnTreasure(); }, 20000);
 
+  // --- Crows at the garden --------------------------------------------------------
+  // Now and then a shadow crow swoops at the ripest sprout. As often as the
+  // dragon is watchful it goes after it by itself; a click on the crow sends
+  // it. Caught, the crow pays souls; if it gets there first, it takes a ghost.
+  let crowNow = null; // { node, id, done, sent }
+  const FLIGHT_MS = 9000;
+  function canCrow() {
+    const h = now && now.hoard;
+    return !!h && now.stage !== 'egg' && h.crowsLeft > 0 && Date.now() >= h.crowAt && !crowNow && !document.hidden &&
+      !['drill', 'held'].includes(mode);
+  }
+  function spawnCrow() {
+    const target = ctx.crypt.ripest && ctx.crypt.ripest();
+    if (!target) return false;
+    const fromLeft = target.box.left > innerWidth / 2;
+    const node = el('div', 'crow hit' + (fromLeft ? '' : ' is-left'));
+    node.title = 'A shadow crow, after a sprout. Click it to send the dragon.';
+    node.style.left = (fromLeft ? -40 : innerWidth + 10) + 'px';
+    node.style.top = Math.round(rand(20, innerHeight * 0.3)) + 'px';
+    field.appendChild(node);
+    const c = { node, id: target.id, done: false, sent: false };
+    crowNow = c;
+    node.addEventListener('pointerdown', (e) => { e.stopPropagation(); guard(); });
+    requestAnimationFrame(() => {
+      node.style.transition = 'left ' + FLIGHT_MS + 'ms ease-in, top ' + FLIGHT_MS + 'ms ease-in';
+      node.style.left = Math.round(target.box.left + target.box.width / 2 - 18) + 'px';
+      node.style.top = Math.round(target.box.top - 22) + 'px';
+    });
+    c.arrive = setTimeout(() => landed(c), FLIGHT_MS);
+    if (Math.random() < (now.hoard.watch || 0)) setTimeout(() => guard(), rand(1200, 2600));
+    return true;
+  }
+  // It got there first: it pecks, takes a ghost and is gone.
+  async function landed(c) {
+    if (c.done) return;
+    c.done = true;
+    const at = ctx.crypt.whereIs(c.id);
+    c.node.classList.add('is-pecking');
+    if (at) {
+      const out = await act({ crow: { at: at.index } });
+      if (out.ok) say('A crow took a ghost.', 2500);
+    }
+    setTimeout(() => {
+      c.node.style.transition = 'left 1.2s ease-out, top 1.2s ease-out';
+      c.node.style.top = '-60px';
+      setTimeout(() => { c.node.remove(); if (crowNow === c) crowNow = null; }, 1300);
+    }, 700);
+  }
+  // The dragon goes after the crow.
+  async function guard() {
+    const c = crowNow;
+    if (!c || c.sent || c.done || !now || ['drill', 'held'].includes(mode)) return;
+    c.sent = true;
+    mode = 'treasure';
+    node.classList.remove('is-napping');
+    const [w, h] = SIZE[now.stage];
+    for (let i = 0; i < 45 && !c.done; i++) {
+      const r = c.node.getBoundingClientRect();
+      const tx = r.left + r.width / 2, ty = r.top + r.height / 2;
+      node.classList.toggle('is-right', tx > x + w / 2);
+      x = tx - w / 2; y = ty - h / 2;
+      place(0.18);
+      await new Promise((ok) => setTimeout(ok, 180));
+      const d = node.getBoundingClientRect();
+      if (Math.hypot(d.left + d.width / 2 - tx, d.top + d.height / 2 - ty) < Math.max(34, w / 2)) break;
+    }
+    mode = 'stare';
+    until = performance.now() + 4000;
+    if (c.done) return;
+    c.done = true;
+    clearTimeout(c.arrive);
+    const r = c.node.getBoundingClientRect();
+    ctx.puff(r.left + r.width / 2, r.top + r.height / 2);
+    c.node.remove();
+    if (crowNow === c) crowNow = null;
+    const out = await act({ crow: { stopped: true } });
+    if (out.ok && out.gained) ctx.pop('+' + out.gained, 'is-souls');
+  }
+  setInterval(() => { if (finding && canCrow() && Math.random() < 0.25) spawnCrow(); }, 30000);
+
   async function petted(e) {
     const out = await act({ pet: true });
     const r = node.getBoundingClientRect();
@@ -760,6 +840,8 @@ export function createDragon(ctx) {
     spawnTreasure: () => { if (!shiny) spawnTreasure(); return !!shiny; },
     // Whether treasures turn up by themselves (tests turn it off, to drift their own).
     setFinding(on) { finding = !!on; },
+    spawnCrow,
+    guard,
     chase,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.
     holding: () => !!heldBall || !!held,

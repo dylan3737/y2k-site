@@ -1107,3 +1107,13 @@ body.is-capturing * { visibility: hidden !important; }
 .hoard.is-2 { width: 64px; height: 28px; background-image: url(../assets/hoard-2.png); }
 .hoard.is-3 { width: 88px; height: 36px; background-image: url(../assets/hoard-3.png); }
 @media (prefers-reduced-motion: reduce) { .treasure { animation: none; } }
+
+/* A shadow crow after a sprout (pixel art at 2x; its art faces right). */
+.crow { position: fixed; width: 36px; height: 28px; z-index: 7; cursor: pointer; image-rendering: pixelated;
+  background: url(../assets/crow.png) 0 0 / 400% 100%; animation: crow-flap 0.45s steps(4) infinite;
+  filter: drop-shadow(0 0 4px rgba(140, 90, 200, 0.8)); }
+.crow.is-left { transform: scaleX(-1); }
+.crow.is-pecking { animation: crow-peck 0.25s ease-in-out 3; }
+@keyframes crow-flap { to { background-position: 133.33% 0; } }
+@keyframes crow-peck { 50% { translate: 0 6px; } }
+@media (prefers-reduced-motion: reduce) { .crow { animation: none; } }

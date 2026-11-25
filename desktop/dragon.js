@@ -73,6 +73,13 @@ export const RELICS = [
 ];
 const relicLevel = (d, id) => (d && d.hoard && d.hoard.relics[id]) || 0;
 
+// Crows: now and then a shadow crow swoops at the garden's ripest sprout. The
+// dragon intercepts it (by itself, or sent with a click); one that gets
+// through steals a ghost. One at most every CROW_GAP_MS, CROWS_A_DAY a day.
+export const CROW_GAP_MS = 6 * 60000;
+export const CROWS_A_DAY = 12;
+export const CROW_SOULS = 8;  // a crow stopped, times the dragon's stage
+
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (n, d = 0) => (Number.isFinite(n) ? n : d);
 const pick = (rand) => ELEMENTS[Math.floor(rand() * ELEMENTS.length) % ELEMENTS.length];
@@ -85,8 +92,10 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
     petAt: 0, caredAt: now, at: now,
     // Its hoard: treasures caught, ever; relics by level; when it last found one.
     hoard: { treasures: 0, relics: {}, foundAt: 0 },
+    // Crows: when the last came, and how many it has stopped, ever.
+    guard: { crowAt: 0, stopped: 0 },
     // What it has had today (a UTC day): growth from meals, snails, warmth from rubbing.
-    today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0 }
+    today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0, crows: 0 }
   };
 }
 
@@ -111,12 +120,14 @@ export function cleanDragon(raw, now = Date.now()) {
     relics: Object.fromEntries(RELICS.map((r) => [r.id, Math.floor(clamp(num(h.relics && h.relics[r.id]), 0, r.max))]).filter(([, l]) => l > 0)),
     foundAt: clamp(num(h.foundAt), 0, now)
   };
+  const g = d.guard && typeof d.guard === 'object' ? d.guard : {};
+  out.guard = { crowAt: clamp(num(g.crowAt), 0, now), stopped: Math.floor(clamp(num(g.stopped), 0, 1e7)) };
   out.petAt = clamp(num(d.petAt), 0, now);
   out.caredAt = clamp(num(d.caredAt, now), 0, now);
   out.at = clamp(num(d.at, now), 0, now);
   const t = d.today && typeof d.today === 'object' ? d.today : {};
   if (num(t.day, -1) === Math.floor(now / DAY)) {
-    out.today = { day: t.day, ate: clamp(num(t.ate), 0, 1e6), snails: Math.floor(clamp(num(t.snails), 0, 99)), warmth: clamp(num(t.warmth), 0, 100), petted: clamp(num(t.petted), 0, 1e6), treasures: Math.floor(clamp(num(t.treasures), 0, 99)) };
+    out.today = { day: t.day, ate: clamp(num(t.ate), 0, 1e6), snails: Math.floor(clamp(num(t.snails), 0, 99)), warmth: clamp(num(t.warmth), 0, 100), petted: clamp(num(t.petted), 0, 1e6), treasures: Math.floor(clamp(num(t.treasures), 0, 99)), crows: Math.floor(clamp(num(t.crows), 0, 99)) };
   }
   return out;
 }
@@ -172,7 +183,7 @@ export function branchOf(d) {
 // Today's tally, started afresh on a new day.
 const todayOf = (d, now) => {
   const day = Math.floor(now / DAY);
-  if (!d.today || d.today.day !== day) d.today = { day, ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0 };
+  if (!d.today || d.today.day !== day) d.today = { day, ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0, crows: 0 };
   return d.today;
 };
 // Growth it can still take from meals today.
@@ -317,6 +328,30 @@ export function treasureReady(d, now = Date.now()) {
   return { ok: true };
 }
 
+// Can a crow come now? (A hatched dragon to guard, past the gap, under the day's count.)
+export function crowReady(d, now = Date.now()) {
+  if (!d || d.stage === 0) return { ok: false, why: 'Nothing guards the garden yet.' };
+  if (todayOf(d, now).crows >= CROWS_A_DAY) return { ok: false, why: 'No more crows today.' };
+  if (d.guard.crowAt + CROW_GAP_MS > now) return { ok: false, why: 'No crow about.' };
+  return { ok: true };
+}
+// How likely it is to go after a crow by itself: a guardian nearly always,
+// others more as they grow.
+export const watchfulness = (d) => (!d || d.stage === 0 ? 0 : d.branch === 'guardian' ? 0.9 : Math.min(0.75, 0.35 + 0.1 * d.stage));
+
+// A crow came: `stopped` (the dragon got it: souls, which the caller banks;
+// guarding earns for the garden, it does not grow the dragon) or not (it got through: the caller takes a ghost).
+export function crow(d, stopped, now = Date.now()) {
+  const ready = crowReady(d, now);
+  if (!ready.ok) return { ok: false, error: ready.why };
+  todayOf(d, now).crows += 1;
+  d.guard.crowAt = now;
+  if (!stopped) return { ok: true, stopped: false };
+  d.guard.stopped += 1;
+  care(d, now, 1);
+  return { ok: true, stopped: true, souls: CROW_SOULS * d.stage };
+}
+
 // It caught a treasure and brought it home: souls for the garden (the caller
 // banks them), and now and then a relic.
 export function treasure(d, now = Date.now(), rand = Math.random) {
@@ -358,6 +393,8 @@ export function viewDragon(d, now = Date.now()) {
     hoard: { treasures: d.hoard.treasures, findable: treasureReady(d, now).ok,
       // When the next can be found, and how many more today.
       findAt: d.hoard.foundAt + TREASURE_GAP_MS, left: Math.max(0, TREASURES_A_DAY - todayOf(d, now).treasures),
+      // Crows: when the next may come, how many more today, how watchful it is, how many it has stopped.
+      crowAt: d.guard.crowAt + CROW_GAP_MS, crowsLeft: Math.max(0, CROWS_A_DAY - todayOf(d, now).crows), watch: watchfulness(d), stopped: d.guard.stopped,
       relics: RELICS.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, level: relicLevel(d, r.id), max: r.max })) }
   };
 }
