@@ -117,6 +117,28 @@ check('one the dragon stops pays souls by its stage', out.ok && out.stopped && M
 check('a guardian is the most watchful', dragon.watchfulness({ stage: 3, branch: 'guardian' }) > dragon.watchfulness({ stage: 3, branch: 'hunter' }) &&
   dragon.watchfulness({ stage: 0 }) === 0);
 
+// The breath burst.
+const bg = crypt.fresh(T0);
+bg.souls = 1000;
+crypt.act(bg, { raise: 2 }, T0);
+crypt.act(bg, { dragon: { adopt: true } }, T0);
+bg.dragon.stage = 1; bg.dragon.element = 'ember';
+check('a hatchling has no burst', !crypt.act(bg, { dragon: { burst: { at: [0] } } }, T0 + 2 * HOUR).ok);
+bg.dragon.stage = 2;
+check('it charges over time', dragon.burstCharge(bg.dragon, T0 + dragon.BURST_MS / 2) === 0.5 && !crypt.act(bg, { dragon: { burst: { at: [0] } } }, T0 + dragon.BURST_MS / 2).ok);
+const tb = T0 + dragon.BURST_MS;
+const r0 = crypt.view(bg, tb).bones.map((b) => b.ripe);
+out = crypt.act(bg, { dragon: { burst: { at: [0] } } }, tb);
+const r1 = crypt.view(bg, tb).bones.map((b) => b.ripe);
+check('Ember ripens the sprouts it is aimed at, by two', out.ok && out.ripened === 1 && r1[0] === Math.min(6, r0[0] + 2) && r1[1] === r0[1], JSON.stringify([r0, r1]));
+check('spent, it charges again', !crypt.act(bg, { dragon: { burst: { at: [0] } } }, tb + 1000).ok);
+bg.dragon.element = 'shadow';
+out = crypt.act(bg, { dragon: { burst: { at: [] } } }, tb + dragon.BURST_MS);
+check('Shadow ripens every sprout a little', out.ok && out.ripened === 2, JSON.stringify(out));
+check('only Frost and Storm work in a hunt', !crypt.act(bg, { dragon: { burst: { hunt: true } } }, tb + 3 * dragon.BURST_MS).ok);
+bg.dragon.element = 'storm';
+check('Storm does', crypt.act(bg, { dragon: { burst: { hunt: true } } }, tb + 3 * dragon.BURST_MS).ok);
+
 // Bond.
 const lonely = dragon.freshDragon(T0, seq(0.3));
 lonely.bond = 50;

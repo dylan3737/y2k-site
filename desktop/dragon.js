@@ -80,6 +80,14 @@ export const CROW_GAP_MS = 6 * 60000;
 export const CROWS_A_DAY = 12;
 export const CROW_SOULS = 8;  // a crow stopped, times the dragon's stage
 
+// Its breath burst: a charge that fills over BURST_MS (a drake or older),
+// spent where the user aims it. On the garden it ripens sprouts (Ember the
+// most, near where it is aimed; Shadow a little, every one on screen); in a
+// hunt, Frost freezes the ghosts near it and Storm strikes them.
+export const BURST_MS = 90 * 60000;
+export const BURST_GHOSTS = { ember: 2, frost: 1, shadow: 1, storm: 1 };
+export const BURST_IN_HUNTS = ['frost', 'storm'];
+
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (n, d = 0) => (Number.isFinite(n) ? n : d);
 const pick = (rand) => ELEMENTS[Math.floor(rand() * ELEMENTS.length) % ELEMENTS.length];
@@ -94,6 +102,8 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
     hoard: { treasures: 0, relics: {}, foundAt: 0 },
     // Crows: when the last came, and how many it has stopped, ever.
     guard: { crowAt: 0, stopped: 0 },
+    // When its breath burst was last spent (it charges from then).
+    burstAt: now,
     // What it has had today (a UTC day): growth from meals, snails, warmth from rubbing.
     today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0, crows: 0 }
   };
@@ -122,6 +132,7 @@ export function cleanDragon(raw, now = Date.now()) {
   };
   const g = d.guard && typeof d.guard === 'object' ? d.guard : {};
   out.guard = { crowAt: clamp(num(g.crowAt), 0, now), stopped: Math.floor(clamp(num(g.stopped), 0, 1e7)) };
+  out.burstAt = clamp(num(d.burstAt, now), 0, now);
   out.petAt = clamp(num(d.petAt), 0, now);
   out.caredAt = clamp(num(d.caredAt, now), 0, now);
   out.at = clamp(num(d.at, now), 0, now);
@@ -328,6 +339,15 @@ export function treasureReady(d, now = Date.now()) {
   return { ok: true };
 }
 
+// How full its burst is (0 to 1), and whether it can be spent.
+export const burstCharge = (d, now = Date.now()) => (!d || d.stage < 2 ? 0 : clamp((now - d.burstAt) / BURST_MS, 0, 1));
+export function burst(d, now = Date.now()) {
+  if (!d || d.stage < 2) return { ok: false, error: 'Only a drake or older has the breath for it.' };
+  if (burstCharge(d, now) < 1) return { ok: false, error: 'Its breath is still building.' };
+  d.burstAt = now;
+  return { ok: true, element: d.element };
+}
+
 // Can a crow come now? (A hatched dragon to guard, past the gap, under the day's count.)
 export function crowReady(d, now = Date.now()) {
   if (!d || d.stage === 0) return { ok: false, why: 'Nothing guards the garden yet.' };
@@ -394,6 +414,7 @@ export function viewDragon(d, now = Date.now()) {
       // When the next can be found, and how many more today.
       findAt: d.hoard.foundAt + TREASURE_GAP_MS, left: Math.max(0, TREASURES_A_DAY - todayOf(d, now).treasures),
       // Crows: when the next may come, how many more today, how watchful it is, how many it has stopped.
+      burst: Math.round(burstCharge(d, now) * 100), burstAt: d.burstAt + BURST_MS,
       crowAt: d.guard.crowAt + CROW_GAP_MS, crowsLeft: Math.max(0, CROWS_A_DAY - todayOf(d, now).crows), watch: watchfulness(d), stopped: d.guard.stopped,
       relics: RELICS.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, level: relicLevel(d, r.id), max: r.max })) }
   };

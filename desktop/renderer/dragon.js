@@ -241,6 +241,58 @@ export function createDragon(ctx) {
     if (out.relic) say('A relic: ' + out.relic.name + (out.relic.level > 1 ? ', level ' + out.relic.level : '') + '.\nIt goes on the hoard.', 5000);
   }
 
+  // --- Its breath burst, aimed -------------------------------------------------------
+  const BURST_R = 130;
+  let aiming = null;
+  function aimBurst() {
+    if (aiming || !now) return;
+    const layer = el('div', 'burst-aim hit');
+    const ring = el('div', 'burst-ring is-' + now.element);
+    ring.style.width = ring.style.height = BURST_R * 2 + 'px';
+    layer.appendChild(ring);
+    layer.appendChild(el('div', 'burst-tip', 'Click where it should breathe. Esc to stop.'));
+    const follow = (e) => { ring.style.left = e.clientX - BURST_R + 'px'; ring.style.top = e.clientY - BURST_R + 'px'; };
+    const c = ctx.cursor && ctx.cursor.x > -999 ? ctx.cursor : { x: innerWidth / 2, y: innerHeight / 2 };
+    follow({ clientX: c.x, clientY: c.y });
+    const stop = () => { layer.remove(); removeEventListener('keydown', key, true); aiming = null; };
+    const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); stop(); } };
+    layer.addEventListener('pointermove', follow);
+    layer.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      stop();
+      if (e.button === 0) fireBurst(e.clientX, e.clientY);
+    });
+    addEventListener('keydown', key, true);
+    document.body.appendChild(layer);
+    aiming = { stop };
+  }
+
+  async function fireBurst(tx, ty) {
+    if (!now) return;
+    const [w, h] = SIZE[now.stage];
+    const prev = mode;
+    mode = 'treasure';
+    node.classList.remove('is-napping');
+    node.classList.toggle('is-right', tx > x + w / 2);
+    x = tx - w / 2 + (tx > innerWidth / 2 ? -90 : 90);
+    y = Math.max(4, ty - h - 70);
+    place(0.6);
+    await new Promise((ok) => setTimeout(ok, 650));
+    for (let i = 0; i < 4; i++) setTimeout(() => breathe(tx + rand(-40, 40), ty + rand(-30, 30)), i * 110);
+    const inHunt = ctx.abilities && ctx.abilities.hunting && ['frost', 'storm'].includes(now.element);
+    const out = await act({ burst: inHunt ? { hunt: true } : { at: ctx.crypt.sproutsNear(tx, ty, BURST_R) } });
+    mode = prev === 'held' ? 'follow' : 'stare';
+    until = performance.now() + 4000;
+    if (!out.ok) return say(out.error, 3000);
+    sound.bell();
+    if (inHunt) {
+      const n = now.element === 'frost' ? ctx.abilities.freezeNear(tx, ty, BURST_R, 6000) : ctx.abilities.strikeNear(tx, ty, BURST_R);
+      say(now.element === 'frost' ? (n ? 'Frozen: ' + n + '. Catch them.' : 'Frost, on nothing.') : (n ? 'Lightning: ' + n + ' caught.' : 'Thunder, and no ghosts.'), 3000);
+    } else {
+      say(out.ripened ? out.ripened + ' sprout' + (out.ripened === 1 ? '' : 's') + ' ripen.' : 'Its breath warms bare ground.', 3000);
+    }
+  }
+
   let finding = true;
   setInterval(() => { if (finding && canFind() && Math.random() < 0.35) spawnTreasure(); }, 20000);
 
@@ -814,6 +866,14 @@ export function createDragon(ctx) {
     items.push(item('hunt', 'Hunt', tired || 'Target practice: click the lights.', () => drill('hunt'), 'drill · ' + d.train.hunt, !d.canTrain));
     items.push(item('garden', 'Flight', tired || 'A flight lesson: lead it through the rings.', () => drill('garden'), 'drill · ' + d.train.garden, !d.canTrain));
     items.push(item('tricks', 'Fetch', tired || 'Fetch: throw the ball.', () => drill('tricks'), 'drill · ' + d.train.tricks, !d.canTrain));
+    // Its breath burst: charged, it is aimed; until then, how full.
+    if (d.stageIndex >= 2) {
+      const pct = d.hoard.burst;
+      const what = { ember: 'Fire: sprouts where you aim it ripen, two ghosts each.', frost: 'Frost: in a hunt it freezes the ghosts where you aim it; on the garden, sprouts ripen.',
+        shadow: 'Shadow: every sprout on the screen ripens a ghost.', storm: 'Storm: in a hunt lightning catches the ghosts where you aim it; on the garden, sprouts ripen.' }[d.element];
+      items.push(item('burst', 'Burst', pct >= 100 ? 'Aim its breath. ' + what : 'Its breath is building (' + pct + '%). ' + what,
+        () => aimBurst(), pct >= 100 ? 'ready' : pct + '%', pct < 100));
+    }
     if (d.ascend.scales) items.push(item('ascend', 'Ascend', 'Ready to ascend: +' + d.ascend.scales + ' scales.', () => open('ascend'), '+' + d.ascend.scales + ' scales'));
     return items;
   }
@@ -841,6 +901,8 @@ export function createDragon(ctx) {
     // Whether treasures turn up by themselves (tests turn it off, to drift their own).
     setFinding(on) { finding = !!on; },
     spawnCrow,
+    aimBurst,
+    fireBurst,
     guard,
     chase,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.

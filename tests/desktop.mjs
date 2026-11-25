@@ -888,6 +888,32 @@ try {
     check('no errors with crows', cp.errors.length === 0 && cp2.errors.length === 0, cp.errors.concat(cp2.errors).join('; '));
   }
 
+  // Its breath burst, aimed from its ring: Ember ripens the sprout it is aimed at.
+  {
+    const t1 = Date.now() - 3600000;
+    const bp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 2, born: [t1, t1 + 1], kinds: ['digger', 'digger'], at: Date.now(),
+      dragon: { element: 'ember', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now() } } });
+    await bp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await bp.waitForTimeout(300);
+    for (let i = 0; i < 6 && !(await visible(bp, '#ring')); i++) { await bp.click('#body', { force: true }); await bp.waitForTimeout(260); }
+    await bp.click('.ring-btn[data-id="dragon"]', { force: true });
+    await bp.waitForTimeout(300);
+    check('charged, its ring offers a burst', !(await bp.$eval('.ring-btn[data-id="dragon-burst"]', (n) => n.classList.contains('is-locked'))));
+    await bp.click('.ring-btn[data-id="dragon-burst"]', { force: true });
+    await bp.waitForTimeout(200);
+    check('a burst is aimed: a ring follows the cursor', !!(await bp.$('.burst-aim .burst-ring')));
+    const bones = await bp.evaluate(() => window.__reaper.crypt.get().bones.map((b) => b.ripe));
+    const target = await bp.locator('.field .digger').first().boundingBox();
+    const targetId = await bp.evaluate(() => window.__reaper.crypt.get().bones[0].id);
+    await bp.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
+    await bp.waitForFunction((r) => window.__reaper.crypt.get().bones.some((b, i) => b.ripe > r[i]), bones, { timeout: 4000 }).catch(() => {});
+    const after = await bp.evaluate(() => window.__reaper.crypt.get().bones.map((b) => b.ripe));
+    check('it breathes where it was aimed, and those sprouts ripen by two', after.some((r, i) => r === Math.min(6, bones[i] + 2)) && !(await bp.$('.burst-aim')),
+      JSON.stringify({ bones, after, targetId }));
+    check('spent, it builds again', (await bp.evaluate(() => window.__reaper.dragon.get().hoard.burst)) < 100);
+    check('no errors with the burst', bp.errors.length === 0, bp.errors.join('; '));
+  }
+
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),
     dragon: { element: 'ember', stage: 3, xp: 500, bond: 80, energy: 100, branch: 'hunter', lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });

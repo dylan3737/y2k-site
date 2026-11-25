@@ -524,6 +524,25 @@ export function dragonAct(c, a, now = Date.now()) {
     if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
     out = dragons.feed(d, n, now);
     if (out.ok) c.souls -= out.ate;
+  } else if (a.burst) {
+    // Its breath burst, spent: in a hunt (the page freezes or strikes the
+    // ghosts), or on the garden: sprouts ripen, those it was aimed at (`at`,
+    // their places), or for Shadow every one.
+    const inHunt = a.burst.hunt === true;
+    if (inHunt && !dragons.BURST_IN_HUNTS.includes(d.element)) return { ok: false, error: 'Its breath does nothing to a hunt.' };
+    out = dragons.burst(d, now);
+    if (out.ok && !inHunt) {
+      const more = dragons.BURST_GHOSTS[d.element] || 1;
+      const asked = Array.isArray(a.burst.at) ? a.burst.at.slice(0, 16).map((n) => Math.floor(Number(n))) : [];
+      const which = c.kinds.map((_, i) => i).filter((i) => kindOf(c, i).ghosts && awake(c, i, now) &&
+        (d.element === 'shadow' || asked.includes(i)));
+      for (const i of which) {
+        const id = c.born[i];
+        const b = (c.boosts && c.boosts[id]) || { n: 0, at: 0 };
+        c.boosts = { ...(c.boosts || {}), [id]: { n: Math.min(6, b.n + more), at: Number.isFinite(b.at) ? b.at : 0 } };
+      }
+      out.ripened = which.length;
+    }
   } else if (a.crow) {
     // A crow at the garden: stopped (souls), or through (it takes a ghost from
     // the worker it went for: its place, `a.crow.at`).

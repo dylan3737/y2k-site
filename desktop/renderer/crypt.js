@@ -707,6 +707,17 @@ export function createCrypt(ctx) {
       }
       return best;
     },
+    // The sprouts within `r` of a point, as their places in the garden.
+    sproutsNear(x, y, r) {
+      const out = [];
+      for (const d of diggers) {
+        if (!REAPABLE.has(d.kind) || d.mode === 'held') continue;
+        const b = d.node.getBoundingClientRect();
+        const i = (now.bones || []).findIndex((x2) => x2.id === d.id && !x2.rest);
+        if (i >= 0 && Math.hypot(b.left + b.width / 2 - x, b.top + b.height / 2 - y) <= r) out.push(i);
+      }
+      return out;
+    },
     // Where a worker is now, by its id, and its place in the garden (or null).
     whereIs(id) {
       const d = diggers.find((x) => x.id === id);
