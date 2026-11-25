@@ -717,6 +717,23 @@ try {
   await page.waitForTimeout(500);
   check('all ten workers are drawn, the frogs too', (await page.evaluate(() => window.__reaper.crypt.get().bones.length)) === 10 &&
     (await page.$$('.field .is-frog')).length === 2, String(await page.evaluate(() => window.__reaper.crypt.get().bones.length)));
+  // Which kinds are on screen: the frogs hidden, they leave, and room is made; shown, back.
+  await page.evaluate(() => window.__reaper.crypt.open());
+  await page.waitForTimeout(200);
+  await page.click('#card .chip[data-eye="frog"]');
+  await page.waitForTimeout(300);
+  check('a kind can be hidden from the screen, and is remembered', (await page.$$('.field .is-frog')).length === 0 &&
+    JSON.stringify(await page.evaluate(() => window.__companion.read().hiddenKinds)) === '["frog"]' &&
+    (await page.evaluate(() => window.__reaper.crypt.get().skeletons)) === 10);
+  await page.reload();
+  await page.waitForSelector('#body');
+  await page.waitForTimeout(500);
+  check('still hidden after a restart', (await page.$$('.field .is-frog')).length === 0);
+  await page.evaluate(() => window.__reaper.crypt.open());
+  await page.waitForTimeout(200);
+  await page.click('#card .chip[data-eye="frog"]');
+  await page.waitForTimeout(300);
+  check('and shown again', (await page.$$('.field .is-frog')).length === 2);
   check('ladybugs open at Shade hunter', await page.evaluate(() => window.__reaper.crypt.get().kinds.find((k) => k.id === 'ladybug').open));
 
   // An elder with a strong bond ascends: scales, and an egg of a new element.

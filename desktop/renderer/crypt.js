@@ -12,6 +12,9 @@ export function createCrypt(ctx) {
   const owner = {};
   let now = { kinds: [], souls: 0, skeletons: 0, nextCost: 25, perHour: 0, total: 0, awayCapHours: 8, goldenChance: 0.1, upgrades: [], milestones: [], bones: [], score: 0, rank: 'Gravekeeper', nextRank: null };
   let shown = true;
+  // Kinds the user keeps off the screen (they still work, and a Gathering
+  // still reaps them).
+  let hidden = new Set();
   let tab = 'dig';
   const diggers = [];
 
@@ -53,7 +56,23 @@ export function createCrypt(ctx) {
       get.dataset.kind = k.id;
       get.disabled = !k.open || full || now.souls < k.cost;
       get.setAttribute('aria-label', 'Raise a ' + k.name.toLowerCase() + (k.open ? ' for ' + k.cost + ' souls' : ''));
-      item.append(text, get);
+      // Shown on screen, or kept out of sight (it works all the same).
+      const buttons = el('div', 'crypt-buttons');
+      if (k.count) {
+        const off = hidden.has(k.id);
+        const eye = chip(off ? 'Hidden' : 'Shown', () => {
+          if (hidden.has(k.id)) hidden.delete(k.id); else hidden.add(k.id);
+          companion.save({ hiddenKinds: [...hidden] });
+          crew();
+          paint();
+        });
+        eye.dataset.eye = k.id;
+        eye.classList.toggle('is-off', off);
+        eye.title = off ? 'Kept off the screen; it still works. Click to show it.' : 'On the screen. Click to hide it (it still works).';
+        buttons.appendChild(eye);
+      }
+      buttons.appendChild(get);
+      item.append(text, buttons);
       kinds.appendChild(item);
     }
     const row = el('div');
@@ -417,7 +436,7 @@ export function createCrypt(ctx) {
   }
 
   function crew() {
-    const want = shown ? (now.bones || []).slice(0, SHOWN) : [];
+    const want = shown ? (now.bones || []).filter((b) => !hidden.has(b.kind)).slice(0, SHOWN) : [];
     const as = new Map(want.map((b) => [b.id, shape(b)]));
     for (let i = diggers.length - 1; i >= 0; i--) {
       const look = as.get(diggers[i].id);
@@ -687,6 +706,7 @@ export function createCrypt(ctx) {
     stir() { for (const d of diggers) { d.until = 0; next(d); } },
     get: () => now,
     setShown(on) { shown = !!on; crew(); },
+    setHidden(list) { hidden = new Set(Array.isArray(list) ? list : []); crew(); },
     // "The sprites gathered 12 souls." for the away report, or '' for nothing.
     report(dug) {
       if (!(dug >= 1)) return '';

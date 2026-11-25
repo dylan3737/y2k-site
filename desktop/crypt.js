@@ -29,8 +29,11 @@ export const BASE_COST = 25;      // the first skeleton
 export const GROWTH = 1.25;      // each one costs this much more than the last
 // These numbers were tuned with tools/pacing.mjs; run it after changing any.
 export const MAX_SKELETONS = 200;
-// How many workers the garden draws on screen (the oldest first).
+// How many workers the garden draws on screen (the oldest first, of the
+// kinds the user has not hidden).
 export const SHOWN = 16;
+// How many workers the page is told about (it picks the ones to draw).
+const LISTED = 60;
 
 // What each deed is worth, per unit: a ghost, a file, a minute of finished focus.
 export const WORTH = { caught: 1, reaped: 5, focus: 1 };
@@ -570,10 +573,10 @@ export function view(c, now = Date.now()) {
     total: Math.floor(c.total),
     awayCapHours: capHours(c),
     goldenChance: goldenChance(c),
-    // The workers drawn on screen (the oldest SHOWN): how each is known,
+    // The workers, oldest first (the page draws SHOWN of them): how each is known,
     // how many ghosts it holds, and what kind it is.
     // A resting one has `rest`: the minutes until it rises.
-    bones: (c.born || []).slice(0, SHOWN).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
+    bones: (c.born || []).slice(0, LISTED).map((t, i) => ({ id: t, kind: kindOf(c, i).id, ripe: holds(c, i, now), most: kindOf(c, i).ripest || 0,
       ...(t > now + 1000 ? { rest: Math.max(1, Math.round((t - now) / 60000)) } : {}) })),
     kinds: KINDS.map((k) => ({
       id: k.id, name: k.name, blurb: k.blurb, count: c.kinds ? counted(c, k.id) : 0, most: Number.isFinite(k.most) ? k.most : null,

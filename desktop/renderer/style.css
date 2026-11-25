@@ -1086,3 +1086,7 @@ body.is-capturing * { visibility: hidden !important; }
 
 /* Carried: a little bigger, with a shadow, and no gliding. */
 .dragon.is-held { cursor: grabbing; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.45)); transition: none !important; }
+
+/* A worker kind's buttons: shown or hidden on screen, and raise one. */
+.crypt-buttons { display: flex; gap: 5px; flex: none; }
+.crypt-buttons .chip.is-off { opacity: 0.6; }

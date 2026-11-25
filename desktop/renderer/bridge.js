@@ -36,7 +36,7 @@ function browserStandIn() {
       saveCrypt();
       return {
         soul: s.soul ?? 100, best: s.best ?? 0, wander: s.wander ?? true, chatty: s.chatty ?? true,
-        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, guided: !!s.guided, today: stats, hasKey: false, brain: s.brain || 'free',
+        ravens: s.ravens || [], hourglass: s.hourglass || null, muted: !!s.muted, greeted: s.greeted || null, guided: !!s.guided, hiddenKinds: s.hiddenKinds || [], today: stats, hasKey: false, brain: s.brain || 'free',
         minions: s.minions !== false, roam: s.roam !== false, doors: window.__companion.doors || [], crypt: { ...rules.view(crypt), dug },
         keys: { come: 'Ctrl+Alt+R', speak: 'Ctrl+Alt+Space' }, platform: 'browser'
       };

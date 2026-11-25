@@ -863,6 +863,7 @@ async function start() {
   sound.setMuted(!!s.muted);
   abilities.restore(s);
   crypt.setShown(s.minions !== false);
+  crypt.setHidden(s.hiddenKinds);
   settings.roam = s.roam !== false;
   doors = Array.isArray(s.doors) ? s.doors : [];
   if (s.crypt) crypt.update(s.crypt);
