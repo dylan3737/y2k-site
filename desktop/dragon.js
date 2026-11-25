@@ -56,6 +56,23 @@ export const PERKS = [
 ];
 const PERK_BY_ID = new Map(PERKS.map((p) => [p.id, p]));
 
+// Treasure: now and then something shiny drifts across the screen, and the
+// dragon catches it and carries it to its hoard. Each pays souls; now and
+// then it is a relic, which levels up a lasting boost. One at most every
+// TREASURE_GAP_MS, TREASURES_A_DAY a day.
+export const TREASURE_GAP_MS = 4 * 60000;
+export const TREASURES_A_DAY = 15;
+export const TREASURE_SOULS = 15;   // a treasure's souls, times its stage
+export const RELIC_CHANCE = 0.2;
+export const RELICS = [
+  { id: 'star', name: 'Star shard', blurb: 'Hunts pay 5% more souls a level.', max: 5 },
+  { id: 'coin', name: 'Old coin', blurb: 'The garden gathers 5% more a level.', max: 5 },
+  { id: 'pearl', name: 'Moon pearl', blurb: 'The dragon grows 5% faster a level.', max: 5 },
+  { id: 'lantern', name: 'Ghost lantern', blurb: 'Spirit-lights are 2% more likely a level.', max: 5 },
+  { id: 'sand', name: 'Sand of ages', blurb: 'Finished hourglasses pay 5% more a level.', max: 5 }
+];
+const relicLevel = (d, id) => (d && d.hoard && d.hoard.relics[id]) || 0;
+
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const num = (n, d = 0) => (Number.isFinite(n) ? n : d);
 const pick = (rand) => ELEMENTS[Math.floor(rand() * ELEMENTS.length) % ELEMENTS.length];
@@ -66,8 +83,10 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
     train: { hunt: 0, garden: 0, tricks: 0 }, branch: null,
     lineage, scales: 0, perks: { power: 0, garden: 0, looks: 0, tricks: 0 },
     petAt: 0, caredAt: now, at: now,
+    // Its hoard: treasures caught, ever; relics by level; when it last found one.
+    hoard: { treasures: 0, relics: {}, foundAt: 0 },
     // What it has had today (a UTC day): growth from meals, snails, warmth from rubbing.
-    today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0 }
+    today: { day: Math.floor(now / DAY), ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0 }
   };
 }
 
@@ -86,18 +105,24 @@ export function cleanDragon(raw, now = Date.now()) {
   out.branch = Object.values(BRANCHES).includes(d.branch) ? d.branch : null;
   out.scales = Math.floor(clamp(num(d.scales), 0, 1e9));
   for (const p of PERKS) out.perks[p.id] = Math.floor(clamp(num(d.perks && d.perks[p.id]), 0, p.costs.length));
+  const h = d.hoard && typeof d.hoard === 'object' ? d.hoard : {};
+  out.hoard = {
+    treasures: Math.floor(clamp(num(h.treasures), 0, 1e7)),
+    relics: Object.fromEntries(RELICS.map((r) => [r.id, Math.floor(clamp(num(h.relics && h.relics[r.id]), 0, r.max))]).filter(([, l]) => l > 0)),
+    foundAt: clamp(num(h.foundAt), 0, now)
+  };
   out.petAt = clamp(num(d.petAt), 0, now);
   out.caredAt = clamp(num(d.caredAt, now), 0, now);
   out.at = clamp(num(d.at, now), 0, now);
   const t = d.today && typeof d.today === 'object' ? d.today : {};
   if (num(t.day, -1) === Math.floor(now / DAY)) {
-    out.today = { day: t.day, ate: clamp(num(t.ate), 0, 1e6), snails: Math.floor(clamp(num(t.snails), 0, 99)), warmth: clamp(num(t.warmth), 0, 100), petted: clamp(num(t.petted), 0, 1e6) };
+    out.today = { day: t.day, ate: clamp(num(t.ate), 0, 1e6), snails: Math.floor(clamp(num(t.snails), 0, 99)), warmth: clamp(num(t.warmth), 0, 100), petted: clamp(num(t.petted), 0, 1e6), treasures: Math.floor(clamp(num(t.treasures), 0, 99)) };
   }
   return out;
 }
 
 // What it most needs to grow, against its lineage and perks.
-const growth = (d) => (1 + 0.2 * d.lineage) * (1 + 0.15 * d.perks.power) * (0.8 + d.bond / 250);
+const growth = (d) => (1 + 0.2 * d.lineage) * (1 + 0.15 * d.perks.power) * (0.8 + d.bond / 250) * (1 + 0.05 * relicLevel(d, 'pearl'));
 const topStage = (d) => (d.lineage >= 2 ? 5 : 4);
 
 // Time passing: the egg warms, energy returns, bond fades if it is neglected.
@@ -147,7 +172,7 @@ export function branchOf(d) {
 // Today's tally, started afresh on a new day.
 const todayOf = (d, now) => {
   const day = Math.floor(now / DAY);
-  if (!d.today || d.today.day !== day) d.today = { day, ate: 0, snails: 0, warmth: 0, petted: 0 };
+  if (!d.today || d.today.day !== day) d.today = { day, ate: 0, snails: 0, warmth: 0, petted: 0, treasures: 0 };
   return d.today;
 };
 // Growth it can still take from meals today.
@@ -277,7 +302,39 @@ export function buyPerk(d, id) {
 export const breaths = (d) => (d && d.branch === 'hunter' && d.stage >= 3 ? d.stage - 1 + d.perks.power : 0);
 // How much faster the garden's sprouts grow, and how many more souls it gathers.
 export const gardenGrowth = (d) => (d ? (d.branch === 'guardian' && d.stage >= 3 ? 0.25 * (d.stage - 2) : 0) + 0.1 * d.perks.garden : 0);
-export const gardenSouls = (d) => (d ? 0.1 * d.perks.garden : 0);
+export const gardenSouls = (d) => (d ? 0.1 * d.perks.garden + 0.05 * relicLevel(d, 'coin') : 0);
+// What its relics add elsewhere: to hunts' souls, spirit-lights, hourglasses.
+export const huntBonus = (d) => 0.05 * relicLevel(d, 'star');
+export const lightBonus = (d) => 0.02 * relicLevel(d, 'lantern');
+export const sandBonus = (d) => 0.05 * relicLevel(d, 'sand');
+
+// Can it find a treasure now? (A hatched dragon, past the gap, under the day's count.)
+export function treasureReady(d, now = Date.now()) {
+  if (!d || d.stage === 0) return { ok: false, why: 'An egg finds nothing.' };
+  if (todayOf(d, now).treasures >= TREASURES_A_DAY) return { ok: false, why: 'It has found all it will today.' };
+  const wait = d.hoard.foundAt + TREASURE_GAP_MS - now;
+  if (wait > 0) return { ok: false, why: 'Nothing shiny yet.', wait };
+  return { ok: true };
+}
+
+// It caught a treasure and brought it home: souls for the garden (the caller
+// banks them), and now and then a relic.
+export function treasure(d, now = Date.now(), rand = Math.random) {
+  const ready = treasureReady(d, now);
+  if (!ready.ok) return { ok: false, error: ready.why };
+  todayOf(d, now).treasures += 1;
+  d.hoard.treasures += 1;
+  d.hoard.foundAt = now;
+  care(d, now, 1);
+  const souls = TREASURE_SOULS * d.stage;
+  const open = RELICS.filter((r) => relicLevel(d, r.id) < r.max);
+  if (open.length && rand() < RELIC_CHANCE) {
+    const r = open[Math.floor(rand() * open.length) % open.length];
+    d.hoard.relics[r.id] = relicLevel(d, r.id) + 1;
+    return { ok: true, souls, relic: { id: r.id, name: r.name, level: d.hoard.relics[r.id] } };
+  }
+  return { ok: true, souls };
+}
 // Souls a trickster earns when it plays (is petted).
 export const playSouls = (d) => (d && d.branch === 'trickster' && d.stage >= 3 ? 2 * (d.stage - 1) : 0);
 
@@ -297,6 +354,10 @@ export function viewDragon(d, now = Date.now()) {
     ascend: can.ok ? { scales: can.scales } : { why: can.why },
     perks: PERKS.map((p) => ({ id: p.id, name: p.name, blurb: p.blurb, level: d.perks[p.id], max: p.costs.length,
       cost: d.perks[p.id] < p.costs.length ? p.costs[d.perks[p.id]] : null, now: p.effect(d.perks[p.id]) })),
-    breaths: breaths(d), aura: d.perks.looks
+    breaths: breaths(d), aura: d.perks.looks,
+    hoard: { treasures: d.hoard.treasures, findable: treasureReady(d, now).ok,
+      // When the next can be found, and how many more today.
+      findAt: d.hoard.foundAt + TREASURE_GAP_MS, left: Math.max(0, TREASURES_A_DAY - todayOf(d, now).treasures),
+      relics: RELICS.map((r) => ({ id: r.id, name: r.name, blurb: r.blurb, level: relicLevel(d, r.id), max: r.max })) }
   };
 }

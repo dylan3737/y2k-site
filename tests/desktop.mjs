@@ -761,8 +761,10 @@ try {
   await page.waitForTimeout(250);
   check('scales buy a perk', (await page.evaluate(() => window.__reaper.dragon.get().perks.find((p) => p.id === 'power').level)) === 1);
   // Training you play: target practice, a flight lesson, fetch.
+  // (Treasures that turn up by themselves are turned off, so the one below is the first.)
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 0, total: 0, at: Date.now(),
     dragon: { element: 'storm', stage: 2, xp: 150, bond: 50, energy: 100, lineage: 0, scales: 0, at: Date.now(), caredAt: Date.now() } } });
+  await page.evaluate(() => window.__reaper.dragon.setFinding(false));
   const xpStart = await page.evaluate(() => window.__reaper.dragon.get().xp);
   const practice = page.evaluate(() => window.__reaper.dragon.drill('hunt'));
   for (let i = 0; i < 30; i++) {
@@ -834,6 +836,24 @@ try {
   }));
   const breathed = await page.evaluate(() => window.__reaper.abilities.cast('dragonbreath'));
   check('Dragonbreath: a storm dragon breathes lightning across the screen', breathed.ok !== false && (await bolts) >= 3, JSON.stringify(breathed));
+
+  // Treasure: something shiny drifts by; sent after it, the dragon catches it and starts a hoard.
+  await page.waitForTimeout(1500);
+  const souls0t = await page.evaluate(() => window.__reaper.crypt.get().souls);
+  check('a treasure drifts onto the screen', await page.evaluate(() => window.__reaper.dragon.spawnTreasure()) && !!(await page.$('.treasure')));
+  // (It drifts in from the edge, so the click is sent to it directly.)
+  await page.$eval('.treasure', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.waitForFunction(() => !document.querySelector('.treasure'), null, { timeout: 20000 }).catch(() => {});
+  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0 && document.querySelector('.hoard.is-1'), souls0t, { timeout: 3000 }).catch(() => {});
+  const hoard = await page.evaluate(() => window.__reaper.dragon.get().hoard);
+  check('the dragon catches it and brings it home: souls, and a hoard in the corner', hoard.treasures === 1 && !!(await page.$('.hoard.is-1')) &&
+    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t,
+    JSON.stringify({ before: souls0t, after: await page.evaluate(() => window.__reaper.crypt.get().souls), pile: !!(await page.$('.hoard.is-1')), n: hoard.treasures }));
+  check('no second treasure straight away', !(await page.evaluate(() => window.__reaper.dragon.get().hoard.findable)));
+  await page.click('.hoard', { force: true });
+  await page.waitForTimeout(250);
+  check('the hoard opens its tab: the relics, found or not', (await page.$$('#card .dragon-perk')).length === 5 && /treasure/.test(await page.textContent('#card')));
+  await page.evaluate(() => window.__reaper.dragon.close());
 
   // A hunter breathes on ghosts in a hunt.
   page = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [Date.now() - 5 * 3600000], total: 0, at: Date.now(),

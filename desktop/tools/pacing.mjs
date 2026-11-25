@@ -50,7 +50,20 @@ export const TARGETS = {
 
 const START = Date.UTC(2026, 0, 5, 9); // a Monday, 9 in the morning
 
+// The rules roll dice now and then (which relic a treasure is): the same
+// dice every run, so a run says the same thing twice.
+function seeded(seed) {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function play(name, days, log) {
+  Math.random = seeded(name.length * 7919);
   const p = PROFILES[name];
   let now = START;
   const c = crypt.fresh(now);
@@ -168,6 +181,8 @@ function play(name, days, log) {
           grow('pets', () => crypt.act(c, { dragon: { pet: true } }, now + n * 9000));
           income.other += c.souls - s;
         }
+        // A treasure drifts by now and then, and the dragon brings it home.
+        if (c.dragon && dragons.treasureReady(c.dragon, now).ok) { const s = before(); crypt.act(c, { dragon: { treasure: true } }, now); income.other += c.souls - s; }
         if (drills > 0 && c.dragon && c.dragon.stage > 0 && c.dragon.energy >= dragons.TRAIN_COST) {
           const kinds = ['hunt', 'garden', 'tricks'];
           grow('drills', () => crypt.act(c, { dragon: { train: kinds[(d + k) % 3 === 0 ? 1 : 0], quality: p.quality } }, now));

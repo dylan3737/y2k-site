@@ -1090,3 +1090,20 @@ body.is-capturing * { visibility: hidden !important; }
 /* A worker kind's buttons: shown or hidden on screen, and raise one. */
 .crypt-buttons { display: flex; gap: 5px; flex: none; }
 .crypt-buttons .chip.is-off { opacity: 0.6; }
+
+/* Treasure drifting by, and the dragon's hoard in the corner (pixel art at 2x). */
+.treasure { position: fixed; width: 26px; height: 26px; z-index: 7; cursor: pointer; image-rendering: pixelated;
+  background-size: 400% 100%; animation: treasure-twinkle 0.8s steps(4) infinite, treasure-bob 1.6s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 6px rgba(255, 226, 154, 0.85)); }
+.treasure.is-star { background-image: url(../assets/treasure-star.png); }
+.treasure.is-coin { background-image: url(../assets/treasure-coin.png); width: 24px; height: 24px; }
+.treasure.is-gem { background-image: url(../assets/treasure-gem.png); width: 24px; filter: drop-shadow(0 0 6px rgba(255, 158, 199, 0.9)); }
+.treasure.is-caught { animation: treasure-twinkle 0.8s steps(4) infinite; pointer-events: none; }
+@keyframes treasure-twinkle { to { background-position: 133.33% 0; } }
+@keyframes treasure-bob { to { translate: 0 8px; } }
+.hoard { position: fixed; bottom: 0; z-index: 4; cursor: pointer; image-rendering: pixelated; background-size: 100% 100%;
+  filter: drop-shadow(0 0 5px rgba(255, 226, 154, 0.55)); }
+.hoard.is-1 { width: 44px; height: 20px; background-image: url(../assets/hoard-1.png); }
+.hoard.is-2 { width: 64px; height: 28px; background-image: url(../assets/hoard-2.png); }
+.hoard.is-3 { width: 88px; height: 36px; background-image: url(../assets/hoard-3.png); }
+@media (prefers-reduced-motion: reduce) { .treasure { animation: none; } }

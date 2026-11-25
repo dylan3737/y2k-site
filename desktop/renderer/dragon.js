@@ -58,6 +58,7 @@ export function createDragon(ctx) {
   }
 
   function draw() {
+    drawHoard();
     if (!now) {
       if (node) { node.remove(); node = null; shown = ''; }
       return;
@@ -141,6 +142,108 @@ export function createDragon(ctx) {
     say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
   }
 
+  // --- Treasure, and its hoard ----------------------------------------------------
+  // Now and then something shiny drifts across the screen; the dragon chases
+  // it, catches it and carries it to its hoard in the corner. Clicking the
+  // treasure sends it at once. The rules say how often (findAt, left).
+  let shiny = null; // { node, kind, x, y, sent }
+  let hoardNode = null;
+  const HOARD = { x: 14 };
+  const hoardSize = (n) => (n >= 40 ? 3 : n >= 10 ? 2 : n >= 1 ? 1 : 0);
+
+  function drawHoard() {
+    const n = now && now.hoard ? now.hoard.treasures : 0;
+    const size = hoardSize(n);
+    if (!size) { if (hoardNode) { hoardNode.remove(); hoardNode = null; } return; }
+    if (!hoardNode) {
+      hoardNode = el('div', 'hoard hit');
+      hoardNode.addEventListener('pointerdown', (e) => { e.stopPropagation(); open('hoard'); });
+      field.appendChild(hoardNode);
+    }
+    hoardNode.className = 'hoard hit is-' + size;
+    hoardNode.style.left = HOARD.x + 'px';
+    hoardNode.title = 'Its hoard: ' + n + ' treasure' + (n === 1 ? '' : 's') + '. Click for its relics.';
+  }
+  const hoardSpot = () => {
+    const r = hoardNode ? hoardNode.getBoundingClientRect() : { left: HOARD.x, top: innerHeight - 30, width: 40 };
+    return { x: r.left + r.width / 2, y: r.top };
+  };
+
+  function canFind() {
+    const h = now && now.hoard;
+    return !!h && now.stage !== 'egg' && h.left > 0 && Date.now() >= h.findAt && !shiny && !document.hidden &&
+      !['drill', 'held', 'treasure'].includes(mode);
+  }
+
+  function spawnTreasure() {
+    const kind = Math.random() < 0.2 ? 'gem' : Math.random() < 0.5 ? 'star' : 'coin';
+    const fromLeft = Math.random() < 0.5;
+    const node = el('div', 'treasure hit is-' + kind);
+    const t = { node, kind, x: fromLeft ? -30 : innerWidth + 6, y: rand(innerHeight * 0.12, innerHeight * 0.45), sent: false };
+    node.style.left = t.x + 'px';
+    node.style.top = t.y + 'px';
+    node.title = 'Something shiny. Click it to send the dragon.';
+    node.addEventListener('pointerdown', (e) => { e.stopPropagation(); chase(); });
+    field.appendChild(node);
+    shiny = t;
+    // It drifts across, bobbing; gone if nobody catches it.
+    const end = fromLeft ? innerWidth + 30 : -40;
+    requestAnimationFrame(() => {
+      node.style.transition = 'left 16s linear';
+      node.style.left = end + 'px';
+    });
+    t.gone = setTimeout(() => { if (shiny === t && !t.sent) { node.remove(); shiny = null; } }, 16200);
+    // The dragon notices, after a moment.
+    setTimeout(() => chase(), rand(1500, 3500));
+  }
+
+  async function chase() {
+    const t = shiny;
+    if (!t || t.sent || !now || ['drill', 'held'].includes(mode)) return;
+    t.sent = true;
+    mode = 'treasure';
+    node.classList.remove('is-napping');
+    const [w, h] = SIZE[now.stage];
+    // Swoop after it until it is caught.
+    for (let i = 0; i < 60; i++) {
+      const r = t.node.getBoundingClientRect();
+      const tx = r.left + r.width / 2, ty = r.top + r.height / 2;
+      node.classList.toggle('is-right', tx > x + w / 2);
+      x = tx - w / 2; y = ty - h / 2;
+      place(0.22);
+      await new Promise((ok) => setTimeout(ok, 220));
+      const d = node.getBoundingClientRect();
+      if (Math.hypot(d.left + d.width / 2 - tx, d.top + d.height / 2 - ty) < Math.max(30, w / 2)) break;
+    }
+    // Caught: it stops drifting and rides along to the hoard.
+    clearTimeout(t.gone);
+    t.node.style.transition = 'none';
+    t.node.classList.add('is-caught');
+    const home = hoardSpot();
+    node.classList.toggle('is-right', home.x > x + w / 2);
+    x = home.x - w / 2; y = home.y - h + 6;
+    place(1.4);
+    const ride = setInterval(() => {
+      const d = node.getBoundingClientRect();
+      t.node.style.left = Math.round(d.left + d.width / 2 - 8) + 'px';
+      t.node.style.top = Math.round(d.top + d.height * 0.55) + 'px';
+    }, 30);
+    await new Promise((ok) => setTimeout(ok, 1500));
+    clearInterval(ride);
+    t.node.remove();
+    shiny = null;
+    const out = await act({ treasure: true });
+    mode = 'stare';
+    until = performance.now() + 5000;
+    if (!out.ok) return;
+    sound.bell();
+    if (out.gained) ctx.pop('+' + out.gained, 'is-souls');
+    if (out.relic) say('A relic: ' + out.relic.name + (out.relic.level > 1 ? ', level ' + out.relic.level : '') + '.\nIt goes on the hoard.', 5000);
+  }
+
+  let finding = true;
+  setInterval(() => { if (finding && canFind() && Math.random() < 0.35) spawnTreasure(); }, 20000);
+
   async function petted(e) {
     const out = await act({ pet: true });
     const r = node.getBoundingClientRect();
@@ -157,7 +260,7 @@ export function createDragon(ctx) {
   // Where it goes: after the reaper, a little behind him; now and then off to
   // nap by the garden or to perch at the top of the screen.
   function wander() {
-    if (!now || now.stage === 'egg' || document.hidden || mode === 'drill' || mode === 'held') return;
+    if (!now || now.stage === 'egg' || document.hidden || mode === 'drill' || mode === 'held' || mode === 'treasure') return;
     const t = performance.now();
     const [w, h] = SIZE[now.stage];
     if (t < until && mode !== 'follow') return;
@@ -460,7 +563,7 @@ export function createDragon(ctx) {
   head.appendChild(close);
   let tab = 'care';
   const tabs = el('div', 'row crypt-tabs');
-  const tabChips = [['care', 'Care'], ['ascend', 'Ascend']].map(([id, label]) => {
+  const tabChips = [['care', 'Care'], ['hoard', 'Hoard'], ['ascend', 'Ascend']].map(([id, label]) => {
     const c = chip(label, () => { tab = id; paint(); });
     c.dataset.tab = id;
     tabs.appendChild(c);
@@ -538,6 +641,20 @@ export function createDragon(ctx) {
     page.append(feed, train);
   }
 
+  function hoardPage(d) {
+    const h = d.hoard;
+    page.appendChild(el('p', 'muted', h.treasures
+      ? h.treasures + ' treasure' + (h.treasures === 1 ? '' : 's') + ' in its hoard. ' + (h.left ? 'It watches for more.' : 'It has found all it will today.')
+      : 'Now and then something shiny drifts across your screen. It will catch it and start a hoard. (Click one to send it.)'));
+    for (const r of h.relics) {
+      const item = el('div', 'crypt-item dragon-perk' + (r.level ? '' : ' is-locked'));
+      const text = el('div');
+      text.append(el('b', null, (r.level ? r.name : '???') + ' ' + r.level + '/' + r.max), el('span', 'muted', r.level ? r.blurb : 'Not found yet.'));
+      item.appendChild(text);
+      page.appendChild(item);
+    }
+  }
+
   function ascendPage(d) {
     const asc = el('div', 'dragon-ascend');
     if (d.ascend.scales) {
@@ -582,6 +699,7 @@ export function createDragon(ctx) {
     page.appendChild(el('p', 'dragon-title', NAMES[d.element] + ' ' + d.stage + path + (d.lineage ? ' · line ' + (d.lineage + 1) : '')));
     if (d.branch && tab === 'care') page.lastChild.title = BRANCH[d.branch];
     if (tab === 'ascend') ascendPage(d);
+    else if (tab === 'hoard') hoardPage(d);
     else carePage(d);
     card.refit();
   }
@@ -621,7 +739,7 @@ export function createDragon(ctx) {
   }
 
   function open(which) {
-    if (which === 'care' || which === 'ascend') tab = which;
+    if (['care', 'hoard', 'ascend'].includes(which)) tab = which;
     paint();
     card.open(box, 'spirit', owner);
   }
@@ -638,6 +756,11 @@ export function createDragon(ctx) {
     fireworks,
     drill,
     ringItems,
+    // Treasure: drift one across now (tests), and send the dragon after it.
+    spawnTreasure: () => { if (!shiny) spawnTreasure(); return !!shiny; },
+    // Whether treasures turn up by themselves (tests turn it off, to drift their own).
+    setFinding(on) { finding = !!on; },
+    chase,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.
     holding: () => !!heldBall || !!held,
     // How many ghosts a hunter breathes on in a hunt; the Lore perk's level.

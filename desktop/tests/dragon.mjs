@@ -74,6 +74,30 @@ const youngElder = dragon.freshDragon(T0, seq(0.1));
 youngElder.stage = 4; youngElder.xp = dragon.XP_AT[4]; youngElder.bond = 90;
 check('a young elder must mature before it can ascend', /young elder/.test(dragon.ascendable(youngElder).why || ''));
 
+// Treasure, and the hoard.
+const finder = dragon.freshDragon(T0, seq(0.1));
+check('an egg finds no treasure', !dragon.treasure(finder, T0).ok);
+finder.stage = 2;
+out = dragon.treasure(finder, T0, seq(0.9));
+check('a treasure pays souls by its stage, and is counted', out.ok && out.souls === dragon.TREASURE_SOULS * 2 && !out.relic && finder.hoard.treasures === 1, JSON.stringify(out));
+check('not again straight away', !dragon.treasure(finder, T0 + 1000).ok && !dragon.treasureReady(finder, T0 + 1000).ok);
+out = dragon.treasure(finder, T0 + dragon.TREASURE_GAP_MS, seq(0.1, 0.1));
+check('now and then a relic, which levels up', out.ok && out.relic && out.relic.level === 1 && finder.hoard.relics[out.relic.id] === 1, JSON.stringify(out));
+let found = 2;
+for (let i = 2; i < 40; i++) if (dragon.treasure(finder, T0 + i * dragon.TREASURE_GAP_MS, seq(0.9)).ok) found++;
+check('only so many a day', found === dragon.TREASURES_A_DAY, String(found));
+check('the hoard survives a save', JSON.stringify(dragon.cleanDragon(JSON.parse(JSON.stringify(finder)), T0 + 40 * dragon.TREASURE_GAP_MS).hoard) === JSON.stringify(finder.hoard));
+const rich = dragon.freshDragon(T0, seq(0.1));
+rich.stage = 2; rich.hoard.relics = { star: 2, coin: 1, lantern: 5, sand: 3 };
+check('relics boost hunts, the garden, spirit-lights and hourglasses', dragon.huntBonus(rich) === 0.1 && dragon.gardenSouls(rich) === 0.05 &&
+  Math.abs(dragon.lightBonus(rich) - 0.1) < 1e-9 && Math.abs(dragon.sandBonus(rich) - 0.15) < 1e-9);
+const tg = crypt.fresh(T0);
+tg.souls = 0;
+crypt.act(tg, { dragon: { adopt: true } }, T0);
+tg.dragon.stage = 1;
+out = crypt.act(tg, { dragon: { treasure: true } }, T0);
+check('through the garden, a treasure banks its souls', out.ok && Math.floor(tg.souls) === dragon.TREASURE_SOULS && crypt.view(tg, T0).dragon.hoard.treasures === 1, JSON.stringify(out));
+
 // Bond.
 const lonely = dragon.freshDragon(T0, seq(0.3));
 lonely.bond = 50;

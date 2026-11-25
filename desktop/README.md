@@ -180,6 +180,7 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Guardian** | Garden | Every sprout in the garden grows faster: a quarter as a wyvern, a half as an elder. |
 | **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
 
+- **Treasure and its hoard:** now and then (every few minutes at most, fifteen a day) something shiny drifts across your screen: a star, a coin, a gem. The dragon spots it, swoops and catches it, and carries it to its **hoard**, a pile in the bottom-left corner that grows as it fills. (Click a treasure to send it at once.) Each pays souls, more from a bigger dragon, and about one in five is a **relic**, which levels up a lasting boost: **Star shard** (hunts pay more), **Old coin** (the garden gathers more), **Moon pearl** (it grows faster), **Ghost lantern** (more spirit-lights) and **Sand of ages** (hourglasses pay more), 5 levels each. Click the hoard to see them.
 - **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
 - **Ascension (prestige):** an elder that has matured (4,500 growth) and has a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
 
@@ -206,6 +207,8 @@ Souls also buy upgrades, which change the rules instead of adding diggers. Each 
 There are 17 milestones, such as planting your first moss sprite, catching 100 ghosts or finishing a 50-minute Hourglass. Each pays a soul bonus the first time you reach it, and he rings a bell and says so. The Crypt lists the ones still ahead, with what each pays.
 
 ### Using it
+
+Each kind of worker in the Garden card has a **Shown / Hidden** switch: hidden ones keep working (and a Gathering still reaps them), just off the screen.
 
 Open the **Garden** from his ring. It has three tabs: **Garden** (your workers, your rank and score, and raising more), **Upgrades** and **Milestones**. Speak can do the same ("plant two moss sprites", "buy green thumbs", "how's the garden?"), and so can the plain commands.
 

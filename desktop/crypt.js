@@ -216,7 +216,7 @@ const shares = (c, now = c.at) => {
 export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels')) * (1 + dragons.gardenSouls(c.dragon));
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
-export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug')) * 100) / 100;
+export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug') + dragons.lightBonus(c.dragon)) * 100) / 100;
 // How long a reaped worker rests: shorter with robins about.
 export const restMs = (c) => [30, 20, 15][Math.min(2, counted(c, 'robin'))] * 60000;
 
@@ -239,7 +239,7 @@ export function earn(c, deed, n) {
   const count = Math.min(1000, n);
   let gained = count * WORTH[deed];
   if (deed === 'focus') {
-    gained = Math.round(gained * SAND[level(c, 'sand')]);
+    gained = Math.round(gained * SAND[level(c, 'sand')] * (1 + dragons.sandBonus(c.dragon)));
     c.deeds.glasses += 1;
     c.deeds.longest = Math.max(c.deeds.longest, Math.min(180, count));
   } else {
@@ -402,7 +402,8 @@ export function hunted(c, result, now = Date.now()) {
   const points = Math.min(caught * GHOST_POINTS * 3 * 5, Math.floor(whole(r.points, 1e9)));
   c.loose = 0;
   c.deeds.caught += caught;
-  const gained = (caught + 2 * golden) * GHOST_SOULS;
+  // (Star shards in the dragon's hoard add to it.)
+  const gained = Math.round((caught + 2 * golden) * GHOST_SOULS * (1 + dragons.huntBonus(c.dragon)));
   bank(c, gained);
   c.score += points;
   // The dragon learns from every hunt it shares.
@@ -522,6 +523,10 @@ export function dragonAct(c, a, now = Date.now()) {
     if (c.souls < n) return { ok: false, error: 'Not enough souls: the garden holds ' + Math.floor(c.souls) + '.' };
     out = dragons.feed(d, n, now);
     if (out.ok) c.souls -= out.ate;
+  } else if (a.treasure) {
+    // It caught something shiny and brought it home.
+    out = dragons.treasure(d, now);
+    if (out.ok) { bank(c, out.souls); out.gained = out.souls; }
   } else if (a.train) {
     out = dragons.train(d, a.train, now, a.quality);
   } else if (a.ascend) {
