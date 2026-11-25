@@ -1101,11 +1101,15 @@ body.is-capturing * { visibility: hidden !important; }
 .treasure.is-caught { animation: treasure-twinkle 0.8s steps(4) infinite; pointer-events: none; }
 @keyframes treasure-twinkle { to { background-position: 133.33% 0; } }
 @keyframes treasure-bob { to { translate: 0 8px; } }
-.hoard { position: fixed; bottom: 0; z-index: 4; cursor: pointer; image-rendering: pixelated; background-size: 100% 100%;
-  filter: drop-shadow(0 0 5px rgba(255, 226, 154, 0.55)); }
-.hoard.is-1 { width: 44px; height: 20px; background-image: url(../assets/hoard-1.png); }
-.hoard.is-2 { width: 64px; height: 28px; background-image: url(../assets/hoard-2.png); }
-.hoard.is-3 { width: 88px; height: 36px; background-image: url(../assets/hoard-3.png); }
+.hoard-glint { position: fixed; z-index: 3; pointer-events: none; image-rendering: pixelated; background-size: 100% 100%;
+  translate: -50% -100%; opacity: 0; transition-property: left, opacity; filter: drop-shadow(0 0 4px rgba(255, 226, 154, 0.7)); }
+.hoard-glint.is-on { opacity: 0.95; }
+.hoard-glint.is-1 { width: 44px; height: 20px; background-image: url(../assets/hoard-1.png); }
+.hoard-glint.is-2 { width: 64px; height: 28px; background-image: url(../assets/hoard-2.png); }
+.hoard-glint.is-3 { width: 88px; height: 36px; background-image: url(../assets/hoard-3.png); }
+/* Its best find, tossed up and caught, when it is woken on its hoard. */
+.treasure.is-shown { pointer-events: none; animation: treasure-twinkle 0.8s steps(4) infinite, toss 1.3s ease-out forwards; }
+@keyframes toss { 40% { translate: 0 -70px; } 70% { translate: 0 -60px; scale: 1.4; } 100% { translate: 0 -64px; scale: 1.2; opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .treasure { animation: none; } }
 
 /* A shadow crow after a sprout (pixel art at 2x; its art faces right). */

@@ -844,13 +844,21 @@ try {
   // (It drifts in from the edge, so the click is sent to it directly.)
   await page.$eval('.treasure', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   await page.waitForFunction(() => !document.querySelector('.treasure'), null, { timeout: 20000 }).catch(() => {});
-  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0 && document.querySelector('.hoard.is-1'), souls0t, { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0, souls0t, { timeout: 3000 }).catch(() => {});
   const hoard = await page.evaluate(() => window.__reaper.dragon.get().hoard);
-  check('the dragon catches it and brings it home: souls, and a hoard in the corner', hoard.treasures === 1 && !!(await page.$('.hoard.is-1')) &&
-    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t,
-    JSON.stringify({ before: souls0t, after: await page.evaluate(() => window.__reaper.crypt.get().souls), pile: !!(await page.$('.hoard.is-1')), n: hoard.treasures }));
+  check('the dragon catches it and tucks it away: souls, and no pile on the screen', hoard.treasures === 1 && !(await page.$('.hoard')) &&
+    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t, JSON.stringify({ n: hoard.treasures }));
   check('no second treasure straight away', !(await page.evaluate(() => window.__reaper.dragon.get().hoard.findable)));
-  await page.click('.hoard', { force: true });
+  // It sleeps on its hoard: a glint under it while it naps; clicked, it wakes and shows off.
+  await page.evaluate(() => window.__reaper.dragon.nap());
+  await page.waitForTimeout(300);
+  check('napping, it lies on a glint of treasure', !!(await page.$('.hoard-glint.is-on')));
+  const napBox = await page.locator('.field .dragon').boundingBox();
+  await page.mouse.click(napBox.x + napBox.width / 2, napBox.y + napBox.height / 2);
+  await page.waitForTimeout(250);
+  check('clicked, it wakes and shows off its find', !!(await page.$('.treasure.is-shown')) && /shows you/.test(await page.textContent('#bubble')) &&
+    !(await page.$('.hoard-glint.is-on')), await page.textContent('#bubble'));
+  await page.evaluate(() => window.__reaper.dragon.open('hoard'));
   await page.waitForTimeout(250);
   check('the hoard opens its tab: the relics, found or not', (await page.$$('#card .dragon-perk')).length === 5 && /treasure/.test(await page.textContent('#card')));
   await page.evaluate(() => window.__reaper.dragon.close());

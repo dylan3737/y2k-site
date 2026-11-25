@@ -143,13 +143,8 @@ export function createCrypt(ctx) {
   const span = () => Math.max(W_BONE, innerWidth - W_BONE - 8);
 
   // Transitions, in order: left (walking), opacity (fading), bottom (falling).
-  // The left edge they keep to: clear of the dragon's hoard, when there is one.
-  const leftEdge = () => {
-    const h = document.querySelector('.hoard');
-    return h ? Math.round(h.getBoundingClientRect().right + 8) : 8;
-  };
   function setX(d, x, seconds = 0) {
-    d.x = Math.max(leftEdge(), Math.min(span(), x));
+    d.x = Math.max(8, Math.min(span(), x));
     d.node.style.transitionDuration = (seconds ? seconds.toFixed(2) : '0') + 's, 0.2s, 0.35s';
     d.node.style.left = Math.round(d.x) + 'px';
   }
@@ -660,8 +655,7 @@ export function createCrypt(ctx) {
   function update(next, event = {}) {
     const before = now;
     now = { ...now, ...next };
-    // The dragon lives in the garden's state. (First: its hoard is a place the
-    // workers keep clear of.)
+    // The dragon lives in the garden's state.
     if (ctx.dragon && 'dragon' in next) ctx.dragon.update(next.dragon);
     paint();
     // Souls for a deed pop over the reaper; what the garden gathered, over them.
