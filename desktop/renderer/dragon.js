@@ -149,7 +149,7 @@ export function createDragon(ctx) {
     if (snail < 0) return;
     const out = await act({ snail });
     if (!out.ok) return say(out.error, 3000);
-    sound.bell();
+    sound.chime();
     say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
   }
 
@@ -185,7 +185,7 @@ export function createDragon(ctx) {
     toss.style.top = Math.round(r.top + r.height * 0.4) + 'px';
     field.appendChild(toss);
     setTimeout(() => { const t = toss.getBoundingClientRect(); ctx.puff(t.left + t.width / 2, t.top + t.height / 2); toss.remove(); }, 1300);
-    sound.bell();
+    sound.chime();
     const n = now.hoard.treasures;
     say(best ? 'It shows you its ' + best.name.toLowerCase() + (best.level > 1 ? ' (level ' + best.level + ')' : '') + '.\n' + n + ' treasures in its hoard.'
       : 'It shows you a coin. Its pride.\n' + n + ' treasure' + (n === 1 ? '' : 's') + ' in its hoard.', 4500);
@@ -252,7 +252,7 @@ export function createDragon(ctx) {
     mode = 'stare';
     until = performance.now() + 5000;
     if (!out.ok) return;
-    sound.bell();
+    sound.chime();
     if (out.gained) ctx.pop('+' + out.gained, 'is-souls');
     if (out.relic) say('A relic: ' + out.relic.name + (out.relic.level > 1 ? ', level ' + out.relic.level : '') + '.\nIt goes on the hoard.', 5000);
   }
@@ -300,7 +300,7 @@ export function createDragon(ctx) {
     mode = prev === 'held' ? 'follow' : 'stare';
     until = performance.now() + 4000;
     if (!out.ok) return say(out.error, 3000);
-    sound.bell();
+    sound.chime();
     if (inHunt) {
       const n = now.element === 'frost' ? ctx.abilities.freezeNear(tx, ty, BURST_R, 6000) : ctx.abilities.strikeNear(tx, ty, BURST_R);
       say(now.element === 'frost' ? (n ? 'Frozen: ' + n + '. Catch them.' : 'Frost, on nothing.') : (n ? 'Lightning: ' + n + ' caught.' : 'Thunder, and no ghosts.'), 3000);
@@ -690,7 +690,7 @@ export function createDragon(ctx) {
     }
     const out = await act({ train: kind, quality });
     if (out.ok) {
-      sound.bell();
+      sound.chime();
       const words = quality >= 0.9 ? 'Flawless.' : quality >= 0.5 ? 'Good.' : quality > 0 ? 'It will learn.' : 'It watched you, mostly.';
       say(words + '\n+' + out.gained + ' growth.', 3500);
     } else {
@@ -770,7 +770,7 @@ export function createDragon(ctx) {
       const treat = tipped(chip(d.snailToday ? 'Snail ♥' : 'Had its snail', async () => {
         const o = await act({ snail: true });
         if (!o.ok) return say(o.error, 3000);
-        sound.bell();
+        sound.chime();
         say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
       }, d.snailToday ? 'solid' : undefined), d.snailToday
         ? 'Its favourite food, once a day: one of your ' + snails + ' snails. Worth more than a day of meals.'
@@ -820,7 +820,7 @@ export function createDragon(ctx) {
       item.title = p.blurb;
       const text = el('div');
       text.append(el('b', null, p.name + ' ' + p.level + '/' + p.max), el('span', 'muted', p.now));
-      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))), 'solid');
+      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.chime() : say(o.error, 3000))), 'solid');
       get.dataset.perk = p.id;
       get.disabled = p.cost === null || d.scales < p.cost;
       item.append(text, get);
@@ -874,7 +874,7 @@ export function createDragon(ctx) {
     if (snails && d.snailToday) {
       items.push(item('snail', 'Snail ♥', 'Its favourite, once a day: one of your snails.', () => act({ snail: true }).then((o) => {
         if (!o.ok) return say(o.error, 3000);
-        sound.bell();
+        sound.chime();
         say('Crunch. Its favourite.', 2500);
       }), snails + ' in the garden'));
     }

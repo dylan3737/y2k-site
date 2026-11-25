@@ -616,7 +616,7 @@ export function createCrypt(ctx) {
     const out = await companion.crypt({ raise: n, kind });
     if (out.crypt) update(out.crypt);
     if (out.ok) {
-      sound.bell();
+      sound.chime();
       const what = { snail: 'A snail. Take your time.', frog: 'A frog. It approves of nothing.', bee: 'Busy, busy.',
         moth: 'A caterpillar. Give it a few hours.', robin: 'A robin. It sings at dawn. And noon.', wisp: 'A light that is not yours to follow.',
         ladybug: 'A ladybug. For luck.' }[out.kind];
@@ -631,7 +631,7 @@ export function createCrypt(ctx) {
     const out = await companion.crypt({ buy: id });
     if (out.crypt) update(out.crypt);
     if (out.ok) {
-      sound.bell();
+      sound.chime();
       say(out.name + '.\nLevel ' + out.level + '.', 2500);
     } else if (card.isOpen(owner)) {
       say(out.error, 4000);

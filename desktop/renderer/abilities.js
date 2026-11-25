@@ -434,7 +434,7 @@ export function createAbilities(ctx) {
       return out;
     }
     if (!out.gathered) {
-      sound.bell();
+      sound.chime();
       say('The soil stirs.\nGrow.', 3000);
       return out;
     }

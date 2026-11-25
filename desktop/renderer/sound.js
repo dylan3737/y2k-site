@@ -33,6 +33,17 @@ function tone(freq, start, dur, { type = 'sine', gain = 0.12, out } = {}) {
 }
 
 // A far, slightly out-of-tune bell, struck three times.
+// A small, soft chime, struck once: for small things (a treasure caught, a
+// purchase, a drill done). The bell below is for occasions.
+export function chime() {
+  if (muted) return;
+  const a = audio();
+  const t = a.currentTime;
+  [1, 2.76].forEach((ratio, j) => tone(784 * ratio, t, 0.7 / (j + 1), { gain: 0.045 / (j + 1) }));
+}
+
+// A bell, struck three times: for occasions (an hourglass done, a milestone,
+// a rank, the egg hatching, the dragon growing or ascending).
 export function bell() {
   if (muted) return;
   const a = audio();
