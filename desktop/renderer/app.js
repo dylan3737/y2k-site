@@ -886,4 +886,8 @@ window.__reaper = {
   pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
   // Forget where he was going and choose again now.
   retarget() { target = null; waitUntil = 0; },
-  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, guide: ctx.guide, say };
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, guide: ctx.guide, say,
+  // Why he is (not) walking, for a test that fails to say so.
+  why: () => ({ mode, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, target, waitIn: Math.round(waitUntil - performance.now()),
+    cursor: { x: cursor.x, y: cursor.y }, near: dist(cursor, center()) < 150, wander: settings.wander, ring: !ring.hidden, card: !card.hidden,
+    dragging: !!dragging, crossing, hidden: document.hidden }) };
