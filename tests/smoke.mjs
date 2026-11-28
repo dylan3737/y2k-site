@@ -203,9 +203,17 @@ try {
   // Rites: each makes a spell, casts it, and adds it to the Spellbook
   const rite = async (seq, result, expectSpeech, extra) => {
     const p = await open();
+    // Every line he says, not only the last: a ferry that lands late plays its
+    // song, and the song's title can replace the rite's line.
+    await p.evaluate(() => {
+      const b = document.getElementById('ghost-speech');
+      window.__said = [];
+      new MutationObserver(() => window.__said.push(b.textContent)).observe(b, { childList: true, characterData: true, subtree: true });
+    });
     for (const a of seq) await act(p, a);
     await p.waitForTimeout(250);
-    const said = await speech(p);
+    const lines = await p.evaluate(() => window.__said.concat(document.getElementById('ghost-speech').textContent));
+    const said = lines.find((l) => expectSpeech.test(l)) || lines[lines.length - 1];
     const ok = expectSpeech.test(said) && (!extra || await extra(p));
     check(`rite ${seq.join(' > ')} casts ${result}`, ok, said);
     check(`  ...and adds ${result} to the Spellbook`, !!(await p.$(`#spellbook [data-spell="${result}"]`)));
