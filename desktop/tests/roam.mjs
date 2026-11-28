@@ -113,8 +113,11 @@ try {
     check('he comes in at the left edge, at the same height on the desktop', at.x < 20 && Math.abs(at.y + 57 - 108) <= 2, JSON.stringify(at));
     // (Given time: on CI's virtual display the animation frames can be slow after the window moves.
     // If he does not go, it says why: his mode, target, the cursor, what is open.)
-    const walked = await page.waitForFunction(() => window.__reaper.pos.x > 40, null, { timeout: 15000 }).then(() => true, () => false);
-    check('and walks on in, away from the doorway', walked, walked ? '' : JSON.stringify(await page.evaluate(() => window.__reaper.why())));
+    // Walking on is any way at all: his next wander may pick a door again (once
+    // the left one he came in by, so he walked down the edge, never inward).
+    const walked = await page.waitForFunction(({ x, y }) => Math.hypot(window.__reaper.pos.x - x, window.__reaper.pos.y - y) > 40, { x: at.x, y: at.y }, { timeout: 15000 })
+      .then(() => true, () => false);
+    check('and walks on, out of the doorway', walked, walked ? '' : JSON.stringify(await page.evaluate(() => window.__reaper.why())));
     await page.reload();
     await page.waitForSelector('#body');
     // From here on he only moves when thrown, so a stroll can't spoil a check.

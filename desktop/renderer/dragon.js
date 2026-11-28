@@ -259,7 +259,7 @@ export function createDragon(ctx) {
 
   // --- A wraith, called ----------------------------------------------------------------
   async function callWraith() {
-    if (ctx.abilities.hunting) { say('Not in the middle of a hunt.', 2500); return { ok: false, error: 'hunting' }; }
+    if (ctx.abilities.hunting) { say('Not in the middle of a hunt.', 2500); return { ok: false, error: 'Not in the middle of a hunt.' }; }
     // (A garden action, not one of the dragon's: the rules raise the wraith.)
     const out = await companion.crypt({ wraithCall: true });
     if (out.crypt) ctx.crypt.update(out.crypt);
