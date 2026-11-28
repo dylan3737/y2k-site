@@ -919,7 +919,21 @@ try {
     check('it breathes where it was aimed, and those sprouts ripen by two', after.some((r, i) => r === Math.min(6, bones[i] + 2)) && !(await bp.$('.burst-aim')),
       JSON.stringify({ bones, after, targetId }));
     check('spent, it builds again', (await bp.evaluate(() => window.__reaper.dragon.get().hoard.burst)) < 100);
-    check('no errors with the burst', bp.errors.length === 0, bp.errors.join('; '));
+    // In a hunt, Storm strikes the ghosts where it is aimed: caught at once.
+    const t2 = Date.now() - 4 * 3600000;
+    const hp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [t2], kinds: ['digger'], at: Date.now(),
+      dragon: { element: 'storm', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now() } } });
+    await hp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await hp.waitForTimeout(1800);
+    await hp.evaluate(() => window.__reaper.abilities.reapAt(0));
+    await hp.waitForFunction(() => document.querySelectorAll('.ghost:not(.is-caught)').length >= 3, null, { timeout: 4000 }).catch(() => {});
+    const loose0 = await hp.$$eval('.ghost:not(.is-caught)', (g) => g.length);
+    const aimAt = await hp.$eval('.ghost:not(.is-caught)', (g) => { const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const fired = await hp.evaluate(({ x, y }) => window.__reaper.dragon.fireBurst(x, y), aimAt);
+    const said = await hp.textContent('#bubble');
+    check('in a hunt, a Storm burst strikes the ghosts where it is aimed', fired.ok && fired.inHunt && fired.hit >= 1 && /Lightning/.test(said),
+      JSON.stringify({ loose0, fired, said }));
+    check('no errors with the burst', bp.errors.length === 0 && hp.errors.length === 0, bp.errors.concat(hp.errors).join('; '));
   }
 
   // A hunter breathes on ghosts in a hunt.

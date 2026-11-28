@@ -299,14 +299,17 @@ export function createDragon(ctx) {
     const out = await act({ burst: inHunt ? { hunt: true } : { at: ctx.crypt.sproutsNear(tx, ty, BURST_R) } });
     mode = prev === 'held' ? 'follow' : 'stare';
     until = performance.now() + 4000;
-    if (!out.ok) return say(out.error, 3000);
+    if (!out.ok) { say(out.error, 3000); return { ok: false, error: out.error }; }
     sound.chime();
     if (inHunt) {
       const n = now.element === 'frost' ? ctx.abilities.freezeNear(tx, ty, BURST_R, 6000) : ctx.abilities.strikeNear(tx, ty, BURST_R);
+      out.hit = n;
       say(now.element === 'frost' ? (n ? 'Frozen: ' + n + '. Catch them.' : 'Frost, on nothing.') : (n ? 'Lightning: ' + n + ' caught.' : 'Thunder, and no ghosts.'), 3000);
     } else {
       say(out.ripened ? out.ripened + ' sprout' + (out.ripened === 1 ? '' : 's') + ' ripen.' : 'Its breath warms bare ground.', 3000);
     }
+    // What it did (for Speak, and tests): ok, and `hit` ghosts in a hunt or `ripened` sprouts.
+    return { ok: true, inHunt, hit: out.hit, ripened: out.ripened };
   }
 
   let finding = true;

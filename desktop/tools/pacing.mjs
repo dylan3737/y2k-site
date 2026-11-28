@@ -193,6 +193,12 @@ function play(name, days, log) {
           }
           income.other += c.souls - s;
         }
+        // Its breath burst, when charged: aimed at the first three sprouts (Shadow
+        // reaches them all anyway).
+        if (c.dragon && dragons.burstCharge(c.dragon, now) >= 1) {
+          const at = crypt.view(c, now).bones.map((b, i) => (b.most && !b.rest ? i : -1)).filter((i) => i >= 0).slice(0, 3);
+          if (at.length) crypt.act(c, { dragon: { burst: { at } } }, now);
+        }
         // A treasure drifts by now and then, and the dragon brings it home.
         if (c.dragon && dragons.treasureReady(c.dragon, now).ok) { const s = before(); crypt.act(c, { dragon: { treasure: true } }, now); income.other += c.souls - s; }
         if (drills > 0 && c.dragon && c.dragon.stage > 0 && c.dragon.energy >= dragons.TRAIN_COST) {

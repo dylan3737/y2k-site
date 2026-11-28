@@ -226,7 +226,7 @@ npm run pacing
 npm run pacing -- typical 60
 ```
 
-The first prints the three over six weeks. The second prints a line a day for one of them over 60 days. With the current numbers, a typical user (nine hours a day on weekdays, looking in every 45 minutes, three hourglasses and a Gathering a day) has 5 workers in the first morning, 10 on day 2 and 25 by about day 16; reaches Wraith lord in week two and the top rank in week four; and hatches the egg on the first day, has a wyvern on day 4, an elder by day 15 and ascends it in week three.
+The first prints the three over six weeks. The second prints a line a day for one of them over 60 days. With the current numbers, a typical user (nine hours a day on weekdays, looking in every 45 minutes, three hourglasses and a Gathering a day) has 5 workers in the first morning, 10 on day 2 and 25 by about day 16; reaches Wraith lord in week two and the top rank in week four; and hatches the egg on the first day, has a wyvern in week one, an elder by about day 15 and ascends it in week three.
 
 ## Speak
 

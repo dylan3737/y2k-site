@@ -23,7 +23,7 @@
 export const ELEMENTS = ['ember', 'frost', 'shadow', 'storm'];
 export const STAGES = ['egg', 'hatchling', 'drake', 'wyvern', 'elder', 'ancient'];
 // Experience to reach each stage (from hatchling on).
-export const XP_AT = [0, 0, 150, 900, 2800, 8000];
+export const XP_AT = [0, 0, 150, 900, 3300, 8000];
 // An elder can ascend once it has matured this far (its scales have hardened).
 export const ASCEND_XP = 4500;
 export const BRANCHES = { hunt: 'hunter', garden: 'guardian', tricks: 'trickster' };
