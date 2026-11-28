@@ -1193,3 +1193,17 @@ body.is-capturing * { visibility: hidden !important; }
 
 /* In a hunt or a wraith fight, clicks go through the dragon to what is hunted. */
 body:has(.hunt-layer .wraith, .hunt-layer .ghost:not(.is-caught), .hunt-layer .shade) .field .dragon { pointer-events: none; }
+
+/* His blades: the scythe he swings, by look. */
+body[data-blade="bone"] .scythe-swing { filter: grayscale(1) brightness(1.5) drop-shadow(0 0 14px rgba(240, 232, 220, 0.9)); }
+body[data-blade="frost"] .scythe-swing { filter: hue-rotate(170deg) saturate(1.3) brightness(1.2) drop-shadow(0 0 14px rgba(150, 220, 255, 0.95)); }
+body[data-blade="ember"] .scythe-swing { filter: sepia(1) saturate(3) hue-rotate(-30deg) drop-shadow(0 0 14px rgba(255, 120, 40, 0.95)); }
+body[data-blade="gilded"] .scythe-swing { filter: sepia(1) saturate(2.6) hue-rotate(-10deg) brightness(1.2) drop-shadow(0 0 14px rgba(255, 210, 90, 0.95)); }
+body[data-blade="wraithbane"] .scythe-swing { filter: brightness(0.5) contrast(1.4) drop-shadow(0 0 10px rgba(120, 255, 160, 0.95)) drop-shadow(0 0 24px rgba(200, 60, 255, 0.8)); }
+.arts-blade.is-iron .arts-robe-swatch { background: #8a8f9c; }
+.arts-blade.is-bone .arts-robe-swatch { background: #e8e2d8; }
+.arts-blade.is-frost .arts-robe-swatch { background: #9fdcff; }
+.arts-blade.is-ember .arts-robe-swatch { background: #ff7a2e; }
+.arts-blade.is-gilded .arts-robe-swatch { background: #e6b84a; }
+.arts-blade.is-wraithbane .arts-robe-swatch { background: #1a0f24; box-shadow: 0 0 6px rgba(120, 255, 160, 0.9); }
+.arts-shrines { margin-top: 8px; }

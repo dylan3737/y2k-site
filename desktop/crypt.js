@@ -162,6 +162,29 @@ export const ROBES = [
   { id: 'void', name: 'Void', cost: 30000 }
 ];
 const ROBE_BY_ID = new Map(ROBES.map((r) => [r.id, r]));
+// His blades: the scythe he swings, by look. Iron is his own; the wraithbane
+// is only for one who has beaten the wraith king.
+export const BLADES = [
+  { id: 'iron', name: 'Iron', cost: 0 },
+  { id: 'bone', name: 'Bone', cost: 5000 },
+  { id: 'frost', name: 'Frost', cost: 10000 },
+  { id: 'ember', name: 'Ember', cost: 18000 },
+  { id: 'gilded', name: 'Gilded', cost: 30000 },
+  { id: 'wraithbane', name: 'Wraithbane', cost: 50000, beaten: 5 }
+];
+const BLADE_BY_ID = new Map(BLADES.map((b) => [b.id, b]));
+// The altar: offerings with no end. Each costs more than the last, and each
+// adds 3% to the souls gathered, hunted, earned and won.
+export const ALTAR_BASE = 2000;
+export const ALTAR_GROWTH = 1.3;
+export const ALTAR_BONUS = 0.03;
+export const altarCost = (c) => Math.round((ALTAR_BASE * ALTAR_GROWTH ** (c.altar || 0)) / 50) * 50;
+const blessing = (c) => 1 + ALTAR_BONUS * (c.altar || 0);
+// Shrines: souls spent on the moment. Quicken wakes every resting sprout now
+// (empty, as they would rise); Rouse lets the dragon call a wraith again now.
+// (Quicken's price rises with the altar's blessing, so it never pays for itself.)
+export const QUICKEN_PER_SEED = 50;
+export const ROUSE_SOULS = 2000;
 const artLevel = (c, id) => (c.arts && c.arts[id]) || 0;
 const CAP_HOURS = [8, 12, 16, 24];
 const SAND = [1, 1.5, 2, 3];
@@ -215,6 +238,9 @@ export function clean(raw, now = Date.now()) {
     arts: Object.fromEntries(ARTS.map((a) => [a.id, Math.floor(whole(c.arts && c.arts[a.id], a.costs.length))])),
     robes: ['crimson', ...(Array.isArray(c.robes) ? ROBES.map((r) => r.id).filter((id) => id !== 'crimson' && c.robes.includes(id)) : [])],
     robe: 'crimson',
+    blades: ['iron', ...(Array.isArray(c.blades) ? BLADES.map((b) => b.id).filter((id) => id !== 'iron' && c.blades.includes(id)) : [])],
+    blade: 'iron',
+    altar: Math.floor(whole(c.altar, 500)),
     // When each skeleton began to dig, oldest first: how ripe it is.
     born: [],
     // What kind each one is, alongside `born`.
@@ -255,6 +281,7 @@ export function clean(raw, now = Date.now()) {
   while (out.born.length < out.skeletons) birth(out, now);
   out.loose = Math.min(out.loose, MAX_LOOSE);
   if (out.robes.includes(c.robe)) out.robe = c.robe;
+  if (out.blades.includes(c.blade)) out.blade = c.blade;
   return out;
 }
 
@@ -266,7 +293,7 @@ const shares = (c, now = c.at) => {
   for (let i = 0; i < c.skeletons; i++) if (!c.born || c.born[i] === undefined || awake(c, i, now)) n += kindOf(c, i).dig;
   return n;
 };
-export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels')) * (1 + dragons.gardenSouls(c.dragon));
+export const perHour = (c, now) => shares(c, now) * RATE_PER_HOUR * (1 + 0.25 * level(c, 'shovels')) * (1 + dragons.gardenSouls(c.dragon)) * blessing(c);
 // Time nobody was counting (the app shut, the computer asleep) pays out up to this.
 export const capHours = (c) => CAP_HOURS[level(c, 'graves')];
 export const goldenChance = (c) => Math.round((GOLDEN[level(c, 'lure')] + LADYBUG_LUCK * counted(c, 'ladybug') + dragons.lightBonus(c.dragon)) * 100) / 100;
@@ -298,6 +325,7 @@ export function earn(c, deed, n) {
   } else {
     c.deeds[deed] += count;
   }
+  gained = Math.round(gained * blessing(c));
   bank(c, gained);
   return gained;
 }
@@ -465,7 +493,7 @@ export function hunted(c, result, now = Date.now()) {
   c.loose = 0;
   c.deeds.caught += caught;
   // (Star shards in the dragon's hoard add to it.)
-  const gained = Math.round((caught + 2 * golden) * GHOST_SOULS * (1 + dragons.huntBonus(c.dragon)));
+  const gained = Math.round((caught + 2 * golden) * GHOST_SOULS * (1 + dragons.huntBonus(c.dragon)) * blessing(c));
   bank(c, gained);
   c.score += points;
   // The dragon learns from every hunt it shares.
@@ -532,7 +560,7 @@ export function wraith(c, won, now = Date.now()) {
   w.open = null;
   if (!won) return { ok: true, won: false, gained: 0, tier: open.tier };
   const t = WRAITHS[open.tier];
-  const gained = t.souls + WRAITH_PER_RANK * c.rank;
+  const gained = Math.round((t.souls + WRAITH_PER_RANK * c.rank) * blessing(c));
   bank(c, gained);
   const first = open.tier >= w.beaten;
   const out = { ok: true, won: true, gained, tier: open.tier, name: t.name, first };
@@ -591,6 +619,73 @@ export function dress(c, id) {
   }
   c.robe = id;
   return { ok: true, robe: id, name: r.name };
+}
+
+// A blade: bought the first time (the wraithbane only once the king is
+// beaten), wielded after.
+export function wield(c, id) {
+  const b = BLADE_BY_ID.get(id);
+  if (!b) return { ok: false, error: 'No such blade. There are: ' + BLADES.map((x) => x.id).join(', ') + '.' };
+  if (!c.blades.includes(id)) {
+    if (b.beaten && ((c.wraiths && c.wraiths.beaten) || 0) < b.beaten) return { ok: false, error: 'The ' + b.name + ' blade is only for one who has beaten the wraith king.' };
+    if (c.souls < b.cost) return { ok: false, error: 'Not enough souls: the ' + b.name + ' blade costs ' + b.cost + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+    c.souls -= b.cost;
+    c.blades = [...c.blades, id];
+  }
+  c.blade = id;
+  return { ok: true, blade: id, name: b.name };
+}
+
+// An offering at the altar: one more level, for ever.
+export function offer(c) {
+  const price = altarCost(c);
+  if (c.souls < price) return { ok: false, error: 'Not enough souls: the next offering is ' + price + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+  c.souls -= price;
+  c.altar = (c.altar || 0) + 1;
+  return { ok: true, altar: c.altar, bonus: Math.round(ALTAR_BONUS * c.altar * 100) };
+}
+
+// The resting sprouts (ghost-growers still seeds): their places.
+const resting = (c, now) => c.kinds.map((_, i) => i).filter((i) => kindOf(c, i).ghosts && !awake(c, i, now));
+const seedPrice = (c) => Math.round(QUICKEN_PER_SEED * blessing(c));
+export const quickenCost = (c, now = Date.now()) => resting(c, now).length * seedPrice(c);
+
+// Quicken: every resting sprout wakes now (empty, as it would rise).
+export function quicken(c, now = Date.now()) {
+  tally(c, now);
+  const which = resting(c, now);
+  if (!which.length) return { ok: false, error: 'Nothing is resting: every sprout is up.' };
+  const price = which.length * seedPrice(c);
+  if (c.souls < price) return { ok: false, error: 'Not enough souls: quickening ' + which.length + ' costs ' + price + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+  c.souls -= price;
+  // Woken in place, oldest first: the rest keep theirs.
+  const pairs = c.born.map((t, i) => [which.includes(i) ? now : t, c.kinds[i]]).sort((a, b) => a[0] - b[0]);
+  c.born = pairs.map((p) => p[0]);
+  c.kinds = pairs.map((p) => p[1]);
+  return { ok: true, woke: which.length, spent: price };
+}
+
+// Rouse: the dragon may call a wraith again now (it still needs the energy).
+export function rouse(c, now = Date.now()) {
+  if (!c.dragon || c.dragon.stage < 2) return { ok: false, error: 'Only a drake or older can call a wraith.' };
+  const w = c.wraiths;
+  if (!w.calledAt || w.calledAt + WRAITH_CALL_MS <= now) return { ok: false, error: 'It can call one already.' };
+  if (c.souls < ROUSE_SOULS) return { ok: false, error: 'Not enough souls: rousing costs ' + ROUSE_SOULS + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+  c.souls -= ROUSE_SOULS;
+  w.calledAt = 0;
+  return { ok: true, spent: ROUSE_SOULS };
+}
+
+// Heirlooms for the dragon's line, bought with the garden's souls.
+function heirloom(c) {
+  const d = c.dragon;
+  if (!d) return { ok: false, error: 'There is no dragon yet. Take the egg first.' };
+  const lvl = d.heirloom || 0;
+  if (lvl >= dragons.HEIRLOOM_COSTS.length) return { ok: false, error: 'Its line holds every heirloom.' };
+  const price = dragons.HEIRLOOM_COSTS[lvl];
+  if (c.souls < price) return { ok: false, error: 'Not enough souls: the next heirloom costs ' + price + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+  c.souls -= price;
+  return dragons.buyHeirloom(d);
 }
 
 // Pay for every milestone newly met. Returns them as [{ name, reward }]. A
@@ -702,6 +797,8 @@ export function dragonAct(c, a, now = Date.now()) {
     out = dragons.ascend(d, now);
   } else if (typeof a.perk === 'string') {
     out = dragons.buyPerk(d, a.perk);
+  } else if (a.heirloom) {
+    out = heirloom(c);
   } else {
     out = { ok: true };
   }
@@ -736,6 +833,10 @@ export function act(c, action, now = Date.now()) {
             : typeof a.buy === 'string' ? buy(c, a.buy)
               : typeof a.art === 'string' ? learn(c, a.art)
               : typeof a.robe === 'string' ? dress(c, a.robe)
+              : typeof a.blade === 'string' ? wield(c, a.blade)
+              : a.offer ? offer(c)
+              : a.quicken ? quicken(c, now)
+              : a.rouse ? rouse(c, now)
               : a.dragon ? dragonAct(c, a.dragon, now) : { ok: true };
   return { ...out, ...(aged.hatched ? { hatched: true } : {}), reached: reach(c) };
 }
@@ -782,6 +883,13 @@ export function view(c, now = Date.now()) {
       cost: artLevel(c, a.id) < a.costs.length ? a.costs[artLevel(c, a.id)] : null, now: a.effect(artLevel(c, a.id))
     })),
     robes: ROBES.map((r) => ({ id: r.id, name: r.name, cost: r.cost, owned: (c.robes || ['crimson']).includes(r.id), worn: (c.robe || 'crimson') === r.id })),
-    robe: c.robe || 'crimson'
+    robe: c.robe || 'crimson',
+    blades: BLADES.map((b) => ({ id: b.id, name: b.name, cost: b.cost, owned: (c.blades || ['iron']).includes(b.id), worn: (c.blade || 'iron') === b.id,
+      ...(b.beaten ? { locked: ((c.wraiths && c.wraiths.beaten) || 0) < b.beaten } : {}) })),
+    blade: c.blade || 'iron',
+    // The altar, and the shrines' prices now.
+    altar: { level: c.altar || 0, bonus: Math.round(ALTAR_BONUS * (c.altar || 0) * 100), cost: altarCost(c) },
+    shrines: { quicken: { resting: resting(c, now).length, cost: quickenCost(c, now) },
+      rouse: { cost: ROUSE_SOULS, ready: !!(c.dragon && c.dragon.stage >= 2 && c.wraiths && c.wraiths.calledAt && c.wraiths.calledAt + WRAITH_CALL_MS > now) } }
   };
 }

@@ -1044,6 +1044,36 @@ try {
     said = await ap.evaluate(() => window.__reaper.abilities.runTool('arts', { action: 'wear', robe: 'crimson' }));
     await ap.waitForTimeout(200);
     check('and put him back in his own robe', said.ok && (await ap.getAttribute('#reaper', 'data-robe')) === 'crimson', JSON.stringify(said));
+    // Leftover souls: blades, the altar, the shrines, heirlooms.
+    const lp = await open({ wander: false, muted: true, crypt: { souls: 30000, skeletons: 0, at: Date.now(),
+      dragon: { element: 'ember', stage: 3, xp: 1200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now() } } });
+    await lp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await lp.waitForTimeout(400);
+    await lp.evaluate(() => window.__reaper.arts.open('blades'));
+    await lp.waitForTimeout(200);
+    check('his Arts card has Blades, and the wraithbane is locked', (await lp.$$('#card [data-blade]')).length === 6 &&
+      (await lp.$eval('#card [data-blade="wraithbane"]', (n) => n.disabled)));
+    await lp.click('#card [data-blade="frost"]');
+    await lp.waitForTimeout(250);
+    check('a blade is bought, and his swing takes its look', (await lp.getAttribute('body', 'data-blade')) === 'frost' &&
+      (await lp.evaluate(() => window.__reaper.crypt.get().souls)) === 20000);
+    await lp.evaluate(() => window.__reaper.arts.open('altar'));
+    await lp.waitForTimeout(200);
+    await lp.click('#card [data-offer]');
+    await lp.waitForTimeout(250);
+    const altar = await lp.evaluate(() => window.__reaper.crypt.get().altar);
+    check('an offering at the altar: the next costs more', altar.level === 1 && altar.bonus === 3 && altar.cost > 2000, JSON.stringify(altar));
+    check('Quicken waits for a resting sprout', await lp.$eval('#card [data-shrine="quicken"]', (n) => n.disabled));
+    let lsaid = await lp.evaluate(() => window.__reaper.abilities.runTool('arts', { action: 'offer' }));
+    check('Speak can make an offering when asked', lsaid.ok && lsaid.result.offerings === 2, JSON.stringify(lsaid));
+    lsaid = await lp.evaluate(() => window.__reaper.abilities.runTool('dragon', { action: 'heirloom' }));
+    check('and buy an heirloom for the dragon\'s line', lsaid.ok && lsaid.result.heirlooms === 1, JSON.stringify(lsaid));
+    await lp.evaluate(() => window.__reaper.dragon.open('ascend'));
+    await lp.waitForTimeout(200);
+    check('the dragon\'s Ascend tab shows its heirlooms', /Heirlooms 1\/5/.test(await lp.textContent('#card')), (await lp.textContent('#card')).slice(0, 200));
+    lsaid = await lp.evaluate(() => window.__reaper.abilities.runTool('arts', { action: 'wield', blade: 'gilded' }));
+    check('wielding a blade never buys it', !lsaid.ok && /does not own/.test(lsaid.error), JSON.stringify(lsaid));
+    check('no errors with leftover souls', lp.errors.length === 0, lp.errors.join('; '));
     check('no errors with his arts', ap.errors.length === 0, ap.errors.join('; '));
   }
 

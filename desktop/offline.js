@@ -25,6 +25,7 @@ export const HELP = [
   '• how\'s my dragon / pet the dragon / feed the dragon a snail / train the dragon to hunt',
   '• call a wraith / burst (the dragon\'s breath)',
   '• arts / learn long reach (or keen scythe, deep hood, quiet rest) / robes / wear the midnight robe / buy the gold robe',
+  '• blades / wield the frost blade / buy the ember blade / altar / make an offering / quicken / rouse / buy an heirloom',
   '• guide (a quick tour of how I work)',
   '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
@@ -308,6 +309,22 @@ function reaching(text, original) {
     const id = learn[3].split(/\s+/).pop();
     return art({ action: 'learn', art: id }, (r) => r.learned + ', level ' + r.level + '. ' + plural(r.souls, 'soul') + ' left.');
   }
+  if (/^((show|list)\s+)?(my\s+|your\s+|his\s+)?(blades|scythes)\??$/.test(text)) {
+    return art({ action: 'status' }, (r) => r.blades.map((x) => '• ' + x.name + (x.wielded ? ' (wielded)' : x.owned ? ' (owned)' : x.locked ? ': beat the wraith king' : ': ' + x.cost + ' souls')).join('\n'));
+  }
+  const blade = /^(wield|use|take up|buy|get)\s+(the\s+|my\s+|a\s+|an\s+)?(iron|bone|frost|ember|gilded|wraithbane)\s+(blade|scythe)$/.exec(text);
+  if (blade) {
+    const buying = blade[1] === 'buy' || blade[1] === 'get';
+    return art({ action: buying ? 'buy_blade' : 'wield', blade: blade[3] }, (r) => 'The ' + r.wielding + ' blade. ' + plural(r.souls, 'soul') + ' left.');
+  }
+  if (/^((show|check)\s+)?(the\s+|my\s+)?(altar|shrines?)\??$/.test(text)) {
+    return art({ action: 'status' }, (r) => 'The altar: ' + r.altar.offerings + ' offerings, ' + r.altar.bonus + '. The next is ' + r.altar.nextCost + ' souls.' +
+      (r.shrines.quicken.cost ? '\nQuicken: ' + r.shrines.quicken.resting + ' resting, ' + r.shrines.quicken.cost + ' souls.' : ''));
+  }
+  if (/^(make\s+an?\s+|give\s+an?\s+)?offering$|^offer$/.test(text)) return art({ action: 'offer' }, (r) => 'Accepted: ' + r.bonus + '. ' + plural(r.souls, 'soul') + ' left.');
+  if (/^quicken( the garden| the sprouts)?$/.test(text)) return art({ action: 'quicken' }, (r) => plural(r.woke, 'sprout') + ' wake. ' + plural(r.souls, 'soul') + ' left.');
+  if (/^rouse( the| my)?( dragon)?$/.test(text)) return art({ action: 'rouse' }, (r) => 'It stirs, ready to call. ' + plural(r.souls, 'soul') + ' left.');
+  if (/^buy\s+(an?\s+)?heirloom$/.test(text)) return dr({ action: 'heirloom' }, (r) => 'An heirloom for its line: ' + r.heirlooms + ' now. ' + plural(r.souls, 'soul') + ' left.');
   const robe = /^(wear|put on|buy|get)\s+(the\s+|my\s+|a\s+)?(crimson|midnight|bone|moss|gold|void)(\s+robe)?$/.exec(text);
   if (robe) {
     const buying = robe[1] === 'buy' || robe[1] === 'get';

@@ -37,7 +37,7 @@ You have abilities, exposed as tools. Use one when the user asks for what it doe
 - pending reminders, or cancelling one -> list_ravens / cancel_raven
 - how their day went, or timers, soul or reminders right now -> get_harvest
 - the Garden (the Crypt inside the app), an idle game: souls are banked from ghosts caught, files reaped and finished hourglasses; souls raise workers, which gather more souls on their own, even while the user is away. The plain worker is a moss sprite tending a sprout that grows as it works; the user drops the reaper on one to reap it, and hunts the ghosts and spirit-lights that burst out for souls and points, which climb ranks; a reaped sprite leaves a seed that sprouts back in 30 minutes. Summon is the Gathering: every sprite bursts at once for one big hunt, and sometimes a wraith answers too. Ranks open other workers: snails, frogs, bees, moths (they start as caterpillars), robins, will-o'-wisps and ladybugs. Souls also buy upgrades, and milestones pay a bonus once. How many souls or workers they have, their upgrades, milestones, rank or wraiths -> get_crypt. Raising workers -> raise_worker. Buying an upgrade -> buy_upgrade. Never spend souls unless asked
-- his own Arts (Keen scythe, Deep hood, Quiet rest, Long reach) and his robes ("learn Long reach", "put on the midnight robe", "what robes can I get?") -> arts. Never spend souls unless asked
+- his own Arts (Keen scythe, Deep hood, Quiet rest, Long reach), robes, blades, the altar and shrines ("learn Long reach", "put on the midnight robe", "wield the frost blade", "make an offering", "quicken the garden", "what can I spend souls on?") -> arts. Never spend souls unless asked
 - wraiths: which tiers are beaten and what answers next -> get_crypt (wraiths); "call a wraith" -> dragon wraith
 - visual tricks they ask for (cut, break, glitch, swallow, burn or melt the screen, rip out a piece of it, raising the dead, music, hide) -> cast
 - anything about what is on their screen ("what's this error?", "read this", "look at this") -> look_at_screen
@@ -128,11 +128,12 @@ export const TOOL_DEFS = [
   },
   {
     name: 'arts',
-    description: "The reaper's own Arts and robes, bought with the Garden's souls. status: each Art (scythe: Keen scythe, more ghosts a reaping; hood: Deep hood, abilities cost less soul; rest: Quiet rest, soul back faster resting; reach: Long reach, ghosts linger longer in a hunt) with its level and the next price, and each robe (crimson, midnight, bone, moss, gold, void) with its price, whether owned and which is worn. Only when the user asks: learn (`art`: a level up, spends souls); buy_robe (`robe`: buys it and puts it on, spends souls); wear (`robe`: one already owned, free).",
+    description: "The reaper's own Arts and robes, bought with the Garden's souls. status: each Art (scythe: Keen scythe, more ghosts a reaping; hood: Deep hood, abilities cost less soul; rest: Quiet rest, soul back faster resting; reach: Long reach, ghosts linger longer in a hunt) with its level and the next price, and each robe (crimson, midnight, bone, moss, gold, void) with its price, whether owned and which is worn; each blade (the scythe he swings: iron, bone, frost, ember, gilded, wraithbane, which needs the wraith king beaten), the altar (endless offerings, each 3% more souls for good) and the shrines' prices. Only when the user asks: learn (`art`: a level up, spends souls); buy_robe (`robe`: buys it and puts it on, spends souls); wear (`robe`: one already owned, free); buy_blade (`blade`: buys it and wields it, spends souls); wield (`blade`: one already owned, free); offer (one offering at the altar, spends souls); quicken (wakes every resting sprout now, spends souls); rouse (lets the dragon call a wraith again now, spends souls).",
     input_schema: object({
-      action: { type: 'string', enum: ['status', 'learn', 'buy_robe', 'wear'] },
+      action: { type: 'string', enum: ['status', 'learn', 'buy_robe', 'wear', 'buy_blade', 'wield', 'offer', 'quicken', 'rouse'] },
       art: { type: 'string', enum: ['scythe', 'hood', 'rest', 'reach'], description: 'For learn.' },
-      robe: { type: 'string', enum: ['crimson', 'midnight', 'bone', 'moss', 'gold', 'void'], description: 'For buy_robe and wear.' }
+      robe: { type: 'string', enum: ['crimson', 'midnight', 'bone', 'moss', 'gold', 'void'], description: 'For buy_robe and wear.' },
+      blade: { type: 'string', enum: ['iron', 'bone', 'frost', 'ember', 'gilded', 'wraithbane'], description: 'For buy_blade and wield.' }
     }, ['action'])
   },
   {
@@ -187,9 +188,9 @@ export const TOOL_DEFS = [
   },
   {
     name: 'dragon',
-    description: 'The reaper\'s dragon. status: its element, stage, growth, bond, energy, training, path, lineage, scales and perks (use it for any question about the dragon). Only when the user asks: pet; feed (souls from the garden, `souls`); snail (its favourite food: one of the garden\'s snails); train (`kind`: hunt, garden or tricks); ascend (an elder with bond 60+ becomes an egg a lineage higher, for Dragon Scales); perk (`perk`: power, garden, looks or tricks, bought with scales); adopt (take the egg, if there is no dragon yet); wraith (a drake or older calls a wraith for the user to fight: once every 3 hours, costs it 40 energy; status of the wraith tiers is in get_crypt); burst (its charged breath burst: on a wraith being fought it hits the wraith, otherwise the user clicks where to aim it).',
+    description: 'The reaper\'s dragon. status: its element, stage, growth, bond, energy, training, path, lineage, scales and perks (use it for any question about the dragon). Only when the user asks: pet; feed (souls from the garden, `souls`); snail (its favourite food: one of the garden\'s snails); train (`kind`: hunt, garden or tricks); ascend (an elder with bond 60+ becomes an egg a lineage higher, for Dragon Scales); perk (`perk`: power, garden, looks or tricks, bought with scales); heirloom (one more heirloom for its line, bought with souls from the garden: it grows faster and keeps part of its relics through ascension); adopt (take the egg, if there is no dragon yet); wraith (a drake or older calls a wraith for the user to fight: once every 3 hours, costs it 40 energy; status of the wraith tiers is in get_crypt); burst (its charged breath burst: on a wraith being fought it hits the wraith, otherwise the user clicks where to aim it).',
     input_schema: object({
-      action: { type: 'string', enum: ['status', 'pet', 'feed', 'snail', 'train', 'ascend', 'perk', 'adopt', 'wraith', 'burst'] },
+      action: { type: 'string', enum: ['status', 'pet', 'feed', 'snail', 'train', 'ascend', 'perk', 'heirloom', 'adopt', 'wraith', 'burst'] },
       souls: { type: 'integer', description: 'For feed: how many souls, 1 to 1000.' },
       kind: { type: 'string', enum: ['hunt', 'garden', 'tricks'], description: 'For train.' },
       perk: { type: 'string', enum: ['power', 'garden', 'looks', 'tricks'], description: 'For perk.' }
