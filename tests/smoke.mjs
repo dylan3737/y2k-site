@@ -83,8 +83,10 @@ try {
   // Audio starts asynchronously; wait until the song is really playing.
   await page.waitForSelector('.song-mark[data-song="0"].is-on', { timeout: 5000 }).catch(() => {});
   check('a song plays and labels the bubble', (await speech(page)) === 'Lamp' && await hasClass(page, '.song-mark[data-song="0"]', 'is-on'));
-  await page.click('.song-mark[data-song="0"]');
-  check('clicking the playing song stops it', (await speech(page)) === '✦ listen');
+  // Clicked on the mark itself: he roams, and a real click can land on him
+  // standing over the mark (or on his bubble, which toggles the music too).
+  await page.$eval('.song-mark[data-song="0"]', (m) => m.click());
+  check('clicking the playing song stops it', (await speech(page)) === '✦ listen' && !(await page.$('.song-mark.is-on')), await speech(page));
   await page.click('#portfolioTab');
   for (const i of [0, 1, 2, 3]) {
     await page.click(`.game-mark[data-game="${i}"]`);

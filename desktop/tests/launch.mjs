@@ -147,14 +147,16 @@ try {
   check('the screen can be captured for Slash', typeof shot === 'string' && shot.startsWith('data:image/jpeg'), shot ? shot.slice(0, 30) : String(shot));
 
   // Shatter and Glitch on a real capture of the screen.
-  await page.evaluate(() => window.__reaper.abilities.cast('shatter'));
-  await page.waitForTimeout(700);
-  check('Shatter draws over a real screen capture', (await page.$$('.fx-canvas')).length === 1);
-  await page.waitForTimeout(2300);
-  await page.evaluate(() => window.__reaper.abilities.cast('glitch'));
-  await page.waitForTimeout(2000);
-  check('Shatter and Glitch clean up after themselves', (await page.$$('.fx-canvas')).length === 0);
-  check('Glitch saw the real screen', (await page.textContent('#bubble')).includes('Signal restored'));
+  // (Waited for, not timed: on CI's virtual display a capture can take a second or more.)
+  const gone = () => page.waitForFunction(() => !document.querySelector('.fx-canvas'), null, { timeout: 10000 }).then(() => true, () => false);
+  page.evaluate(() => window.__reaper.abilities.cast('shatter'));
+  const drew = await page.waitForSelector('.fx-canvas', { timeout: 8000 }).then(() => true, () => false);
+  check('Shatter draws over a real screen capture', drew && (await page.$$('.fx-canvas')).length === 1);
+  const shattered = await gone();
+  page.evaluate(() => window.__reaper.abilities.cast('glitch'));
+  const glitched = await page.waitForFunction(() => /Signal restored|Static/.test(document.getElementById('bubble').textContent), null, { timeout: 10000 }).then(() => true, () => false);
+  check('Shatter and Glitch clean up after themselves', shattered && (await gone()));
+  check('Glitch saw the real screen', glitched && (await page.textContent('#bubble')).includes('Signal restored'), await page.textContent('#bubble'));
   // A shader effect, which needs WebGL in the app.
   await page.evaluate(() => window.__reaper.abilities.cast('melt'));
   await page.waitForTimeout(2900);
