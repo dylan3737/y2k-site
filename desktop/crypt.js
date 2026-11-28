@@ -52,8 +52,27 @@ export const REST_MS = 30 * 60000;
 // The most ghosts one hunt can hold: a Gathering of eight full skeletons.
 export const MAX_LOOSE = 60;
 // A beaten wraith pays this, and this much more for every rank reached.
-export const WRAITH_SOULS = 60;
+export const WRAITH_SOULS = 40;
 export const WRAITH_PER_RANK = 30;
+// Wraiths come in tiers: the next one not yet beaten answers (the king, once
+// all are). Each has more strength (`hp`, strikes) and time (`ms`), and new
+// tricks: it phases now and then (strikes go through it), and calls shades
+// that heal it. Beaten the first time, a tier pays Dragon Scales and a relic.
+// One rises after about one Gathering in four (never more than four in a row
+// without one), or a drake or older calls one, once in WRAITH_CALL_MS. The
+// rules say when one has risen, and take a win only for that one.
+export const WRAITH_CHANCE = 0.25;
+export const WRAITH_CALL_MS = 3 * 60 * 60000;
+// Calling one tires the dragon, as much as a drill and a half.
+export const WRAITH_CALL_ENERGY = 40;
+export const WRAITH_OPEN_MS = 5 * 60000;
+export const WRAITHS = [
+  { id: 'wraith', name: 'Wraith', hp: 12, ms: 20000, souls: WRAITH_SOULS, scales: 1, phases: false, shades: 0 },
+  { id: 'hollow', name: 'Hollow wraith', hp: 18, ms: 22000, souls: 80, scales: 2, phases: false, shades: 0 },
+  { id: 'grave', name: 'Grave wraith', hp: 26, ms: 25000, souls: 140, scales: 3, phases: true, shades: 0 },
+  { id: 'knight', name: 'Wraith knight', hp: 36, ms: 28000, souls: 220, scales: 5, phases: true, shades: 2 },
+  { id: 'king', name: 'Wraith king', hp: 50, ms: 32000, souls: 320, scales: 8, phases: true, shades: 3 }
+];
 // Ranks, by score; each pays its reward once, when it is reached.
 export const RANKS = [
   { name: 'Groundskeeper', at: 0, reward: 0 },
@@ -61,7 +80,7 @@ export const RANKS = [
   { name: 'Soul warden', at: 1000, reward: 120 },
   { name: 'Shade hunter', at: 5000, reward: 300 },
   { name: 'Wraith lord', at: 14000, reward: 800 },
-  { name: "The Reaper's hand", at: 70000, reward: 2500 }
+  { name: "The Reaper's hand", at: 80000, reward: 2500 }
 ];
 
 // The kinds of skeleton. `dig` is how much one digs against a plain one,
@@ -206,6 +225,15 @@ export function clean(raw, now = Date.now()) {
     boosts: c.boosts && typeof c.boosts === 'object' ? Object.fromEntries(Object.entries(c.boosts)
       .filter(([, b]) => b && Number.isFinite(b.n) && Number.isFinite(b.at)).map(([id, b]) => [id, { n: Math.min(6, Math.max(-6, Math.floor(b.n))), at: Math.min(b.at, now) }])) : {},
     pollenAt: Number.isFinite(c.pollenAt) && c.pollenAt <= now ? c.pollenAt : 0,
+    // Wraiths: tiers beaten, Gatherings since one last rose, when the dragon
+    // last called one, and the one risen now (if any) to be fought.
+    wraiths: {
+      beaten: Math.floor(whole(c.wraiths && c.wraiths.beaten, WRAITHS.length)),
+      since: Math.floor(whole(c.wraiths && c.wraiths.since, 99)),
+      calledAt: Number.isFinite(c.wraiths && c.wraiths.calledAt) ? Math.min(c.wraiths.calledAt, now) : 0,
+      open: c.wraiths && c.wraiths.open && Number.isFinite(c.wraiths.open.at) && c.wraiths.open.at <= now
+        ? { tier: Math.floor(whole(c.wraiths.open.tier, WRAITHS.length - 1)), at: c.wraiths.open.at } : null
+    },
     // The reaper's dragon (dragon.js), once it has one.
     dragon: dragons.cleanDragon(c.dragon, now),
     score: Math.floor(whole(c.score, 1e12)),
@@ -415,6 +443,13 @@ export function gather(c, now = Date.now()) {
   for (const [t, k] of keep) { c.born.push(t); c.kinds.push(k); }
   for (const kind of back) birth(c, now + restMs(c), kind);
   c.loose = ghosts;
+  // Now and then something else answers the call.
+  const w = c.wraiths || (c.wraiths = { beaten: 0, since: 0, calledAt: 0, open: null });
+  if (Math.random() < WRAITH_CHANCE || w.since >= 4) {
+    w.since = 0;
+    return { ok: true, ghosts, gathered: n, wraith: rise(c, now) };
+  }
+  w.since += 1;
   return { ok: true, ghosts, gathered: n };
 }
 
@@ -460,12 +495,59 @@ export function summon(c, now = Date.now()) {
 
 // A wraith fought: beaten, it pays souls by rank and a skeleton rises anyway;
 // escaped, nothing.
+// The tier that answers: the next not yet beaten, as far as his rank goes
+// (the Hollow wraith answers a Ghost catcher, the king a Wraith lord), or the
+// highest he has reached.
+export const nextWraith = (c) => Math.min((c.wraiths && c.wraiths.beaten) || 0, c.rank || 0, WRAITHS.length - 1);
+const tierView = (i) => ({ tier: i, ...WRAITHS[i] });
+function rise(c, now) {
+  const tier = nextWraith(c);
+  c.wraiths.open = { tier, at: now };
+  return tierView(tier);
+}
+
+// The dragon calls one (a drake or older, once in WRAITH_CALL_MS).
+export function callWraith(c, now = Date.now()) {
+  if (!c.dragon || c.dragon.stage < 2) return { ok: false, error: 'Only a drake or older can call a wraith.' };
+  const w = c.wraiths;
+  if (w.open && now - w.open.at < WRAITH_OPEN_MS) return { ok: false, error: 'A wraith is already abroad.' };
+  const wait = w.calledAt + WRAITH_CALL_MS - now;
+  if (w.calledAt && wait > 0) return { ok: false, error: 'It called one not long ago. Again in ' + Math.ceil(wait / 60000) + ' minutes.' };
+  if (c.dragon.energy < WRAITH_CALL_ENERGY) return { ok: false, error: 'It is too tired to call one. Let it rest.' };
+  c.dragon.energy -= WRAITH_CALL_ENERGY;
+  w.calledAt = now;
+  return { ok: true, wraith: rise(c, now) };
+}
+
+// The fight with the wraith that rose: won (souls by its tier and his rank;
+// the first time a tier falls, Dragon Scales and a relic), or
+// it got away. Only a wraith the rules raised, and lately, counts.
 export function wraith(c, won, now = Date.now()) {
-  if (!won) return { ok: true, won: false, gained: 0 };
-  const gained = WRAITH_SOULS + WRAITH_PER_RANK * c.rank;
+  const w = c.wraiths;
+  const open = w && w.open;
+  if (!open || now - open.at > WRAITH_OPEN_MS) {
+    if (w) w.open = null;
+    return { ok: false, error: 'No wraith is abroad.' };
+  }
+  w.open = null;
+  if (!won) return { ok: true, won: false, gained: 0, tier: open.tier };
+  const t = WRAITHS[open.tier];
+  const gained = t.souls + WRAITH_PER_RANK * c.rank;
   bank(c, gained);
-  const risen = summon(c, now);
-  return { ok: true, won: true, gained, raised: risen.ok ? 1 : 0 };
+  const first = open.tier >= w.beaten;
+  const out = { ok: true, won: true, gained, tier: open.tier, name: t.name, first };
+  if (first) {
+    w.beaten = open.tier + 1;
+    if (c.dragon) {
+      c.dragon.scales += t.scales;
+      out.scales = t.scales;
+      const relic = dragons.giveRelic(c.dragon);
+      if (relic) out.relic = relic;
+    }
+  }
+  // (No moss sprite sprouts where it fell any more: called every few hours,
+  // free workers added up.)
+  return out;
 }
 
 // The price of an upgrade's next level, or null when it has them all.
@@ -580,8 +662,8 @@ export function dragonAct(c, a, now = Date.now()) {
     // Its breath burst, spent: in a hunt (the page freezes or strikes the
     // ghosts), or on the garden: sprouts ripen, those it was aimed at (`at`,
     // their places), or for Shadow every one.
-    const inHunt = a.burst.hunt === true;
-    if (inHunt && !dragons.BURST_IN_HUNTS.includes(d.element)) return { ok: false, error: 'Its breath does nothing to a hunt.' };
+    const inHunt = a.burst.hunt === true || a.burst.wraith === true;
+    if (a.burst.hunt === true && !dragons.BURST_IN_HUNTS.includes(d.element)) return { ok: false, error: 'Its breath does nothing to a hunt.' };
     out = dragons.burst(d, now);
     if (out.ok && !inHunt) {
       const more = dragons.BURST_GHOSTS[d.element] || 1;
@@ -650,6 +732,7 @@ export function act(c, action, now = Date.now()) {
       : a.hunt ? hunted(c, a.hunt, now)
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)
+          : a.wraithCall ? callWraith(c, now)
             : typeof a.buy === 'string' ? buy(c, a.buy)
               : typeof a.art === 'string' ? learn(c, a.art)
               : typeof a.robe === 'string' ? dress(c, a.robe)
@@ -689,6 +772,10 @@ export function view(c, now = Date.now()) {
       next: level(c, u.id) < u.costs.length ? u.effect(level(c, u.id) + 1) : null
     })),
     milestones: MILESTONES.map((m) => ({ name: m.name, how: m.how, reward: m.reward, done: c.done.includes(m.id) })),
+    // Wraiths: how many tiers are beaten, the one that would answer next, and
+    // when the dragon can call one again.
+    wraiths: { beaten: c.wraiths ? c.wraiths.beaten : 0, next: tierView(nextWraith(c)), tiers: WRAITHS.length,
+      callAt: c.wraiths && c.wraiths.calledAt ? c.wraiths.calledAt + WRAITH_CALL_MS : 0 },
     // His Arts and robes.
     arts: ARTS.map((a) => ({
       id: a.id, name: a.name, blurb: a.blurb, level: artLevel(c, a.id), max: a.costs.length,

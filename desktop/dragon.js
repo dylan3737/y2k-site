@@ -23,9 +23,11 @@
 export const ELEMENTS = ['ember', 'frost', 'shadow', 'storm'];
 export const STAGES = ['egg', 'hatchling', 'drake', 'wyvern', 'elder', 'ancient'];
 // Experience to reach each stage (from hatchling on).
-export const XP_AT = [0, 0, 150, 900, 3300, 8000];
-// An elder can ascend once it has matured this far (its scales have hardened).
-export const ASCEND_XP = 4500;
+export const XP_AT = [0, 0, 150, 1000, 3600, 8000];
+// An elder can ascend once it has matured this far (its scales have hardened),
+// and further each lineage: half as far again for each.
+export const ASCEND_XP = 5000;
+export const ascendAt = (d) => Math.round(ASCEND_XP * (1 + 0.5 * ((d && d.lineage) || 0)));
 export const BRANCHES = { hunt: 'hunter', garden: 'guardian', tricks: 'trickster' };
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -290,7 +292,7 @@ export function hunted(d, caught, now = Date.now()) {
 // What ascending would leave behind, if it can.
 export function ascendable(d) {
   if (d.stage < 4) return { ok: false, why: 'Only an elder can ascend.' };
-  if (d.xp < ASCEND_XP) return { ok: false, why: 'It is a young elder: it can ascend at ' + ASCEND_XP + ' growth.' };
+  if (d.xp < ascendAt(d)) return { ok: false, why: 'It is a young elder: it can ascend at ' + ascendAt(d) + ' growth.' };
   if (d.bond < ASCEND_BOND) return { ok: false, why: 'Its bond must be ' + ASCEND_BOND + ' or more.' };
   return { ok: true, scales: 10 + Math.floor(d.xp / 400) + 5 * d.lineage + (d.stage === 5 ? 15 : 0) };
 }
@@ -336,6 +338,17 @@ export function bestRelic(d) {
   if (!owned.length) return null;
   const r = owned.find((x) => x.id === d.hoard.lastRelic) || owned.reduce((a, b) => (relicLevel(d, b.id) > relicLevel(d, a.id) ? b : a));
   return { id: r.id, name: r.name, level: relicLevel(d, r.id) };
+}
+
+// A relic for it (a wraith's first defeat): one it has not filled, a level up.
+export function giveRelic(d, rand = Math.random) {
+  if (!d) return null;
+  const open = RELICS.filter((r) => relicLevel(d, r.id) < r.max);
+  if (!open.length) return null;
+  const r = open[Math.floor(rand() * open.length) % open.length];
+  d.hoard.relics[r.id] = relicLevel(d, r.id) + 1;
+  d.hoard.lastRelic = r.id;
+  return { id: r.id, name: r.name, level: d.hoard.relics[r.id] };
 }
 
 // Can it find a treasure now? (A hatched dragon, past the gap, under the day's count.)

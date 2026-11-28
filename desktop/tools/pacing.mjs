@@ -135,6 +135,19 @@ function play(name, days, log) {
     reached(out);
   }
 
+  // A wraith risen: won as often as the player is quick, the dragon helps, and
+  // the tier allows.
+  function fight() {
+    const tier = c.wraiths.open ? c.wraiths.open.tier : 0;
+    const help = c.dragon && c.dragon.stage >= 3 ? 0.1 : 0;
+    const won = Math.random() < Math.max(0.1, Math.min(0.95, p.catch + help - 0.12 * tier));
+    const s = before();
+    const out = crypt.act(c, { wraith: { won } }, now);
+    income.wraiths = (income.wraiths || 0) + (c.souls - s);
+    reached(out);
+    if (out.first) first('wraith tier ' + (out.tier + 1));
+  }
+
   // Look in: the bees pollinate, the ripe workers on screen are reaped, one
   // hunt each, and the dragon is seen to.
   function lookIn(gatherNow) {
@@ -143,6 +156,7 @@ function play(name, days, log) {
     if (gatherNow) {
       const out = crypt.act(c, { gather: true }, now);
       if (out.ok && out.ghosts) hunt(out.ghosts);
+      if (out.ok && out.wraith) fight();
     }
     for (let guard = 0; guard < 8; guard++) {
       const bones = crypt.view(c, now).bones;
@@ -201,6 +215,8 @@ function play(name, days, log) {
           const at = crypt.view(c, now).bones.map((b, i) => (b.most && !b.rest ? i : -1)).filter((i) => i >= 0).slice(0, 3);
           if (at.length) crypt.act(c, { dragon: { burst: { at } } }, now);
         }
+        // The dragon calls a wraith whenever it may.
+        if (c.dragon && c.dragon.stage >= 2 && crypt.act(c, { wraithCall: true }, now).ok) fight();
         // A treasure drifts by now and then, and the dragon brings it home.
         if (c.dragon && dragons.treasureReady(c.dragon, now).ok) { const s = before(); crypt.act(c, { dragon: { treasure: true } }, now); income.other += c.souls - s; }
         if (drills > 0 && c.dragon && c.dragon.stage > 0 && c.dragon.energy >= dragons.TRAIN_COST) {

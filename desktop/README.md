@@ -162,7 +162,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Wraith lord | 14,000 | 800 |
 | The Reaper's hand | 70,000 | 2,500 |
 
-**Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
+**Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises (see [Wraiths](#wraiths)). With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
 ### The dragon
 
@@ -182,6 +182,7 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 
 - **Treasure and its hoard:** now and then (every few minutes at most, fifteen a day) something shiny drifts across your screen: a star, a coin, a gem. The dragon spots it, swoops and catches it, and tucks it away in its **hoard**. (Click a treasure to send it at once.) The hoard is not on the screen: the dragon sleeps on it, so while it naps a glint of treasure shows under it, more as the hoard grows. Click it while it naps and it wakes and shows off its best find. Each pays souls, more from a bigger dragon, and about one in five is a **relic**, which levels up a lasting boost: **Star shard** (hunts pay more), **Old coin** (the garden gathers more), **Moon pearl** (it grows faster), **Ghost lantern** (more spirit-lights) and **Sand of ages** (hourglasses pay more), 5 levels each. Its card's **Hoard** tab lists them.
 - **Guarding the garden:** now and then (every six minutes at most, twelve a day) a **shadow crow** swoops at your ripest sprout. As often as the dragon is watchful (a Guardian nearly always, others more as they grow) it goes after it by itself; click the crow to send it. Caught, the crow pays souls; if it gets there first, it pecks and flies off with one of the sprout's ghosts.
+- **Dragonbreath** (on its ring, a drake or older): it breathes across the screen and washes it in its element: heat, frost, shadow or lightning. It is drawn over the screen, not from a picture of it, so unlike Slash and the screen effects it never needs the screen-recording permission.
 - **Its breath burst:** a drake or older builds up a burst of breath over 90 minutes (**Burst** in its ring shows how full). When it is ready, click Burst and aim: a ring follows your cursor; click, and it flies over and breathes there. On the garden, sprouts ripen: **Ember** gives two ghosts to each sprout it hits, **Frost** and **Storm** one, and **Shadow** one to every sprout on the screen. In a hunt, **Frost** freezes the ghosts it hits (they hang still, easy to catch) and **Storm** strikes them with lightning, caught at once.
 - **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
 - **Ascension (prestige):** an elder that has matured (4,500 growth) and has a bond of 60 or more can ascend. It returns as an egg of a new element, one **lineage** higher, and leaves **Dragon Scales**, which you keep for good. A higher lineage grows faster, and a lineage that has ascended twice can grow past elder, into an **Ancient**. Scales buy perks that last through every lineage:
@@ -192,6 +193,20 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
 | **Gleam** | 3 | A glow, then an aura, then a blazing one |
 | **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
+
+### Wraiths
+
+Wraiths come in five tiers, each stronger, with a little more time and new tricks. The next one you have not beaten answers, as far as your rank goes; once all are beaten, the king keeps coming.
+
+| Tier | Answers a | Strikes | Time | Its tricks | Pays (first time: also) |
+|---|---|---|---|---|---|
+| **Wraith** | Groundskeeper | 12 | 20 s | | 40 souls (1 Dragon Scale and a relic) |
+| **Hollow wraith** | Ghost catcher | 18 | 22 s | | 80 (2 scales, a relic) |
+| **Grave wraith** | Soul warden | 26 | 25 s | phases: now and then strikes go through it | 140 (3, a relic) |
+| **Wraith knight** | Shade hunter | 36 | 28 s | phases, and calls two **shades** that heal it unless you click them first | 220 (5, a relic) |
+| **Wraith king** | Wraith lord | 50 | 32 s | phases, three shades | 320 (8, a relic) |
+
+Each pays 30 souls more for each rank you hold. One rises after about one Gathering in four, or a drake or older **calls** one: **Wraith** in its ring, once every three hours, which tires it (40 energy). Your dragon fights alongside you, as it was trained: a **hunter** breathes on it (a strike every couple of seconds), a **guardian** holds it (it moves at half speed), a **trickster** taunts it (five seconds more); a dragon of an ascended line dives at it. And its **burst** works on any wraith: Ember (6) and Storm (5) wound it, Frost freezes it in place, Shadow blinds it (six seconds more).
 
 ### His Arts
 

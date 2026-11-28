@@ -257,6 +257,18 @@ export function createDragon(ctx) {
     if (out.relic) say('A relic: ' + out.relic.name + (out.relic.level > 1 ? ', level ' + out.relic.level : '') + '.\nIt goes on the hoard.', 5000);
   }
 
+  // --- A wraith, called ----------------------------------------------------------------
+  async function callWraith() {
+    if (ctx.abilities.hunting) { say('Not in the middle of a hunt.', 2500); return { ok: false, error: 'hunting' }; }
+    // (A garden action, not one of the dragon's: the rules raise the wraith.)
+    const out = await companion.crypt({ wraithCall: true });
+    if (out.crypt) ctx.crypt.update(out.crypt);
+    if (!out.ok) { say(out.error, 3000); return out; }
+    ctx.abilities.startWraith(out.wraith);
+    say('It calls, and a ' + out.wraith.name.toLowerCase() + ' answers.\nStrike it ' + out.wraith.hp + ' times.', 3500);
+    return out;
+  }
+
   // --- Its breath burst, aimed -------------------------------------------------------
   const BURST_R = 130;
   let aiming = null;
@@ -295,12 +307,18 @@ export function createDragon(ctx) {
     place(0.6);
     await new Promise((ok) => setTimeout(ok, 650));
     for (let i = 0; i < 4; i++) setTimeout(() => breathe(tx + rand(-40, 40), ty + rand(-30, 30)), i * 110);
-    const inHunt = ctx.abilities && ctx.abilities.hunting && ['frost', 'storm'].includes(now.element);
-    const out = await act({ burst: inHunt ? { hunt: true } : { at: ctx.crypt.sproutsNear(tx, ty, BURST_R) } });
+    const onWraith = !!(ctx.abilities && ctx.abilities.wraithing);
+    const inHunt = !onWraith && ctx.abilities && ctx.abilities.hunting && ['frost', 'storm'].includes(now.element);
+    const out = await act({ burst: onWraith ? { wraith: true } : inHunt ? { hunt: true } : { at: ctx.crypt.sproutsNear(tx, ty, BURST_R) } });
     mode = prev === 'held' ? 'follow' : 'stare';
     until = performance.now() + 4000;
     if (!out.ok) { say(out.error, 3000); return { ok: false, error: out.error }; }
     sound.chime();
+    if (onWraith) {
+      const said = ctx.abilities.burstWraith(now.element);
+      if (said) say(said, 2500);
+      return { ok: true, onWraith: true, said };
+    }
     if (inHunt) {
       const n = now.element === 'frost' ? ctx.abilities.freezeNear(tx, ty, BURST_R, 6000) : ctx.abilities.strikeNear(tx, ty, BURST_R);
       out.hit = n;
@@ -893,6 +911,16 @@ export function createDragon(ctx) {
       items.push(item('burst', 'Burst', pct >= 100 ? 'Aim its breath. ' + what : 'Its breath is building (' + pct + '%). ' + what,
         () => aimBurst(), pct >= 100 ? 'ready' : pct + '%', pct < 100));
     }
+    // It can call a wraith (a drake or older, every few hours; it tires it).
+    if (d.stageIndex >= 2) {
+      const g = ctx.crypt.get() || {};
+      const w = g.wraiths || {};
+      const wait = w.callAt ? Math.ceil((w.callAt - Date.now()) / 60000) : 0;
+      const tired = d.energy < 40;
+      const next = w.next ? w.next.name : 'Wraith';
+      items.push(item('wraith', 'Wraith', wait > 0 ? 'It called one not long ago: again in ' + wait + ' minutes.' : tired ? 'Too tired to call one: energy comes back with time.'
+        : 'Call a wraith to fight: the ' + next.toLowerCase() + ' answers.', () => callWraith(), wait > 0 ? wait + ' min' : next.toLowerCase(), wait > 0 || tired));
+    }
     if (d.ascend.scales) items.push(item('ascend', 'Ascend', 'Ready to ascend: +' + d.ascend.scales + ' scales.', () => open('ascend'), '+' + d.ascend.scales + ' scales'));
     return items;
   }
@@ -932,6 +960,7 @@ export function createDragon(ctx) {
     spawnCrow,
     aimBurst,
     fireBurst,
+    callWraith,
     guard,
     chase,
     // The fetch ball is in the hand: the window keeps the mouse till it is let go.

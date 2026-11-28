@@ -192,11 +192,16 @@ check('with no skeletons the grave gives a first one instead', out.ok && out.gat
 const souls0 = r.souls;
 out = crypt.act(r, { summon: true }, t3);
 check('a skeleton can be raised without banked souls', out.ok && r.skeletons === 4 && r.souls === souls0);
+r.wraiths.open = null;
+check('no wraith abroad, no win to claim', !crypt.act(r, { wraith: { won: true } }, t3).ok);
+r.wraiths.open = { tier: 0, at: t3 };
 out = crypt.act(r, { wraith: { won: true } }, t3);
-check('a beaten wraith pays by rank, and a skeleton rises', out.won && out.gained === crypt.WRAITH_SOULS + crypt.WRAITH_PER_RANK && out.raised === 1 && r.skeletons === 5, JSON.stringify(out));
+check('a beaten wraith pays by its tier and his rank (no sprite rises any more)', out.won && out.gained === crypt.WRAITH_SOULS + crypt.WRAITH_PER_RANK && r.skeletons === 4, JSON.stringify(out));
+check('and only once', !crypt.act(r, { wraith: { won: true } }, t3).ok);
 const souls1 = r.souls;
+r.wraiths.open = { tier: 1, at: t3 };
 out = crypt.act(r, { wraith: { won: false } }, t3);
-check('an escaped wraith pays nothing', !out.won && r.souls === souls1 && r.skeletons === 5);
+check('an escaped wraith pays nothing', out.ok && !out.won && r.souls === souls1 && r.skeletons === 4);
 // Workers: the ghoul, the bat and the will-o'-wisp, unlocked by rank.
 const k = blank(T0);
 k.souls = 1e5;
@@ -339,6 +344,50 @@ check('not one he cannot pay for', !crypt.act(ar, { robe: 'void' }, T0).ok && cr
 const arSaved = crypt.clean(JSON.parse(JSON.stringify(ar)), T0);
 check('arts and robes survive a save', arSaved.arts.scythe === 1 && arSaved.robe === 'midnight' && arSaved.robes.includes('midnight'));
 check('a robe never bought is not worn from a save', crypt.clean({ robe: 'gold', robes: ['crimson'] }, T0).robe === 'crimson');
+
+// --- Wraiths, by tier ------------------------------------------------------------------
+const wr = blank(T0);
+wr.souls = 100;
+wr.rank = crypt.RANKS.length - 2; // a Wraith lord: every tier answers him
+crypt.act(wr, { raise: 2 }, T0);
+const realRandom = Math.random;
+Math.random = () => 0.9;
+out = crypt.act(wr, { gather: true }, T0 + 3 * 3600000);
+check('most Gatherings, no wraith', out.ok && !out.wraith && wr.wraiths.since === 1);
+Math.random = () => 0.1;
+const tg = T0 + 4 * 3600000;
+crypt.act(wr, { hunt: { caught: 0 } }, tg);
+out = crypt.act(wr, { gather: true }, tg);
+Math.random = realRandom;
+check('sometimes one rises: the first tier', out.wraith && out.wraith.tier === 0 && out.wraith.hp === crypt.WRAITHS[0].hp && wr.wraiths.open.tier === 0, JSON.stringify(out.wraith));
+crypt.act(wr, { dragon: { adopt: true } }, tg);
+wr.dragon.stage = 2;
+out = crypt.act(wr, { wraith: { won: true } }, tg + 30000);
+check('beaten the first time: souls, Dragon Scales and a relic, and the next tier is up', out.won && out.first && out.scales === crypt.WRAITHS[0].scales &&
+  out.relic && wr.dragon.scales === crypt.WRAITHS[0].scales && crypt.view(wr, tg).wraiths.next.tier === 1, JSON.stringify(out));
+out = crypt.act(wr, { wraithCall: true }, tg + 60000);
+check('a drake can call one: the next tier', out.ok && out.wraith.tier === 1 && out.wraith.name === 'Hollow wraith', JSON.stringify(out));
+crypt.act(wr, { wraith: { won: false } }, tg + 70000);
+check('but not again for a while', !crypt.act(wr, { wraithCall: true }, tg + 120000).ok);
+out = crypt.act(wr, { wraithCall: true }, tg + 60000 + crypt.WRAITH_CALL_MS);
+check('later, it can; and a tier that won is fought again', out.ok && out.wraith.tier === 1);
+check('a wraith not fought in time is gone', !crypt.act(wr, { wraith: { won: true } }, tg + 60000 + crypt.WRAITH_CALL_MS + crypt.WRAITH_OPEN_MS + 1).ok);
+wr.wraiths.beaten = crypt.WRAITHS.length;
+check('all beaten, the king answers', crypt.nextWraith(wr) === crypt.WRAITHS.length - 1);
+wr.wraiths.open = { tier: crypt.WRAITHS.length - 1, at: tg };
+const sc = wr.dragon.scales;
+out = crypt.act(wr, { wraith: { won: true } }, tg + 1000);
+check('a tier beaten before pays souls, no more scales', out.won && !out.first && wr.dragon.scales === sc, JSON.stringify(out));
+const ws = crypt.clean(JSON.parse(JSON.stringify(wr)), tg + 60000 + crypt.WRAITH_CALL_MS + 10);
+check('the wraiths survive a save', ws.wraiths.beaten === crypt.WRAITHS.length && ws.wraiths.calledAt === wr.wraiths.calledAt);
+const hatchling = blank(T0);
+crypt.act(hatchling, { dragon: { adopt: true } }, T0);
+hatchling.dragon.stage = 1;
+check('a hatchling cannot call one', !crypt.act(hatchling, { wraithCall: true }, T0).ok);
+const lowly = blank(T0);
+lowly.wraiths.beaten = 3;
+check('a tier answers only a reaper of its rank (a Groundskeeper meets the first)', crypt.nextWraith(lowly) === 0);
+check('a called wraith tires the dragon', wr.dragon.energy <= 100 - crypt.WRAITH_CALL_ENERGY);
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll crypt checks passed');
 process.exit(failures ? 1 : 0);

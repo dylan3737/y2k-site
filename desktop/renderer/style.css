@@ -918,6 +918,7 @@ body.is-capturing * { visibility: hidden !important; }
   top: 0;
   width: 120px;
   height: 106px;
+  background-size: 1600% 100% !important;
   cursor: crosshair;
   will-change: transform;
   background: url('../assets/ghost.webp') 0 0 / 1920px 106px no-repeat;
@@ -928,7 +929,8 @@ body.is-capturing * { visibility: hidden !important; }
 .wraith.is-hit { animation: wraithSwim 1.2s steps(16) infinite, wraithHit 0.2s ease; }
 .wraith.is-banished { animation: caughtPop 0.5s ease forwards; pointer-events: none; }
 .wraith.is-gone { animation: wraithGone 0.6s ease forwards; pointer-events: none; }
-@keyframes wraithSwim { to { background-position: -1920px 0; } }
+/* (Frames by percent, so a bigger tier's sheet scales with it.) */
+@keyframes wraithSwim { to { background-position: 106.667% 0; } }
 @keyframes wraithHit { 50% { opacity: 0.35; } }
 @keyframes wraithGone { to { transform: var(--at) translateY(-60px); opacity: 0; } }
 .score.is-wraith { color: var(--death); border-color: var(--death); box-shadow: 0 0 14px rgba(255, 154, 168, 0.5); }
@@ -1154,3 +1156,40 @@ body.is-capturing * { visibility: hidden !important; }
 .arts-robe.is-moss .arts-robe-swatch { background: #5c9a52; }
 .arts-robe.is-gold .arts-robe-swatch { background: #e6b84a; }
 .arts-robe.is-void .arts-robe-swatch { background: #120a1e; box-shadow: 0 0 6px rgba(180, 120, 255, 0.9); }
+
+/* Dragonbreath's wash over the screen, by element (drawn over it: no screen capture). */
+.breath-wash { position: fixed; inset: 0; z-index: 9; pointer-events: none; animation: wash 2.6s ease-out forwards; }
+.breath-wash.is-ember { background: radial-gradient(ellipse at 50% 120%, rgba(255, 120, 60, 0.55), rgba(255, 70, 40, 0.18) 55%, transparent 80%);
+  animation: wash 2.6s ease-out forwards, heat 0.18s steps(2) 10; }
+.breath-wash.is-frost { background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 225, 255, 0.35) 75%, rgba(230, 248, 255, 0.75));
+  box-shadow: inset 0 0 120px rgba(200, 240, 255, 0.8); }
+.breath-wash.is-shadow { background: linear-gradient(90deg, rgba(20, 6, 36, 0.85), rgba(60, 20, 90, 0.6) 50%, rgba(20, 6, 36, 0.85));
+  animation: wash 2.6s ease-out forwards, sweep 1.2s ease-in-out; }
+.breath-wash.is-storm { background: rgba(255, 246, 200, 0.08); }
+.breath-flash { position: absolute; inset: 0; background: rgba(255, 252, 230, 0.75); opacity: 0; animation: flash 0.16s ease-out forwards; }
+.breath-flash:nth-child(2) { animation-delay: 0.35s; }
+.breath-flash:nth-child(3) { animation-delay: 0.6s; }
+@keyframes wash { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes heat { 50% { filter: blur(1px); translate: 0 -2px; } }
+@keyframes sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+
+/* Wraith tiers: each its own look. */
+.wraith.is-tier-1 { filter: brightness(0.75) sepia(1) hue-rotate(180deg) saturate(1.4) opacity(0.85) drop-shadow(0 0 10px rgba(160, 200, 255, 0.8)); }
+.wraith.is-tier-2 { filter: brightness(0.55) sepia(1) hue-rotate(60deg) saturate(2.4) drop-shadow(0 0 10px rgba(120, 255, 140, 0.8)) drop-shadow(0 0 20px rgba(40, 120, 60, 0.6)); }
+.wraith.is-tier-3 { filter: brightness(0.38) sepia(1) hue-rotate(195deg) saturate(2.4) contrast(1.5) drop-shadow(0 0 8px rgba(120, 230, 255, 0.95)) drop-shadow(0 0 24px rgba(40, 80, 200, 0.8)); }
+.wraith.is-tier-4 { filter: brightness(0.6) sepia(1) hue-rotate(-20deg) saturate(3) drop-shadow(0 0 12px rgba(255, 210, 90, 0.95)) drop-shadow(0 0 28px rgba(255, 60, 80, 0.7)); }
+.wraith.is-phased { opacity: 0.28; }
+.wraith.is-frozen { outline: 2px solid rgba(160, 230, 255, 0.8); outline-offset: -6px; border-radius: 30%; }
+/* Its strength: a bar that empties as it is struck. */
+.score.is-wraith { display: flex; align-items: center; gap: 8px; }
+.wraith-bar { width: 120px; height: 8px; border: 2px solid currentColor; border-radius: 4px;
+  background: linear-gradient(90deg, currentColor calc(var(--hp, 1) * 100%), transparent 0); }
+/* A shade, flying to heal its wraith: click it first. */
+.shade { position: fixed; left: 0; top: 0; width: 32px; height: 30px; z-index: 8; cursor: crosshair;
+  background: url('../assets/ghost.webp') 0 0 / 1600% 100% no-repeat; animation: wraithSwim 1.2s steps(16) infinite;
+  filter: brightness(0.3) drop-shadow(0 0 6px rgba(200, 60, 255, 0.9)); }
+.shade.is-caught { animation: caughtPop 0.3s ease forwards; pointer-events: none; }
+
+/* In a hunt or a wraith fight, clicks go through the dragon to what is hunted. */
+body:has(.hunt-layer .wraith, .hunt-layer .ghost:not(.is-caught), .hunt-layer .shade) .field .dragon { pointer-events: none; }
