@@ -108,6 +108,8 @@ function play(name, days, log) {
       for (const k of v.kinds) {
         if (!['digger', 'snail', 'frog'].includes(k.id) && k.open && k.count < Math.min(k.most, 1 + Math.floor(v.skeletons / 8))) options.push({ act: { raise: 1, kind: k.id }, cost: k.cost });
       }
+      // His arts, among the rest.
+      for (const a of v.arts) if (a.cost !== null) options.push({ act: { art: a.id }, cost: a.cost });
       for (const u of v.upgrades) if (u.cost !== null) options.push({ act: { buy: u.id }, cost: u.cost * (u.id === 'graves' && p.open > 10 ? 3 : 1) , price: u.cost });
       const pick = options.filter((o) => (o.price ?? o.cost) <= c.souls).sort((a, b) => a.cost - b.cost)[0];
       if (!pick) return;
@@ -192,6 +194,12 @@ function play(name, days, log) {
             if (at >= 0) crypt.act(c, { dragon: { crow: { at } } }, now);
           }
           income.other += c.souls - s;
+        }
+        // Its breath burst, when charged: aimed at the first three sprouts (Shadow
+        // reaches them all anyway).
+        if (c.dragon && dragons.burstCharge(c.dragon, now) >= 1) {
+          const at = crypt.view(c, now).bones.map((b, i) => (b.most && !b.rest ? i : -1)).filter((i) => i >= 0).slice(0, 3);
+          if (at.length) crypt.act(c, { dragon: { burst: { at } } }, now);
         }
         // A treasure drifts by now and then, and the dragon brings it home.
         if (c.dragon && dragons.treasureReady(c.dragon, now).ok) { const s = before(); crypt.act(c, { dragon: { treasure: true } }, now); income.other += c.souls - s; }

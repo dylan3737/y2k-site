@@ -160,7 +160,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Soul warden | 1,000 | 120 |
 | Shade hunter | 5,000 | 300 |
 | Wraith lord | 14,000 | 800 |
-| The Reaper's hand | 60,000 | 2,500 |
+| The Reaper's hand | 70,000 | 2,500 |
 
 **Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
@@ -180,7 +180,7 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Guardian** | Garden | Every sprout in the garden grows faster: a quarter as a wyvern, a half as an elder. |
 | **Trickster** | Tricks | Petting it, it plays, and its play is worth souls. |
 
-- **Treasure and its hoard:** now and then (every few minutes at most, fifteen a day) something shiny drifts across your screen: a star, a coin, a gem. The dragon spots it, swoops and catches it, and carries it to its **hoard**, a pile in the bottom-left corner that grows as it fills. (Click a treasure to send it at once.) Each pays souls, more from a bigger dragon, and about one in five is a **relic**, which levels up a lasting boost: **Star shard** (hunts pay more), **Old coin** (the garden gathers more), **Moon pearl** (it grows faster), **Ghost lantern** (more spirit-lights) and **Sand of ages** (hourglasses pay more), 5 levels each. Click the hoard to see them.
+- **Treasure and its hoard:** now and then (every few minutes at most, fifteen a day) something shiny drifts across your screen: a star, a coin, a gem. The dragon spots it, swoops and catches it, and tucks it away in its **hoard**. (Click a treasure to send it at once.) The hoard is not on the screen: the dragon sleeps on it, so while it naps a glint of treasure shows under it, more as the hoard grows. Click it while it naps and it wakes and shows off its best find. Each pays souls, more from a bigger dragon, and about one in five is a **relic**, which levels up a lasting boost: **Star shard** (hunts pay more), **Old coin** (the garden gathers more), **Moon pearl** (it grows faster), **Ghost lantern** (more spirit-lights) and **Sand of ages** (hourglasses pay more), 5 levels each. Its card's **Hoard** tab lists them.
 - **Guarding the garden:** now and then (every six minutes at most, twelve a day) a **shadow crow** swoops at your ripest sprout. As often as the dragon is watchful (a Guardian nearly always, others more as they grow) it goes after it by itself; click the crow to send it. Caught, the crow pays souls; if it gets there first, it pecks and flies off with one of the sprout's ghosts.
 - **Its breath burst:** a drake or older builds up a burst of breath over 90 minutes (**Burst** in its ring shows how full). When it is ready, click Burst and aim: a ring follows your cursor; click, and it flies over and breathes there. On the garden, sprouts ripen: **Ember** gives two ghosts to each sprout it hits, **Frost** and **Storm** one, and **Shadow** one to every sprout on the screen. In a hunt, **Frost** freezes the ghosts it hits (they hang still, easy to catch) and **Storm** strikes them with lightning, caught at once.
 - **On your desktop** it follows him about, now and then naps by the garden or perches at the top of your screen. Click it to pet it; double-click for its card.
@@ -192,6 +192,19 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
 | **Gleam** | 3 | A glow, then an aura, then a blazing one |
 | **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
+
+### His Arts
+
+Souls can be spent on the reaper himself, too: **Arts** on his ring.
+
+| Art | Levels | What each level does | Costs |
+|---|---|---|---|
+| **Keen scythe** | 3 | A sprout he reaps by hand gives one more ghost | 400, 2,000, 8,000 |
+| **Deep hood** | 3 | His abilities cost 10% less soul | 200, 800, 3,200 |
+| **Quiet rest** | 3 | Resting, his soul comes back 25% faster | 100, 400, 1,600 |
+| **Long reach** | 3 | Ghosts linger 15% longer before they get away | 120, 500, 2,000 |
+
+The card's **Robes** tab dresses him: **Crimson** is his own; **Midnight** (500 souls), **Bone** (1,500), **Moss** (4,000), **Gold** (12,000) and **Void** (30,000) are bought once and worn whenever you like.
 
 ### Upgrades
 
@@ -226,7 +239,7 @@ npm run pacing
 npm run pacing -- typical 60
 ```
 
-The first prints the three over six weeks. The second prints a line a day for one of them over 60 days. With the current numbers, a typical user (nine hours a day on weekdays, looking in every 45 minutes, three hourglasses and a Gathering a day) has 5 workers in the first morning, 10 on day 2 and 25 by about day 16; reaches Wraith lord in week two and the top rank in week four; and hatches the egg on the first day, has a wyvern on day 4, an elder by day 15 and ascends it in week three.
+The first prints the three over six weeks. The second prints a line a day for one of them over 60 days. With the current numbers, a typical user (nine hours a day on weekdays, looking in every 45 minutes, three hourglasses and a Gathering a day) has 5 workers in the first morning, 10 on day 2 and 25 by about day 16; reaches Wraith lord in week two and the top rank in week four; and hatches the egg on the first day, has a wyvern in week one, an elder by about day 15 and ascends it in week three.
 
 ## Speak
 

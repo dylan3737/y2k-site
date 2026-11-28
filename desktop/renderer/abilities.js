@@ -316,7 +316,9 @@ export function createAbilities(ctx) {
   function startHunt(count, from, after, lights = 0) {
     // Six seconds, a second and a half for each of the first six ghosts, half
     // a second for each after; never more than half a minute.
-    const length = Math.min(30000, 6000 + 1500 * Math.min(count, 6) + 500 * Math.max(0, count - 6));
+    // (Long reach: 15% longer a level.)
+    const reach = 1 + 0.15 * ((ctx.arts && ctx.arts.level('reach')) || 0);
+    const length = Math.round(reach * Math.min(30000, 6000 + 1500 * Math.min(count, 6) + 500 * Math.max(0, count - 6)));
     const froms = Array.isArray(from) && from.length ? from : [from];
     hunt = {
       after,
@@ -434,7 +436,7 @@ export function createAbilities(ctx) {
       return out;
     }
     if (!out.gathered) {
-      sound.bell();
+      sound.chime();
       say('The soil stirs.\nGrow.', 3000);
       return out;
     }
@@ -761,6 +763,13 @@ export function createAbilities(ctx) {
       cast: () => ctx.dragon.open()
     },
     {
+      id: 'arts', name: 'Arts', cost: 0, school: 'curse', blurb: 'His own arts, bought with souls (a keener scythe, a deeper hood, quieter rest, a longer reach), and his robes.',
+      free: true,
+      active: () => ctx.arts.isOpen(),
+      stop: () => ctx.arts.close(),
+      cast: () => ctx.arts.open()
+    },
+    {
       id: 'crypt', name: 'Garden', cost: 0, school: 'soul', blurb: 'Your banked souls, and the garden they grow.',
       free: true,
       active: () => ctx.crypt.isOpen(),
@@ -789,6 +798,12 @@ export function createAbilities(ctx) {
   const byId = Object.fromEntries(list.map((a) => [a.id, a]));
 
   // Cast from the ring, the tray or Speak. A running ability stops for free.
+  // What an ability costs him: less with a deep hood (10% a level).
+  function priceOf(a) {
+    if (!a || a.free || !a.cost) return 0;
+    return Math.round(a.cost * (1 - 0.1 * ((ctx.arts && ctx.arts.level('hood')) || 0)));
+  }
+
   function cast(id) {
     const a = byId[id];
     if (!a) return { ok: false, error: 'No such ability.' };
@@ -802,7 +817,7 @@ export function createAbilities(ctx) {
       say(why);
       return { ok: false, error: why };
     }
-    if (!a.free && !soul.spend(a.cost)) {
+    if (!a.free && !soul.spend(priceOf(a))) {
       say('Empty. Set me down to rest.');
       return { ok: false, error: 'Not enough soul. Dragging the reaper and setting him down lets him rest.' };
     }
@@ -993,6 +1008,7 @@ export function createAbilities(ctx) {
     byId,
     cast,
     runTool,
+    priceOf,
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },

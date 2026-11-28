@@ -23,7 +23,7 @@
 export const ELEMENTS = ['ember', 'frost', 'shadow', 'storm'];
 export const STAGES = ['egg', 'hatchling', 'drake', 'wyvern', 'elder', 'ancient'];
 // Experience to reach each stage (from hatchling on).
-export const XP_AT = [0, 0, 150, 900, 2800, 8000];
+export const XP_AT = [0, 0, 150, 900, 3300, 8000];
 // An elder can ascend once it has matured this far (its scales have hardened).
 export const ASCEND_XP = 4500;
 export const BRANCHES = { hunt: 'hunter', garden: 'guardian', tricks: 'trickster' };
@@ -99,7 +99,7 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
     lineage, scales: 0, perks: { power: 0, garden: 0, looks: 0, tricks: 0 },
     petAt: 0, caredAt: now, at: now,
     // Its hoard: treasures caught, ever; relics by level; when it last found one.
-    hoard: { treasures: 0, relics: {}, foundAt: 0 },
+    hoard: { treasures: 0, relics: {}, foundAt: 0, lastRelic: null },
     // Crows: when the last came, and how many it has stopped, ever.
     guard: { crowAt: 0, stopped: 0 },
     // When its breath burst was last spent (it charges from then).
@@ -128,7 +128,8 @@ export function cleanDragon(raw, now = Date.now()) {
   out.hoard = {
     treasures: Math.floor(clamp(num(h.treasures), 0, 1e7)),
     relics: Object.fromEntries(RELICS.map((r) => [r.id, Math.floor(clamp(num(h.relics && h.relics[r.id]), 0, r.max))]).filter(([, l]) => l > 0)),
-    foundAt: clamp(num(h.foundAt), 0, now)
+    foundAt: clamp(num(h.foundAt), 0, now),
+    lastRelic: RELICS.some((r) => r.id === h.lastRelic) ? h.lastRelic : null
   };
   const g = d.guard && typeof d.guard === 'object' ? d.guard : {};
   out.guard = { crowAt: clamp(num(g.crowAt), 0, now), stopped: Math.floor(clamp(num(g.stopped), 0, 1e7)) };
@@ -330,6 +331,13 @@ export const huntBonus = (d) => 0.05 * relicLevel(d, 'star');
 export const lightBonus = (d) => 0.02 * relicLevel(d, 'lantern');
 export const sandBonus = (d) => 0.05 * relicLevel(d, 'sand');
 
+export function bestRelic(d) {
+  const owned = RELICS.filter((r) => relicLevel(d, r.id) > 0);
+  if (!owned.length) return null;
+  const r = owned.find((x) => x.id === d.hoard.lastRelic) || owned.reduce((a, b) => (relicLevel(d, b.id) > relicLevel(d, a.id) ? b : a));
+  return { id: r.id, name: r.name, level: relicLevel(d, r.id) };
+}
+
 // Can it find a treasure now? (A hatched dragon, past the gap, under the day's count.)
 export function treasureReady(d, now = Date.now()) {
   if (!d || d.stage === 0) return { ok: false, why: 'An egg finds nothing.' };
@@ -386,6 +394,7 @@ export function treasure(d, now = Date.now(), rand = Math.random) {
   if (open.length && rand() < RELIC_CHANCE) {
     const r = open[Math.floor(rand() * open.length) % open.length];
     d.hoard.relics[r.id] = relicLevel(d, r.id) + 1;
+    d.hoard.lastRelic = r.id;
     return { ok: true, souls, relic: { id: r.id, name: r.name, level: d.hoard.relics[r.id] } };
   }
   return { ok: true, souls };
@@ -411,6 +420,8 @@ export function viewDragon(d, now = Date.now()) {
       cost: d.perks[p.id] < p.costs.length ? p.costs[d.perks[p.id]] : null, now: p.effect(d.perks[p.id]) })),
     breaths: breaths(d), aura: d.perks.looks,
     hoard: { treasures: d.hoard.treasures, findable: treasureReady(d, now).ok,
+      // What it shows off, woken on its hoard: the relic it found last, or its best.
+      best: bestRelic(d),
       // When the next can be found, and how many more today.
       findAt: d.hoard.foundAt + TREASURE_GAP_MS, left: Math.max(0, TREASURES_A_DAY - todayOf(d, now).treasures),
       // Crows: when the next may come, how many more today, how watchful it is, how many it has stopped.

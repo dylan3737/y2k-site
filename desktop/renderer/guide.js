@@ -33,7 +33,7 @@ export function createGuide(ctx, { ringOpen, speakKey = 'Ctrl+Alt+Space' }) {
     if (s.next) row.append(chip(s.next, () => advance(), 'solid'));
     if (step < STEPS.length - 1) row.append(chip('Skip the guide', () => finish()));
     panel.appendChild(row);
-    ctx.sound.bell();
+    ctx.sound.chime();
   }
 
   function advance() {

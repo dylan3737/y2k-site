@@ -128,7 +128,7 @@ try {
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
   const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
-  check('click opens the ring: nine buttons, the effects behind one', buttons.length === 9 && buttons.includes('effects') &&
+  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') && buttons.includes('arts') &&
     !buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
@@ -146,7 +146,7 @@ try {
   check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
   await page.click('.ring-btn[data-id="back"]');
   await page.waitForTimeout(250);
-  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 9 && !!(await page.$('.ring-btn[data-id="effects"]')));
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
@@ -844,13 +844,21 @@ try {
   // (It drifts in from the edge, so the click is sent to it directly.)
   await page.$eval('.treasure', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   await page.waitForFunction(() => !document.querySelector('.treasure'), null, { timeout: 20000 }).catch(() => {});
-  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0 && document.querySelector('.hoard.is-1'), souls0t, { timeout: 3000 }).catch(() => {});
+  await page.waitForFunction((s0) => window.__reaper.crypt.get().souls > s0, souls0t, { timeout: 3000 }).catch(() => {});
   const hoard = await page.evaluate(() => window.__reaper.dragon.get().hoard);
-  check('the dragon catches it and brings it home: souls, and a hoard in the corner', hoard.treasures === 1 && !!(await page.$('.hoard.is-1')) &&
-    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t,
-    JSON.stringify({ before: souls0t, after: await page.evaluate(() => window.__reaper.crypt.get().souls), pile: !!(await page.$('.hoard.is-1')), n: hoard.treasures }));
+  check('the dragon catches it and tucks it away: souls, and no pile on the screen', hoard.treasures === 1 && !(await page.$('.hoard')) &&
+    (await page.evaluate(() => window.__reaper.crypt.get().souls)) > souls0t, JSON.stringify({ n: hoard.treasures }));
   check('no second treasure straight away', !(await page.evaluate(() => window.__reaper.dragon.get().hoard.findable)));
-  await page.click('.hoard', { force: true });
+  // It sleeps on its hoard: a glint under it while it naps; clicked, it wakes and shows off.
+  await page.evaluate(() => window.__reaper.dragon.nap());
+  await page.waitForTimeout(300);
+  check('napping, it lies on a glint of treasure', !!(await page.$('.hoard-glint.is-on')));
+  const napBox = await page.locator('.field .dragon').boundingBox();
+  await page.mouse.click(napBox.x + napBox.width / 2, napBox.y + napBox.height / 2);
+  await page.waitForTimeout(250);
+  check('clicked, it wakes and shows off its find', !!(await page.$('.treasure.is-shown')) && /shows you/.test(await page.textContent('#bubble')) &&
+    !(await page.$('.hoard-glint.is-on')), await page.textContent('#bubble'));
+  await page.evaluate(() => window.__reaper.dragon.open('hoard'));
   await page.waitForTimeout(250);
   check('the hoard opens its tab: the relics, found or not', (await page.$$('#card .dragon-perk')).length === 5 && /treasure/.test(await page.textContent('#card')));
   await page.evaluate(() => window.__reaper.dragon.close());
@@ -911,7 +919,52 @@ try {
     check('it breathes where it was aimed, and those sprouts ripen by two', after.some((r, i) => r === Math.min(6, bones[i] + 2)) && !(await bp.$('.burst-aim')),
       JSON.stringify({ bones, after, targetId }));
     check('spent, it builds again', (await bp.evaluate(() => window.__reaper.dragon.get().hoard.burst)) < 100);
-    check('no errors with the burst', bp.errors.length === 0, bp.errors.join('; '));
+    // In a hunt, Storm strikes the ghosts where it is aimed: caught at once.
+    const t2 = Date.now() - 4 * 3600000;
+    const hp = await open({ wander: false, muted: true, crypt: { souls: 0, skeletons: 1, born: [t2], kinds: ['digger'], at: Date.now(),
+      dragon: { element: 'storm', stage: 2, xp: 200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now() } } });
+    await hp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await hp.waitForTimeout(1800);
+    await hp.evaluate(() => window.__reaper.abilities.reapAt(0));
+    await hp.waitForFunction(() => document.querySelectorAll('.ghost:not(.is-caught)').length >= 3, null, { timeout: 4000 }).catch(() => {});
+    const loose0 = await hp.$$eval('.ghost:not(.is-caught)', (g) => g.length);
+    const aimAt = await hp.$eval('.ghost:not(.is-caught)', (g) => { const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const fired = await hp.evaluate(({ x, y }) => window.__reaper.dragon.fireBurst(x, y), aimAt);
+    const said = await hp.textContent('#bubble');
+    check('in a hunt, a Storm burst strikes the ghosts where it is aimed', fired.ok && fired.inHunt && fired.hit >= 1,
+      JSON.stringify({ loose0, fired, said }));
+    check('no errors with the burst', bp.errors.length === 0 && hp.errors.length === 0, bp.errors.concat(hp.errors).join('; '));
+  }
+
+  // His Arts: souls spent on him, from his ring; and his robes.
+  {
+    const ap = await open({ wander: false, muted: true, crypt: { souls: 1200, skeletons: 0, at: Date.now() } });
+    await ap.waitForTimeout(300);
+    for (let i = 0; i < 6 && !(await visible(ap, '#ring')); i++) { await ap.click('#body', { force: true }); await ap.waitForTimeout(260); }
+    await ap.click('.ring-btn[data-id="arts"]', { force: true });
+    await ap.waitForTimeout(250);
+    check('Arts opens his card, with four arts', (await ap.$$('#card [data-art]')).length === 4);
+    await ap.click('#card [data-art="hood"]');
+    await ap.waitForTimeout(250);
+    check('souls teach him an art', (await ap.evaluate(() => window.__reaper.crypt.get().arts.find((a) => a.id === 'hood').level)) === 1 &&
+      (await ap.evaluate(() => window.__reaper.crypt.get().souls)) === 1000);
+    await ap.evaluate(() => window.__reaper.arts.close());
+    for (let i = 0; i < 6 && !(await visible(ap, '#ring')); i++) { await ap.click('#body', { force: true }); await ap.waitForTimeout(260); }
+    await ap.click('.ring-btn[data-id="effects"]', { force: true });
+    await ap.waitForTimeout(250);
+    check('a deep hood: his abilities cost less (Slash 20 -> 18)', (await ap.textContent('.ring-btn[data-id="slash"] small')) === '18 soul', await ap.textContent('.ring-btn[data-id="slash"] small'));
+    await ap.keyboard.press('Escape');
+    await ap.evaluate(() => window.__reaper.arts.open('robes'));
+    await ap.waitForTimeout(200);
+    await ap.click('#card .arts-robe[data-robe="midnight"]');
+    await ap.waitForTimeout(250);
+    check('a robe is bought, and he wears it', (await ap.getAttribute('#reaper', 'data-robe')) === 'midnight' &&
+      (await ap.evaluate(() => window.__reaper.crypt.get().souls)) === 500);
+    await ap.reload();
+    await ap.waitForSelector('#body');
+    await ap.waitForTimeout(400);
+    check('and still wears it after a restart', (await ap.getAttribute('#reaper', 'data-robe')) === 'midnight');
+    check('no errors with his arts', ap.errors.length === 0, ap.errors.join('; '));
   }
 
   // A hunter breathes on ghosts in a hunt.

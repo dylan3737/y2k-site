@@ -55,10 +55,11 @@ export function createDragon(ctx) {
     node.style.transitionDuration = seconds.toFixed(2) + 's';
     node.style.left = Math.round(x) + 'px';
     node.style.top = Math.round(y) + 'px';
+    syncGlint(seconds);
   }
 
   function draw() {
-    drawHoard();
+    syncGlint();
     if (!now) {
       if (node) { node.remove(); node = null; shown = ''; }
       return;
@@ -125,7 +126,17 @@ export function createDragon(ctx) {
     const was = held;
     held = null;
     try { node.releasePointerCapture(e.pointerId); } catch {}
-    if (!was.moved) return petted(e);
+    if (!was.moved) {
+      // Asleep on its hoard: it wakes, and shows off its best find.
+      if (mode === 'nap' && now.hoard && now.hoard.treasures) {
+        mode = 'stare';
+        until = performance.now() + 5000;
+        node.classList.remove('is-napping');
+        syncGlint(0.3);
+        showOff();
+      }
+      return petted(e);
+    }
     node.classList.remove('is-held');
     const snail = ctx.crypt.snailUnder(node.getBoundingClientRect());
     ctx.crypt.snailUnder(null);
@@ -138,7 +149,7 @@ export function createDragon(ctx) {
     if (snail < 0) return;
     const out = await act({ snail });
     if (!out.ok) return say(out.error, 3000);
-    sound.bell();
+    sound.chime();
     say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
   }
 
@@ -147,27 +158,38 @@ export function createDragon(ctx) {
   // it, catches it and carries it to its hoard in the corner. Clicking the
   // treasure sends it at once. The rules say how often (findAt, left).
   let shiny = null; // { node, kind, x, y, sent }
-  let hoardNode = null;
-  const HOARD = { x: 14 };
+  // Its hoard is not on the screen: it sleeps on it. While it naps, a glint
+  // of treasure shows under it (more as the hoard grows).
+  let glint = null;
   const hoardSize = (n) => (n >= 40 ? 3 : n >= 10 ? 2 : n >= 1 ? 1 : 0);
-
-  function drawHoard() {
+  function syncGlint(seconds = 0) {
     const n = now && now.hoard ? now.hoard.treasures : 0;
-    const size = hoardSize(n);
-    if (!size) { if (hoardNode) { hoardNode.remove(); hoardNode = null; } return; }
-    if (!hoardNode) {
-      hoardNode = el('div', 'hoard hit');
-      hoardNode.addEventListener('pointerdown', (e) => { e.stopPropagation(); open('hoard'); });
-      field.appendChild(hoardNode);
-    }
-    hoardNode.className = 'hoard hit is-' + size;
-    hoardNode.style.left = HOARD.x + 'px';
-    hoardNode.title = 'Its hoard: ' + n + ' treasure' + (n === 1 ? '' : 's') + '. Click for its relics.';
+    const on = !!node && mode === 'nap' && hoardSize(n) > 0;
+    if (!on) { if (glint) glint.classList.remove('is-on'); return; }
+    if (!glint) { glint = el('div', 'hoard-glint'); field.appendChild(glint); }
+    const [w, h] = SIZE[now.stage];
+    glint.className = 'hoard-glint is-on is-' + hoardSize(n);
+    glint.style.transitionDuration = seconds.toFixed(2) + 's, 0.6s';
+    glint.style.left = Math.round(x + w / 2) + 'px';
+    glint.style.top = Math.round(y + h + 3) + 'px';
   }
-  const hoardSpot = () => {
-    const r = hoardNode ? hoardNode.getBoundingClientRect() : { left: HOARD.x, top: innerHeight - 30, width: 40 };
-    return { x: r.left + r.width / 2, y: r.top };
-  };
+
+  // Woken on its hoard, it shows off its best find: tossed up, a sparkle, a word.
+  function showOff() {
+    if (!now || !node) return;
+    const best = now.hoard.best;
+    const r = node.getBoundingClientRect();
+    const kind = best ? 'gem' : 'coin';
+    const toss = el('div', 'treasure is-' + kind + ' is-shown');
+    toss.style.left = Math.round(r.left + r.width / 2 - 12) + 'px';
+    toss.style.top = Math.round(r.top + r.height * 0.4) + 'px';
+    field.appendChild(toss);
+    setTimeout(() => { const t = toss.getBoundingClientRect(); ctx.puff(t.left + t.width / 2, t.top + t.height / 2); toss.remove(); }, 1300);
+    sound.chime();
+    const n = now.hoard.treasures;
+    say(best ? 'It shows you its ' + best.name.toLowerCase() + (best.level > 1 ? ' (level ' + best.level + ')' : '') + '.\n' + n + ' treasures in its hoard.'
+      : 'It shows you a coin. Its pride.\n' + n + ' treasure' + (n === 1 ? '' : 's') + ' in its hoard.', 4500);
+  }
 
   function canFind() {
     const h = now && now.hoard;
@@ -215,28 +237,22 @@ export function createDragon(ctx) {
       const d = node.getBoundingClientRect();
       if (Math.hypot(d.left + d.width / 2 - tx, d.top + d.height / 2 - ty) < Math.max(30, w / 2)) break;
     }
-    // Caught: it stops drifting and rides along to the hoard.
+    // Caught: it tucks it away (to sleep on later), with a sparkle.
     clearTimeout(t.gone);
     t.node.style.transition = 'none';
     t.node.classList.add('is-caught');
-    const home = hoardSpot();
-    node.classList.toggle('is-right', home.x > x + w / 2);
-    x = home.x - w / 2; y = home.y - h + 6;
-    place(1.4);
-    const ride = setInterval(() => {
-      const d = node.getBoundingClientRect();
-      t.node.style.left = Math.round(d.left + d.width / 2 - 8) + 'px';
-      t.node.style.top = Math.round(d.top + d.height * 0.55) + 'px';
-    }, 30);
-    await new Promise((ok) => setTimeout(ok, 1500));
-    clearInterval(ride);
+    const d0 = node.getBoundingClientRect();
+    t.node.style.left = Math.round(d0.left + d0.width / 2 - 12) + 'px';
+    t.node.style.top = Math.round(d0.top + d0.height * 0.5) + 'px';
+    await new Promise((ok) => setTimeout(ok, 450));
+    ctx.puff(d0.left + d0.width / 2, d0.top + d0.height / 2);
     t.node.remove();
     shiny = null;
     const out = await act({ treasure: true });
     mode = 'stare';
     until = performance.now() + 5000;
     if (!out.ok) return;
-    sound.bell();
+    sound.chime();
     if (out.gained) ctx.pop('+' + out.gained, 'is-souls');
     if (out.relic) say('A relic: ' + out.relic.name + (out.relic.level > 1 ? ', level ' + out.relic.level : '') + '.\nIt goes on the hoard.', 5000);
   }
@@ -283,14 +299,17 @@ export function createDragon(ctx) {
     const out = await act({ burst: inHunt ? { hunt: true } : { at: ctx.crypt.sproutsNear(tx, ty, BURST_R) } });
     mode = prev === 'held' ? 'follow' : 'stare';
     until = performance.now() + 4000;
-    if (!out.ok) return say(out.error, 3000);
-    sound.bell();
+    if (!out.ok) { say(out.error, 3000); return { ok: false, error: out.error }; }
+    sound.chime();
     if (inHunt) {
       const n = now.element === 'frost' ? ctx.abilities.freezeNear(tx, ty, BURST_R, 6000) : ctx.abilities.strikeNear(tx, ty, BURST_R);
+      out.hit = n;
       say(now.element === 'frost' ? (n ? 'Frozen: ' + n + '. Catch them.' : 'Frost, on nothing.') : (n ? 'Lightning: ' + n + ' caught.' : 'Thunder, and no ghosts.'), 3000);
     } else {
       say(out.ripened ? out.ripened + ' sprout' + (out.ripened === 1 ? '' : 's') + ' ripen.' : 'Its breath warms bare ground.', 3000);
     }
+    // What it did (for Speak, and tests): ok, and `hit` ghosts in a hunt or `ripened` sprouts.
+    return { ok: true, inHunt, hit: out.hit, ripened: out.ripened };
   }
 
   let finding = true;
@@ -674,7 +693,7 @@ export function createDragon(ctx) {
     }
     const out = await act({ train: kind, quality });
     if (out.ok) {
-      sound.bell();
+      sound.chime();
       const words = quality >= 0.9 ? 'Flawless.' : quality >= 0.5 ? 'Good.' : quality > 0 ? 'It will learn.' : 'It watched you, mostly.';
       say(words + '\n+' + out.gained + ' growth.', 3500);
     } else {
@@ -754,7 +773,7 @@ export function createDragon(ctx) {
       const treat = tipped(chip(d.snailToday ? 'Snail ♥' : 'Had its snail', async () => {
         const o = await act({ snail: true });
         if (!o.ok) return say(o.error, 3000);
-        sound.bell();
+        sound.chime();
         say(['Crunch.', 'Its favourite. It will not stop purring.', 'Gone in one bite.'][Math.floor(Math.random() * 3)], 3000);
       }, d.snailToday ? 'solid' : undefined), d.snailToday
         ? 'Its favourite food, once a day: one of your ' + snails + ' snails. Worth more than a day of meals.'
@@ -804,7 +823,7 @@ export function createDragon(ctx) {
       item.title = p.blurb;
       const text = el('div');
       text.append(el('b', null, p.name + ' ' + p.level + '/' + p.max), el('span', 'muted', p.now));
-      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.bell() : say(o.error, 3000))), 'solid');
+      const get = chip(p.cost === null ? 'Done' : String(p.cost), () => act({ perk: p.id }).then((o) => (o.ok ? sound.chime() : say(o.error, 3000))), 'solid');
       get.dataset.perk = p.id;
       get.disabled = p.cost === null || d.scales < p.cost;
       item.append(text, get);
@@ -858,7 +877,7 @@ export function createDragon(ctx) {
     if (snails && d.snailToday) {
       items.push(item('snail', 'Snail ♥', 'Its favourite, once a day: one of your snails.', () => act({ snail: true }).then((o) => {
         if (!o.ok) return say(o.error, 3000);
-        sound.bell();
+        sound.chime();
         say('Crunch. Its favourite.', 2500);
       }), snails + ' in the garden'));
     }
@@ -900,6 +919,16 @@ export function createDragon(ctx) {
     spawnTreasure: () => { if (!shiny) spawnTreasure(); return !!shiny; },
     // Whether treasures turn up by themselves (tests turn it off, to drift their own).
     setFinding(on) { finding = !!on; },
+    // Lie down for a nap where it is (tests; it naps by itself now and then).
+    nap() {
+      if (!now || !node || now.stage === 'egg') return false;
+      mode = 'nap';
+      until = performance.now() + 30000;
+      y = innerHeight - SIZE[now.stage][1];
+      node.classList.add('is-napping');
+      place(0);
+      return true;
+    },
     spawnCrow,
     aimBurst,
     fireBurst,

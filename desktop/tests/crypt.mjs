@@ -321,5 +321,24 @@ check('every skeleton is known by its own start time', new Set(r.born).size === 
 const legacy = crypt.clean({ skeletons: 3, souls: 5 }, T0);
 check('skeletons from before ripening start ripening on load', legacy.born.length === 3 && legacy.born[0] === T0 && legacy.loose === 0);
 
+// --- His Arts and robes -----------------------------------------------------------
+const ar = blank(T0);
+ar.souls = crypt.BASE_COST + crypt.ARTS.find((a) => a.id === 'scythe').costs[0];
+crypt.act(ar, { raise: 1 }, T0);
+check('a new reaper has no arts, and wears crimson', crypt.view(ar, T0).arts.every((a) => a.level === 0) && crypt.view(ar, T0).robe === 'crimson');
+let ao = crypt.act(ar, { art: 'scythe' }, T0);
+check('souls teach him an art', ao.ok && ao.level === 1 && crypt.view(ar, T0).arts.find((a) => a.id === 'scythe').level === 1, JSON.stringify(ao));
+check('not one he cannot pay for', !crypt.act(ar, { art: 'hood' }, T0).ok && !crypt.act(ar, { art: 'flight' }, T0).ok);
+const ripeA = crypt.view(ar, T0 + 3 * 3600000).bones[0].ripe;
+ao = crypt.act(ar, { reap: 0 }, T0 + 3 * 3600000);
+check('a keen scythe brings one more ghost out of a sprout reaped by hand', ao.ok && ao.ghosts === ripeA + 1, JSON.stringify([ripeA, ao.ghosts]));
+ar.souls = 600;
+check('a robe is bought, and worn', crypt.act(ar, { robe: 'midnight' }, T0).ok && crypt.view(ar, T0).robe === 'midnight' && Math.floor(ar.souls) === 100);
+check('worn again for nothing', crypt.act(ar, { robe: 'crimson' }, T0).ok && crypt.act(ar, { robe: 'midnight' }, T0).ok && Math.floor(ar.souls) === 100);
+check('not one he cannot pay for', !crypt.act(ar, { robe: 'void' }, T0).ok && crypt.view(ar, T0).robe === 'midnight');
+const arSaved = crypt.clean(JSON.parse(JSON.stringify(ar)), T0);
+check('arts and robes survive a save', arSaved.arts.scythe === 1 && arSaved.robe === 'midnight' && arSaved.robes.includes('midnight'));
+check('a robe never bought is not worn from a save', crypt.clean({ robe: 'gold', robes: ['crimson'] }, T0).robe === 'crimson');
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll crypt checks passed');
 process.exit(failures ? 1 : 0);

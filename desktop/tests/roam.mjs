@@ -85,6 +85,10 @@ try {
       return false;
     };
 
+    // The X server's pointer sits still at its default spot, which is beside
+    // the doorway he walks in by; near the cursor he stops to look at it. So
+    // the app is told the pointer is far off, in the far corner of the last monitor.
+    await app.evaluate(({ screen }) => { screen.getCursorScreenPoint = () => ({ x: 4070, y: 1910 }); });
     check('he starts on the primary monitor', (await onMonitor()) === 0, JSON.stringify(await bounds()));
     const seen = await page.evaluate(() => window.__reaper.doors);
     check('the page knows the door to the next monitor', seen.length === 1 && seen[0].side === 'right' && seen[0].from === 420 && seen[0].to === 1500, JSON.stringify(seen));
@@ -107,15 +111,18 @@ try {
     check('the window is now the landscape monitor', at.w === 1920 && at.h === 1080, JSON.stringify(at));
     // His middle was at y 528 on the desktop, which is 108 on a monitor that starts at 420.
     check('he comes in at the left edge, at the same height on the desktop', at.x < 20 && Math.abs(at.y + 57 - 108) <= 2, JSON.stringify(at));
-    // (Given time: on CI's virtual display the animation frames can be slow after the window moves.)
-    check('and walks on in, away from the doorway', await page.waitForFunction(() => window.__reaper.pos.x > 40, null, { timeout: 15000 }).then(() => true, () => false));
+    // (Given time: on CI's virtual display the animation frames can be slow after the window moves.
+    // If he does not go, it says why: his mode, target, the cursor, what is open.)
+    const walked = await page.waitForFunction(() => window.__reaper.pos.x > 40, null, { timeout: 15000 }).then(() => true, () => false);
+    check('and walks on in, away from the doorway', walked, walked ? '' : JSON.stringify(await page.evaluate(() => window.__reaper.why())));
     await page.reload();
     await page.waitForSelector('#body');
-    await page.waitForTimeout(600);
     // From here on he only moves when thrown, so a stroll can't spoil a check.
     const still = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('settings', { wander: false }));
     await still();
-    check('after a reload he knows both doors of the middle monitor', (await page.evaluate(() => window.__reaper.doors.map((d) => d.side).sort().join())) === 'left,right');
+    const sides = () => page.evaluate(() => window.__reaper.doors.map((d) => d.side).sort().join());
+    await page.waitForFunction(() => window.__reaper.doors.length === 2, null, { timeout: 8000 }).catch(() => {});
+    check('after a reload he knows both doors of the middle monitor', (await sides()) === 'left,right', await sides());
 
     // Flinging: drag him fast toward the right edge and let go.
     await page.evaluate(() => { window.__reaper.pos.x = innerWidth - 400; window.__reaper.pos.y = 300; });
@@ -130,7 +137,8 @@ try {
       await page.waitForTimeout(8);
     }
     await page.mouse.up();
-    check('flung at an edge with a door, he flies through it', await settle(2));
+    const flew = await settle(2, 100);
+    check('flung at an edge with a door, he flies through it', flew, flew ? '' : JSON.stringify(await page.evaluate(() => window.__reaper.why())));
     at = await reaper();
     check('and lands on the far portrait monitor, coming in from its left edge', at.h === 1920 && at.x < 300, JSON.stringify(at));
     await page.waitForFunction(() => window.__reaper.mode !== 'fly', null, { timeout: 8000 }).catch(() => {});

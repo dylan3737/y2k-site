@@ -61,7 +61,7 @@ export const RANKS = [
   { name: 'Soul warden', at: 1000, reward: 120 },
   { name: 'Shade hunter', at: 5000, reward: 300 },
   { name: 'Wraith lord', at: 14000, reward: 800 },
-  { name: "The Reaper's hand", at: 60000, reward: 2500 }
+  { name: "The Reaper's hand", at: 70000, reward: 2500 }
 ];
 
 // The kinds of skeleton. `dig` is how much one digs against a plain one,
@@ -124,6 +124,26 @@ export const UPGRADES = [
 ];
 // A Map, so an id like "__proto__" from outside finds nothing.
 const UPGRADE_BY_ID = new Map(UPGRADES.map((u) => [u.id, u]));
+
+// His Arts: souls spent on the reaper himself, not the garden.
+export const ARTS = [
+  { id: 'scythe', name: 'Keen scythe', blurb: 'Each sprout he reaps by hand gives one more ghost a level.', costs: [400, 2000, 8000], effect: (l) => '+' + l + ' ghost a reaping' },
+  { id: 'hood', name: 'Deep hood', blurb: 'His abilities cost 10% less soul a level.', costs: [200, 800, 3200], effect: (l) => (l ? '-' + l * 10 + '% soul' : 'full price') },
+  { id: 'rest', name: 'Quiet rest', blurb: 'Resting, his soul comes back 25% faster a level.', costs: [100, 400, 1600], effect: (l) => '+' + l * 25 + '% while resting' },
+  { id: 'reach', name: 'Long reach', blurb: 'Ghosts linger 15% longer a level before they get away.', costs: [120, 500, 2000], effect: (l) => '+' + l * 15 + '% hunt time' }
+];
+const ART_BY_ID = new Map(ARTS.map((a) => [a.id, a]));
+// His robes: Crimson is his own; the rest are bought once, and worn at will.
+export const ROBES = [
+  { id: 'crimson', name: 'Crimson', cost: 0 },
+  { id: 'midnight', name: 'Midnight', cost: 500 },
+  { id: 'bone', name: 'Bone', cost: 1500 },
+  { id: 'moss', name: 'Moss', cost: 4000 },
+  { id: 'gold', name: 'Gold', cost: 12000 },
+  { id: 'void', name: 'Void', cost: 30000 }
+];
+const ROBE_BY_ID = new Map(ROBES.map((r) => [r.id, r]));
+const artLevel = (c, id) => (c.arts && c.arts[id]) || 0;
 const CAP_HOURS = [8, 12, 16, 24];
 const SAND = [1, 1.5, 2, 3];
 const GOLDEN = [0.10, 0.16, 0.22, 0.30];
@@ -172,6 +192,10 @@ export function clean(raw, now = Date.now()) {
     total: whole(c.total, 1e12),
     at: Number.isFinite(c.at) && c.at <= now ? c.at : now,
     upgrades: Object.fromEntries(UPGRADES.map((u) => [u.id, Math.floor(whole(upgrades[u.id], u.costs.length))])),
+    // His Arts by level, the robes he owns, and the one he wears.
+    arts: Object.fromEntries(ARTS.map((a) => [a.id, Math.floor(whole(c.arts && c.arts[a.id], a.costs.length))])),
+    robes: ['crimson', ...(Array.isArray(c.robes) ? ROBES.map((r) => r.id).filter((id) => id !== 'crimson' && c.robes.includes(id)) : [])],
+    robe: 'crimson',
     // When each skeleton began to dig, oldest first: how ripe it is.
     born: [],
     // What kind each one is, alongside `born`.
@@ -202,6 +226,7 @@ export function clean(raw, now = Date.now()) {
   for (const [t, kind] of pairs.slice(0, out.skeletons)) birth(out, Math.min(t, now + METAMORPHOSIS_MS + MAX_SKELETONS), KIND_BY_ID.has(RENAMED[kind] || kind) ? RENAMED[kind] || kind : 'digger');
   while (out.born.length < out.skeletons) birth(out, now);
   out.loose = Math.min(out.loose, MAX_LOOSE);
+  if (out.robes.includes(c.robe)) out.robe = c.robe;
   return out;
 }
 
@@ -351,7 +376,8 @@ export function reap(c, index = 0, now = Date.now()) {
   if (!k.ghosts && !k.lights) return { ok: false, error: 'A ' + k.name.toLowerCase() + ' cannot be reaped.' };
   if (!awake(c, i, now)) return { ok: false, error: k.id === 'moth' ? 'That one is still a cocoon.' : 'That one is still a seed.' };
   // A moth gives spirit-lights, always; the others the ghosts they have grown.
-  const ghosts = k.lights || holds(c, i, now);
+  // (A keen scythe brings one more out of a sprout reaped by hand.)
+  const ghosts = Math.min(MAX_LOOSE, k.lights || holds(c, i, now) + (k.ghosts ? artLevel(c, 'scythe') : 0));
   if (c.boosts) delete c.boosts[c.born[i]];
   c.born.splice(i, 1);
   c.kinds.splice(i, 1);
@@ -457,6 +483,32 @@ export function buy(c, id) {
   c.souls -= price;
   c.upgrades[id] = level(c, id) + 1;
   return { ok: true, upgrade: id, name: u.name, level: c.upgrades[id] };
+}
+
+// One of his Arts, a level up.
+export function learn(c, id) {
+  const a = ART_BY_ID.get(id);
+  if (!a) return { ok: false, error: 'No such art. There are: ' + ARTS.map((x) => x.id).join(', ') + '.' };
+  const lvl = artLevel(c, id);
+  if (lvl >= a.costs.length) return { ok: false, error: a.name + ' can go no further.' };
+  const price = a.costs[lvl];
+  if (c.souls < price) return { ok: false, error: 'Not enough souls: ' + a.name + ' costs ' + price + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+  c.souls -= price;
+  c.arts = { ...(c.arts || {}), [id]: lvl + 1 };
+  return { ok: true, art: id, name: a.name, level: lvl + 1 };
+}
+
+// A robe: bought the first time, worn after.
+export function dress(c, id) {
+  const r = ROBE_BY_ID.get(id);
+  if (!r) return { ok: false, error: 'No such robe. There are: ' + ROBES.map((x) => x.id).join(', ') + '.' };
+  if (!c.robes.includes(id)) {
+    if (c.souls < r.cost) return { ok: false, error: 'Not enough souls: the ' + r.name + ' robe costs ' + r.cost + ' and the garden holds ' + Math.floor(c.souls) + '.' };
+    c.souls -= r.cost;
+    c.robes = [...c.robes, id];
+  }
+  c.robe = id;
+  return { ok: true, robe: id, name: r.name };
 }
 
 // Pay for every milestone newly met. Returns them as [{ name, reward }]. A
@@ -599,6 +651,8 @@ export function act(c, action, now = Date.now()) {
         : a.summon ? summon(c, now)
           : a.wraith ? wraith(c, !!a.wraith.won, now)
             : typeof a.buy === 'string' ? buy(c, a.buy)
+              : typeof a.art === 'string' ? learn(c, a.art)
+              : typeof a.robe === 'string' ? dress(c, a.robe)
               : a.dragon ? dragonAct(c, a.dragon, now) : { ok: true };
   return { ...out, ...(aged.hatched ? { hatched: true } : {}), reached: reach(c) };
 }
@@ -634,6 +688,13 @@ export function view(c, now = Date.now()) {
       cost: upgradeCost(c, u.id), now: u.effect(level(c, u.id)),
       next: level(c, u.id) < u.costs.length ? u.effect(level(c, u.id) + 1) : null
     })),
-    milestones: MILESTONES.map((m) => ({ name: m.name, how: m.how, reward: m.reward, done: c.done.includes(m.id) }))
+    milestones: MILESTONES.map((m) => ({ name: m.name, how: m.how, reward: m.reward, done: c.done.includes(m.id) })),
+    // His Arts and robes.
+    arts: ARTS.map((a) => ({
+      id: a.id, name: a.name, blurb: a.blurb, level: artLevel(c, a.id), max: a.costs.length,
+      cost: artLevel(c, a.id) < a.costs.length ? a.costs[artLevel(c, a.id)] : null, now: a.effect(artLevel(c, a.id))
+    })),
+    robes: ROBES.map((r) => ({ id: r.id, name: r.name, cost: r.cost, owned: (c.robes || ['crimson']).includes(r.id), worn: (c.robe || 'crimson') === r.id })),
+    robe: c.robe || 'crimson'
   };
 }
