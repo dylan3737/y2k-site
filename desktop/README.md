@@ -194,6 +194,8 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Gleam** | 3 | A glow, then an aura, then a blazing one |
 | **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
 
+**Heirlooms** are bought with the garden's souls, not scales, on the same Ascend tab: five, at 6,000, 15,000, 30,000, 50,000 and 80,000 souls. Each makes the dragon grow 3% faster, and its line keeps them through every ascension; an ascended egg also keeps a fifth of its relics' levels for each heirloom (all of them, with five).
+
 ### Wraiths
 
 Wraiths come in five tiers, each stronger, with a little more time and new tricks. The next one you have not beaten answers, as far as your rank goes; once all are beaten, the king keeps coming.
@@ -220,6 +222,18 @@ Souls can be spent on the reaper himself, too: **Arts** on his ring.
 | **Long reach** | 3 | Ghosts linger 15% longer before they get away | 120, 500, 2,000 |
 
 The card's **Robes** tab dresses him: **Crimson** is his own; **Midnight** (500 souls), **Bone** (1,500), **Moss** (4,000), **Gold** (12,000) and **Void** (30,000) are bought once and worn whenever you like.
+
+The **Blades** tab changes the scythe he swings when he reaps and cuts: **Iron** is his own; **Bone** (5,000), **Frost** (10,000), **Ember** (18,000) and **Gilded** (30,000) are bought once, and the **Wraithbane** (50,000) only by one who has beaten the wraith king.
+
+### The altar and the shrines
+
+For souls left over once everything else is bought, the **Altar** tab of his Arts card:
+
+- **The altar** never runs out. Each offering adds 3% to the souls from gathering, hunts, deeds and wraiths, for good, and costs 30% more than the last: 2,000, then 2,600, then 3,400, and on.
+- **Quicken** (a shrine) wakes every resting sprout at once, empty, to grow again: 50 souls for each one resting (more as the altar's blessing grows). A Gathering, quickened, can be had again straight away, though it pays back less than it costs.
+- **Rouse** (a shrine), 2,000 souls: after your dragon has called a wraith, it can call another at once (it still needs the energy).
+
+Speak knows all of it: "make an offering", "quicken", "wield the frost blade", "buy an heirloom".
 
 ### Upgrades
 

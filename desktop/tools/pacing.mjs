@@ -111,6 +111,9 @@ function play(name, days, log) {
       // His arts, among the rest.
       for (const a of v.arts) if (a.cost !== null) options.push({ act: { art: a.id }, cost: a.cost });
       for (const u of v.upgrades) if (u.cost !== null) options.push({ act: { buy: u.id }, cost: u.cost * (u.id === 'graves' && p.open > 10 ? 3 : 1) , price: u.cost });
+      // When the rest is bought: offerings at the altar, and heirlooms for the dragon's line.
+      options.push({ act: { offer: true }, cost: v.altar.cost });
+      if (v.dragon && v.dragon.heirloom.cost !== null) options.push({ act: { dragon: { heirloom: true } }, cost: v.dragon.heirloom.cost });
       const pick = options.filter((o) => (o.price ?? o.cost) <= c.souls).sort((a, b) => a.cost - b.cost)[0];
       if (!pick) return;
       settle();
@@ -247,6 +250,7 @@ function play(name, days, log) {
     rows.push({
       day: d + 1, souls: v.souls, workers: v.skeletons, 'souls/h idle': v.perHour, rank: v.rank,
       upgrades: v.upgrades.map((u) => u.level).join('/'),
+      altar: v.altar.level, heirloom: dv ? dv.heirloom.level : 0,
       dragon: dv ? dv.stage + (dv.lineage ? ' L' + dv.lineage : '') + ' ' + dv.xp : '-', scales: dv ? dv.scales : 0
     });
   }

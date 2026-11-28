@@ -1058,7 +1058,7 @@ export function createAbilities(ctx) {
       // The dragon: its state, and what the user asks to do with it.
       case 'dragon': {
         const a = input.action;
-        const what = { pet: { pet: true }, snail: { snail: true }, ascend: { ascend: true }, adopt: { adopt: true },
+        const what = { pet: { pet: true }, snail: { snail: true }, ascend: { ascend: true }, adopt: { adopt: true }, heirloom: { heirloom: true },
           feed: Number.isInteger(input.souls) && input.souls > 0 && input.souls <= 1000 ? { feed: input.souls } : null,
           train: ['hunt', 'garden', 'tricks'].includes(input.kind) ? { train: input.kind } : null,
           perk: ['power', 'garden', 'looks', 'tricks'].includes(input.perk) ? { perk: input.perk } : null }[a];
@@ -1084,12 +1084,13 @@ export function createAbilities(ctx) {
           ctx.dragon.aimBurst();
           return { ok: true, result: { aiming: 'the user now clicks where it should breathe (Esc to stop)' } };
         }
-        if (!what) return { ok: false, error: 'action must be status, pet, feed (with souls 1-1000), snail, train (with kind), ascend, perk (with perk), adopt, wraith or burst' };
+        if (!what) return { ok: false, error: 'action must be status, pet, feed (with souls 1-1000), snail, train (with kind), ascend, perk (with perk), heirloom, adopt, wraith or burst' };
         const out = await companion.crypt({ dragon: what });
         if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
         const d = ctx.dragon.get();
         return out.ok
-          ? { ok: true, result: { did: a, stage: d && d.stage, xp: d && d.xp, nextAt: d && d.nextAt, bond: d && d.bond, energy: d && d.energy, grew: out.grew, hatched: out.hatched, scales: d && d.scales } }
+          ? { ok: true, result: { did: a, stage: d && d.stage, xp: d && d.xp, nextAt: d && d.nextAt, bond: d && d.bond, energy: d && d.energy, grew: out.grew, hatched: out.hatched, scales: d && d.scales,
+            ...(a === 'heirloom' ? { heirlooms: out.heirloom, souls: out.crypt && out.crypt.souls } : {}) } }
           : { ok: false, error: out.error };
       }
       // His Arts and robes: what they are, and buying or wearing one when asked.
@@ -1100,7 +1101,11 @@ export function createAbilities(ctx) {
           ctx.crypt.update(out.crypt);
           const c = out.crypt;
           return { ok: true, result: { souls: c.souls, arts: c.arts.map((x) => ({ id: x.id, name: x.name, level: x.level + '/' + x.max, now: x.now, nextCost: x.cost })),
-            robes: c.robes.map((r) => ({ id: r.id, name: r.name, cost: r.cost, owned: r.owned, worn: r.worn })) } };
+            robes: c.robes.map((r) => ({ id: r.id, name: r.name, cost: r.cost, owned: r.owned, worn: r.worn })),
+            blades: c.blades.map((b) => ({ id: b.id, name: b.name, cost: b.cost, owned: b.owned, wielded: b.worn, ...(b.locked ? { locked: 'beat the wraith king first' } : {}) })),
+            altar: { offerings: c.altar.level, bonus: '+' + c.altar.bonus + '% souls', nextCost: c.altar.cost },
+            shrines: { quicken: c.shrines.quicken.resting ? { resting: c.shrines.quicken.resting, cost: c.shrines.quicken.cost } : 'nothing resting',
+              rouse: c.shrines.rouse.ready ? { cost: c.shrines.rouse.cost } : 'not needed now' } } };
         }
         let what = null;
         if (a === 'learn' && ['scythe', 'hood', 'rest', 'reach'].includes(input.art)) what = { art: input.art };
@@ -1110,12 +1115,24 @@ export function createAbilities(ctx) {
           if (a === 'wear' && !robe.owned) return { ok: false, error: 'He does not own the ' + robe.name + ' robe yet: it costs ' + robe.cost + ' souls. Ask before buying it.' };
           what = { robe: input.robe };
         }
-        if (!what) return { ok: false, error: 'action must be status, learn (with art), buy_robe or wear (with robe)' };
+        if ((a === 'buy_blade' || a === 'wield') && typeof input.blade === 'string') {
+          const blade = ((ctx.crypt.get() || {}).blades || []).find((b) => b.id === input.blade);
+          if (!blade) return { ok: false, error: 'No such blade.' };
+          if (a === 'wield' && !blade.owned) return { ok: false, error: 'He does not own the ' + blade.name + ' blade yet: it costs ' + blade.cost + ' souls. Ask before buying it.' };
+          what = { blade: input.blade };
+        }
+        if (a === 'offer') what = { offer: true };
+        if (a === 'quicken') what = { quicken: true };
+        if (a === 'rouse') what = { rouse: true };
+        if (!what) return { ok: false, error: 'action must be status, learn (with art), buy_robe or wear (with robe), buy_blade or wield (with blade), offer, quicken or rouse' };
         const out = await companion.crypt(what);
         if (out.crypt) ctx.crypt.update(out.crypt);
         if (!out.ok) return { ok: false, error: out.error };
         sound.chime();
-        return { ok: true, result: what.art ? { learned: out.name, level: out.level, souls: out.crypt.souls } : { wearing: out.name, souls: out.crypt.souls } };
+        if (what.blade) ctx.swing();
+        const souls = out.crypt.souls;
+        return { ok: true, result: what.art ? { learned: out.name, level: out.level, souls } : what.robe ? { wearing: out.name, souls } : what.blade ? { wielding: out.name, souls }
+          : what.offer ? { offerings: out.altar, bonus: '+' + out.bonus + '% souls', souls } : what.quicken ? { woke: out.woke, souls } : { roused: true, souls } };
       }
       // GitHub: reading is free; any change is asked, in the words the app gives.
       case 'github_read':

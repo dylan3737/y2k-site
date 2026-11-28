@@ -836,6 +836,19 @@ export function createDragon(ctx) {
       asc.appendChild(el('p', 'muted', d.stage === 'egg' ? 'An elder, grown and loved, can ascend.' : d.ascend.why));
     }
     page.append(asc, el('p', 'dragon-scales', 'Dragon Scales: ' + d.scales));
+    // Heirlooms: bought with the garden's souls, kept through every ascension.
+    const hl = d.heirloom;
+    const heir = el('div', 'crypt-item dragon-perk');
+    heir.title = 'Its line keeps them through every ascension.';
+    const ht = el('div');
+    ht.append(el('b', null, 'Heirlooms ' + hl.level + '/' + hl.max),
+      el('span', 'muted', 'Souls for its line: it grows ' + 3 * hl.level + '% faster, and an ascended egg keeps ' + hl.level + '/' + hl.max + ' of its relics.'));
+    const souls = (ctx.crypt.get() || {}).souls || 0;
+    const hb = chip(hl.cost === null ? 'Done' : hl.cost + ' souls', () => act({ heirloom: true }).then((o) => (o.ok ? sound.chime() : say(o.error, 3000))), 'solid');
+    hb.dataset.heirloom = '1';
+    hb.disabled = hl.cost === null || souls < hl.cost;
+    heir.append(ht, hb);
+    page.appendChild(heir);
     for (const p of d.perks) {
       const item = el('div', 'crypt-item dragon-perk');
       item.title = p.blurb;

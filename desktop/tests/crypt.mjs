@@ -155,6 +155,16 @@ got = await heard('call a wraith', { ok: true, result: { called: 'Hollow wraith'
 check('"call a wraith" asks the dragon', got && got.name === 'dragon' && got.action === 'wraith' && /hollow wraith answers\. Strike it 18 times/.test(got.reply), JSON.stringify(got));
 got = await heard('burst', { ok: true, result: { aiming: 'click' } });
 check('"burst" readies its breath', got && got.name === 'dragon' && got.action === 'burst' && /Click where/.test(got.reply), JSON.stringify(got));
+got = await heard('wield the frost blade', { ok: true, result: { wielding: 'Frost', souls: 9 } });
+check('"wield the frost blade" wields (never buys)', got && got.name === 'arts' && got.action === 'wield' && got.blade === 'frost' && /The Frost blade/.test(got.reply), JSON.stringify(got));
+got = await heard('buy the ember scythe', { ok: false, error: 'Not enough souls.' });
+check('"buy the ember scythe" is a purchase of a blade, not an Art', got && got.action === 'buy_blade' && got.blade === 'ember', JSON.stringify(got));
+got = await heard('make an offering', { ok: true, result: { offerings: 3, bonus: '+9% souls', souls: 100 } });
+check('"make an offering" gives one at the altar', got && got.action === 'offer' && /Accepted: \+9% souls/.test(got.reply), JSON.stringify(got));
+got = await heard('quicken', { ok: true, result: { woke: 4, souls: 10 } });
+check('"quicken" wakes the resting sprouts', got && got.action === 'quicken' && /4 sprouts wake/.test(got.reply), JSON.stringify(got));
+got = await heard('buy an heirloom', { ok: true, result: { heirlooms: 2, souls: 5 } });
+check('"buy an heirloom" is for the dragon', got && got.name === 'dragon' && got.action === 'heirloom' && /2 now/.test(got.reply), JSON.stringify(got));
 got = await heard('summon', { ok: true, result: 'cast' });
 check('"summon" is still the ghost game', got && got.name === 'cast' && got.ability === 'summon');
 
@@ -404,6 +414,78 @@ const lowly = blank(T0);
 lowly.wraiths.beaten = 3;
 check('a tier answers only a reaper of its rank (a Groundskeeper meets the first)', crypt.nextWraith(lowly) === 0);
 check('a called wraith tires the dragon', wr.dragon.energy <= 100 - crypt.WRAITH_CALL_ENERGY);
+
+// --- Souls to spend when all else is bought ------------------------------------------
+// The altar: endless, each offering dearer, each 3% more souls.
+const al = blank(T0);
+al.souls = 100000;
+const p0 = crypt.altarCost(al);
+out = crypt.act(al, { offer: true }, T0);
+check('an offering at the altar: a level, and 3% more souls', out.ok && al.altar === 1 && out.bonus === 3 && Math.round(al.souls) === 100000 - p0, JSON.stringify(out));
+check('and the next costs more', crypt.altarCost(al) > p0 && crypt.view(al, T0).altar.cost === crypt.altarCost(al));
+for (let i = 0; i < 9; i++) crypt.act(al, { offer: true }, T0);
+check('it never runs out (ten offerings: +30%)', al.altar === 10 && crypt.view(al, T0).altar.bonus === 30);
+const plain = blank(T0);
+plain.loose = 10; al.loose = 10;
+const g0 = crypt.act(plain, { hunt: { caught: 10, golden: 0, points: 10 } }, T0).gained;
+const g1 = crypt.act(al, { hunt: { caught: 10, golden: 0, points: 10 } }, T0).gained;
+check('a blessed hunt pays 30% more', g0 === 100 && g1 === 130, g0 + ' ' + g1);
+check('and so does gathering', Math.abs(crypt.perHour(al, T0) - crypt.perHour(plain, T0) * 1.3) < 1e-9);
+const poor = blank(T0);
+check('no offering without the souls', !crypt.act(poor, { offer: true }, T0).ok && !poor.altar);
+
+// Blades: bought once, wielded after; the wraithbane needs the king beaten.
+const bl = blank(T0);
+bl.souls = 60000;
+out = crypt.act(bl, { blade: 'frost' }, T0);
+check('a blade is bought, and he wields it', out.ok && bl.blade === 'frost' && bl.souls === 50000);
+crypt.act(bl, { blade: 'iron' }, T0);
+out = crypt.act(bl, { blade: 'frost' }, T0);
+check('and taken up again for nothing', out.ok && bl.souls === 50000);
+out = crypt.act(bl, { blade: 'wraithbane' }, T0);
+check('the wraithbane is only for the king\'s bane', !out.ok && /wraith king/.test(out.error) && crypt.view(bl, T0).blades.find((b) => b.id === 'wraithbane').locked);
+bl.wraiths.beaten = crypt.WRAITHS.length;
+check('beaten, it can be had', crypt.act(bl, { blade: 'wraithbane' }, T0).ok && bl.souls === 0);
+const bs = crypt.clean(JSON.parse(JSON.stringify(bl)), T0);
+check('blades and the altar survive a save', bs.blade === 'wraithbane' && bs.blades.length === 3 && crypt.clean(JSON.parse(JSON.stringify(al)), T0).altar === 10);
+
+// Shrines: Quicken wakes the resting sprouts; Rouse lets the dragon call again.
+const qk = blank(T0);
+qk.souls = 1000;
+crypt.act(qk, { raise: 3 }, T0);
+crypt.act(qk, { gather: true }, T0 + HOUR);
+const qs = qk.souls;
+check('after a Gathering they all rest', crypt.view(qk, T0 + HOUR).shrines.quicken.resting === 3 && crypt.view(qk, T0 + HOUR).shrines.quicken.cost === 3 * crypt.QUICKEN_PER_SEED);
+qk.loose = 0;
+out = crypt.act(qk, { quicken: true }, T0 + HOUR);
+check('Quicken wakes them all now', out.ok && out.woke === 3 && crypt.view(qk, T0 + HOUR).shrines.quicken.resting === 0 && crypt.act(qk, { gather: true }, T0 + HOUR).ok, JSON.stringify(out));
+check('for its price', qs - qk.souls === 3 * crypt.QUICKEN_PER_SEED, qs - qk.souls);
+check('with none resting, nothing to quicken', !crypt.quicken(blank(T0), T0).ok);
+const ro = blank(T0);
+crypt.act(ro, { dragon: { adopt: true } }, T0);
+ro.dragon.stage = 2;
+ro.souls = 5000;
+check('Rouse is not needed before a call', !crypt.act(ro, { rouse: true }, T0).ok);
+crypt.act(ro, { wraithCall: true }, T0);
+ro.wraiths.open = null;
+ro.dragon.energy = 100;
+check('after one, the dragon must wait', !crypt.act(ro, { wraithCall: true }, T0 + 1000).ok);
+out = crypt.act(ro, { rouse: true }, T0 + 1000);
+check('roused, it can call again at once', out.ok && ro.souls === 5000 - crypt.ROUSE_SOULS && crypt.act(ro, { wraithCall: true }, T0 + 2000).ok, JSON.stringify(out));
+
+// Heirlooms: bought with souls, kept through ascension with part of the relics.
+const hr = blank(T0);
+crypt.act(hr, { dragon: { adopt: true } }, T0);
+hr.souls = 60000;
+out = crypt.act(hr, { dragon: { heirloom: true } }, T0);
+check('an heirloom for the dragon\'s line, for souls', out.ok && hr.dragon.heirloom === 1 && hr.souls === 60000 - 6000 && crypt.view(hr, T0).dragon.heirloom.cost === 15000, JSON.stringify(out));
+crypt.act(hr, { dragon: { heirloom: true } }, T0);
+crypt.act(hr, { dragon: { heirloom: true } }, T0);
+Object.assign(hr.dragon, { stage: 4, xp: 99999, bond: 90 });
+hr.dragon.hoard.relics = { star: 5, coin: 2 };
+out = crypt.act(hr, { dragon: { ascend: true } }, T0);
+check('ascended, the egg keeps its heirlooms and three fifths of its relics', out.ok && hr.dragon.heirloom === 3 && hr.dragon.hoard.relics.star === 3 && hr.dragon.hoard.relics.coin === 1,
+  JSON.stringify(hr.dragon.hoard.relics));
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll crypt checks passed');
 process.exit(failures ? 1 : 0);

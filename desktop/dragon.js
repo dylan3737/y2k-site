@@ -98,7 +98,7 @@ export function freshDragon(now = Date.now(), rand = Math.random, lineage = 0) {
   return {
     element: pick(rand), stage: 0, warmth: 0, xp: 0, bond: 20, energy: 100,
     train: { hunt: 0, garden: 0, tricks: 0 }, branch: null,
-    lineage, scales: 0, perks: { power: 0, garden: 0, looks: 0, tricks: 0 },
+    lineage, scales: 0, perks: { power: 0, garden: 0, looks: 0, tricks: 0 }, heirloom: 0,
     petAt: 0, caredAt: now, at: now,
     // Its hoard: treasures caught, ever; relics by level; when it last found one.
     hoard: { treasures: 0, relics: {}, foundAt: 0, lastRelic: null },
@@ -125,6 +125,7 @@ export function cleanDragon(raw, now = Date.now()) {
   for (const k of Object.keys(out.train)) out.train[k] = Math.floor(clamp(num(d.train && d.train[k]), 0, 1e6));
   out.branch = Object.values(BRANCHES).includes(d.branch) ? d.branch : null;
   out.scales = Math.floor(clamp(num(d.scales), 0, 1e9));
+  out.heirloom = Math.floor(clamp(num(d.heirloom), 0, HEIRLOOM_COSTS.length));
   for (const p of PERKS) out.perks[p.id] = Math.floor(clamp(num(d.perks && d.perks[p.id]), 0, p.costs.length));
   const h = d.hoard && typeof d.hoard === 'object' ? d.hoard : {};
   out.hoard = {
@@ -147,7 +148,20 @@ export function cleanDragon(raw, now = Date.now()) {
 }
 
 // What it most needs to grow, against its lineage and perks.
-const growth = (d) => (1 + 0.2 * d.lineage) * (1 + 0.15 * d.perks.power) * (0.8 + d.bond / 250) * (1 + 0.05 * relicLevel(d, 'pearl'));
+const growth = (d) => (1 + 0.2 * d.lineage) * (1 + 0.15 * d.perks.power) * (0.8 + d.bond / 250) * (1 + 0.05 * relicLevel(d, 'pearl')) *
+  (1 + HEIRLOOM_GROWTH * (d.heirloom || 0));
+
+// Heirlooms: souls spent on its line, kept through every ascension. Each level
+// it grows 3% faster, and an ascended egg keeps a fifth of its relics' levels
+// (all of them at the fifth heirloom).
+export const HEIRLOOM_COSTS = [6000, 15000, 30000, 50000, 80000];
+export const HEIRLOOM_GROWTH = 0.03;
+export function buyHeirloom(d) {
+  const lvl = d.heirloom || 0;
+  if (lvl >= HEIRLOOM_COSTS.length) return { ok: false, error: 'Its line holds every heirloom.' };
+  d.heirloom = lvl + 1;
+  return { ok: true, heirloom: d.heirloom };
+}
 const topStage = (d) => (d.lineage >= 2 ? 5 : 4);
 
 // Time passing: the egg warms, energy returns, bond fades if it is neglected.
@@ -306,6 +320,10 @@ export function ascend(d, now = Date.now(), rand = Math.random) {
   next.scales = d.scales + can.scales;
   next.perks = { ...d.perks };
   next.bond = Math.max(30, Math.round(d.bond / 2));
+  // Its heirlooms pass on, and with them part of its hoard's relics.
+  next.heirloom = d.heirloom || 0;
+  const kept = Object.fromEntries(RELICS.map((r) => [r.id, Math.floor((relicLevel(d, r.id) * next.heirloom) / HEIRLOOM_COSTS.length)]).filter(([, l]) => l > 0));
+  next.hoard.relics = kept;
   Object.assign(d, next);
   return { ok: true, scales: can.scales, lineage: d.lineage, element: d.element };
 }
@@ -432,6 +450,7 @@ export function viewDragon(d, now = Date.now()) {
     perks: PERKS.map((p) => ({ id: p.id, name: p.name, blurb: p.blurb, level: d.perks[p.id], max: p.costs.length,
       cost: d.perks[p.id] < p.costs.length ? p.costs[d.perks[p.id]] : null, now: p.effect(d.perks[p.id]) })),
     breaths: breaths(d), aura: d.perks.looks,
+    heirloom: { level: d.heirloom || 0, max: HEIRLOOM_COSTS.length, cost: (d.heirloom || 0) < HEIRLOOM_COSTS.length ? HEIRLOOM_COSTS[d.heirloom || 0] : null },
     hoard: { treasures: d.hoard.treasures, findable: treasureReady(d, now).ok,
       // What it shows off, woken on its hoard: the relic it found last, or its best.
       best: bestRelic(d),
