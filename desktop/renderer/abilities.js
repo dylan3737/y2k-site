@@ -23,6 +23,7 @@ function cardHead(title, onClose) {
 }
 
 const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const rand = (a, b) => a + Math.random() * (b - a);
 
 function mmss(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -419,12 +420,17 @@ export function createAbilities(ctx) {
   // four, something else answers the call as well: a wraith, once the hunt is
   // over. Never more than four in a row without one. With no sprites yet,
   // the soil gives him a first one.
-  const WRAITH_CHANCE = 0.25;
-  const WRAITH_HP = 12;
-  const WRAITH_MS = 20000;
+  // The wraith that rose (the rules say when, and which tier: see WRAITHS in
+  // ../crypt.js). It has `hp` strikes and `ms` to land them; from the Grave
+  // wraith up it phases now and then (strikes go through it), and the knight
+  // and the king call shades that heal it unless they are caught first. The
+  // dragon fights too, as it was trained: a hunter breathes on it, a guardian
+  // holds it (it moves at half speed), a trickster taunts it (more time).
   const WRAITH_W = 120;
   const WRAITH_H = 106;
-  let sinceWraith = 0;
+  const SIZE_BY_TIER = [1, 1, 1.05, 1.2, 1.4];
+  const PHASE_MS = 1100;
+  const SHADE_HEAL = 3;
 
   async function gathering() {
     // Where each sprite stands, before they burst.
@@ -447,60 +453,141 @@ export function createAbilities(ctx) {
     sound.caught();
     say(out.gathered === 1 ? 'Come.\n' + out.ghosts + (out.ghosts === 1 ? ' ghost.' : ' ghosts.')
       : 'The garden answers.\n' + out.ghosts + ' ghosts!', 3000);
-    const wraith = Math.random() < WRAITH_CHANCE || sinceWraith >= 4;
-    sinceWraith = wraith ? 0 : sinceWraith + 1;
-    startHunt(out.ghosts, points, wraith ? () => setTimeout(() => {
+    const risen = out.wraith;
+    startHunt(out.ghosts, points, risen ? () => setTimeout(() => {
       if (hunt) return;
-      startWraith();
-      say('Something else answered the call.\nStrike it ' + WRAITH_HP + ' times.', 3500);
+      startWraith(risen);
+      say('Something else answered the call:\na ' + risen.name.toLowerCase() + '. Strike it ' + risen.hp + ' times.', 3500);
     }, 1800) : null);
     return out;
   }
 
-  function startWraith() {
+  // `t` is the tier the rules raised: { tier, name, hp, ms, phases, shades }.
+  function startWraith(t) {
+    // Only one the rules raised: no tier, no wraith.
+    if (!t || !Number.isInteger(t.tier)) return { ok: false, error: 'No wraith was raised.' };
+    const tier = t;
+    const scale = SIZE_BY_TIER[tier.tier] || 1;
     const c = ctx.center();
-    const node = el('div', 'wraith hit');
+    const node = el('div', 'wraith hit is-tier-' + tier.tier);
+    node.style.width = Math.round(WRAITH_W * scale) + 'px';
+    node.style.height = Math.round(WRAITH_H * scale) + 'px';
+    const d = ctx.dragon && ctx.dragon.get();
+    const path = d && d.stageIndex >= 3 ? d.branch : null;
     const w = {
-      node, hp: WRAITH_HP,
+      node, tier, hp: tier.hp, max: tier.hp, w: Math.round(WRAITH_W * scale), h: Math.round(WRAITH_H * scale),
       x: c.x - WRAITH_W / 2, y: Math.max(20, c.y - WRAITH_H - 40),
-      vx: (Math.random() < 0.5 ? -1 : 1) * 0.16, vy: -0.08, phase: 0
+      vx: (Math.random() < 0.5 ? -1 : 1) * 0.16, vy: -0.08, phase: 0,
+      // A guardian holds it: half speed.
+      pace: path === 'guardian' ? 0.5 : 1,
+      phasedUntil: 0, nextPhase: performance.now() + 2500, frozenUntil: 0, shades: [], healed: 0
     };
     node.addEventListener('pointerdown', (e) => { e.stopPropagation(); hitWraith(1); });
     huntLayer.appendChild(node);
-    hunt = { wraith: w, ends: Date.now() + WRAITH_MS, length: WRAITH_MS, last: performance.now(), lastTurn: performance.now() };
-    scoreEl = el('div', 'score is-wraith', '');
+    // A trickster taunts it: five seconds more.
+    const length = tier.ms + (path === 'trickster' ? 5000 : 0);
+    hunt = { wraith: w, ends: Date.now() + length, length, last: performance.now(), lastTurn: performance.now(), timers: [] };
+    scoreEl = el('div', 'score is-wraith');
+    scoreEl.append(el('span', 'wraith-name', tier.name.toUpperCase()), el('span', 'wraith-bar'));
     field.appendChild(scoreEl);
     paintWraith();
     huntRing.hidden = false;
     sound.caught();
     requestAnimationFrame(moveWraith);
+    const mine = hunt;
+    const later = (ms, fn) => hunt.timers.push(setTimeout(() => { if (hunt === mine && hunt.wraith) fn(); }, ms));
+    if (path === 'trickster') later(600, () => say('Your dragon taunts it.\nFive seconds more.', 2500));
+    if (path === 'guardian') later(600, () => say('Your dragon holds it.\nIt moves at half speed.', 2500));
+    // A hunter breathes on it, a strike every so often.
+    if (path === 'hunter') {
+      const breathe = () => {
+        if (hunt !== mine || !hunt.wraith) return;
+        ctx.dragon.breathe(w.x + w.w / 2, w.y + w.h / 2);
+        setTimeout(() => { if (hunt === mine && hunt.wraith) hitWraith(1, { byDragon: true }); }, 250);
+        later(1800, breathe);
+      };
+      later(1500, breathe);
+    }
     // A dragon of an ascended line (the Lore perk) dives at it.
     if (ctx.dragon && ctx.dragon.lore() >= 1) {
-      setTimeout(async () => {
-        if (!hunt || !hunt.wraith) return;
-        await ctx.dragon.dive(hunt.wraith.x + WRAITH_W / 2, hunt.wraith.y + WRAITH_H / 2);
-        if (hunt && hunt.wraith) hitWraith(3);
-      }, 900);
+      later(900, async () => {
+        await ctx.dragon.dive(w.x + w.w / 2, w.y + w.h / 2);
+        if (hunt === mine && hunt.wraith) hitWraith(3, { byDragon: true });
+      });
     }
-    return { ok: true, wraith: true };
+    // The knight and the king call shades that heal them.
+    if (tier.shades) {
+      for (let i = 0; i < tier.shades; i++) later(4000 + i * Math.round((tier.ms - 9000) / tier.shades), () => callShade(mine));
+    }
+    return { ok: true, wraith: true, tier: tier.tier };
+  }
+
+  // A shade flies from the edge of the screen to the wraith; caught (clicked)
+  // first, it is gone; if it gets there, it heals the wraith.
+  function callShade(mine) {
+    const w = hunt.wraith;
+    const fromLeft = Math.random() < 0.5;
+    const node = el('div', 'shade hit');
+    const s = { node, x: fromLeft ? -40 : innerWidth + 10, y: rand(40, innerHeight - 120), done: false };
+    node.style.transform = `translate(${s.x}px, ${s.y}px)`;
+    node.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (s.done) return;
+      s.done = true;
+      popAt(s.x + 16, s.y, 'caught');
+      sound.caught();
+      node.classList.add('is-caught');
+      setTimeout(() => node.remove(), 320);
+    });
+    huntLayer.appendChild(node);
+    w.shades.push(s);
+    const t0 = performance.now();
+    const fly = (now) => {
+      if (s.done || hunt !== mine || !hunt.wraith) { if (!s.done) node.remove(); return; }
+      const k = Math.min(1, (now - t0) / 3800);
+      const tx = w.x + w.w / 2 - 16, ty = w.y + w.h / 2 - 16;
+      s.x += (tx - s.x) * Math.min(1, 0.02 + k * 0.06);
+      s.y += (ty - s.y) * Math.min(1, 0.02 + k * 0.06);
+      node.style.transform = `translate(${Math.round(s.x)}px, ${Math.round(s.y)}px)`;
+      if (Math.hypot(tx - s.x, ty - s.y) < 14 || k >= 1) {
+        s.done = true;
+        node.remove();
+        w.hp = Math.min(w.max, w.hp + SHADE_HEAL);
+        w.healed += SHADE_HEAL;
+        popAt(w.x + w.w / 2, w.y + 10, '+' + SHADE_HEAL, 'is-souls');
+        paintWraith();
+        return;
+      }
+      requestAnimationFrame(fly);
+    };
+    requestAnimationFrame(fly);
   }
 
   function paintWraith() {
-    scoreEl.textContent = 'WRAITH ' + '♥'.repeat(Math.max(0, hunt.wraith.hp));
+    const w = hunt.wraith;
+    scoreEl.querySelector('.wraith-bar').style.setProperty('--hp', Math.max(0, w.hp / w.max).toFixed(3));
+    scoreEl.querySelector('.wraith-bar').title = Math.max(0, w.hp) + ' of ' + w.max;
   }
 
-  function hitWraith(n) {
+  function hitWraith(n, { byDragon = false } = {}) {
     if (!hunt || !hunt.wraith) return;
     const w = hunt.wraith;
+    // Phased, strikes go through it (the dragon's too).
+    if (performance.now() < w.phasedUntil) {
+      popAt(w.x + w.w / 2, w.y + 10, 'phased', 'is-cost');
+      return;
+    }
     w.hp -= n;
     sound.caught();
-    popAt(w.x + WRAITH_W / 2, w.y + 10, '−' + n, 'is-cost');
+    popAt(w.x + w.w / 2, w.y + 10, '−' + n, 'is-cost');
     w.node.classList.remove('is-hit');
     void w.node.offsetWidth;
     w.node.classList.add('is-hit');
-    // Struck, it lurches away and speeds up a little.
-    w.vx = -w.vx * 1.05;
-    w.vy = (Math.random() - 0.5) * 0.3;
+    // Struck by him, it lurches away and speeds up a little.
+    if (!byDragon) {
+      w.vx = -w.vx * 1.05;
+      w.vy = (Math.random() - 0.5) * 0.3;
+    }
     if (w.hp <= 0) return endWraith(true);
     paintWraith();
   }
@@ -508,15 +595,23 @@ export function createAbilities(ctx) {
   function moveWraith(now) {
     if (!hunt || !hunt.wraith) return;
     const w = hunt.wraith;
-    const dt = Math.min(50, now - hunt.last);
+    const dt = Math.min(50, now - hunt.last) * w.pace;
     hunt.last = now;
+    // From the Grave wraith up, it phases now and then.
+    if (w.tier.phases && now >= w.nextPhase) {
+      w.phasedUntil = now + PHASE_MS;
+      w.nextPhase = now + PHASE_MS + rand(2200, 3600);
+    }
+    w.node.classList.toggle('is-phased', now < w.phasedUntil);
     // Now and then it veers.
     if (now - hunt.lastTurn > 1400) {
       hunt.lastTurn = now;
       w.vy = (Math.random() - 0.5) * 0.24;
       if (Math.random() < 0.4) w.vx = -w.vx;
     }
-    drift(w, dt, now, WRAITH_W, WRAITH_H);
+    // Frozen (a frost burst), it hangs where it is.
+    if (now >= w.frozenUntil) drift(w, dt, now, w.w, w.h);
+    w.node.classList.toggle('is-frozen', now < w.frozenUntil);
     const left = hunt.ends - Date.now();
     huntRing.style.setProperty('--left', Math.max(0, left / hunt.length).toFixed(3));
     huntRing.classList.toggle('is-late', left < 5000);
@@ -524,8 +619,23 @@ export function createAbilities(ctx) {
     requestAnimationFrame(moveWraith);
   }
 
+  // A dragon's burst on a wraith: Ember and Storm wound it, Frost freezes it,
+  // Shadow blinds it (more time). What it did.
+  function burstWraith(element) {
+    if (!hunt || !hunt.wraith) return null;
+    const w = hunt.wraith;
+    if (element === 'frost') { w.frozenUntil = performance.now() + 4000; return 'Frozen.'; }
+    if (element === 'shadow') { hunt.ends += 6000; hunt.length += 6000; return 'Blinded: six seconds more.'; }
+    const n = element === 'ember' ? 6 : 5;
+    w.phasedUntil = 0;
+    hitWraith(n, { byDragon: true });
+    return element === 'ember' ? 'Scorched: ' + n + '.' : 'Thunderstruck: ' + n + '.';
+  }
+
   async function endWraith(won) {
     const w = hunt.wraith;
+    (hunt.timers || []).forEach(clearTimeout);
+    w.shades.forEach((s) => { if (!s.done) { s.done = true; s.node.remove(); } });
     hunt = null;
     huntRing.hidden = true;
     w.node.classList.add(won ? 'is-banished' : 'is-gone');
@@ -534,9 +644,12 @@ export function createAbilities(ctx) {
     setTimeout(() => board.remove(), 1500);
     const out = await companion.crypt({ wraith: { won } });
     if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
+    if (!out.ok) return out;
     if (won) {
       sound.bell();
-      say('Banished.\n+' + out.gained + ' souls' + (out.raised ? ', and a moss sprite sprouts.' : '.'), 5000);
+      const extra = out.first ? (out.scales ? ', ' + out.scales + ' Dragon Scale' + (out.scales === 1 ? '' : 's') : '') +
+        (out.relic ? ', and a relic: ' + out.relic.name : '') : '';
+      say((out.first ? 'The ' + w.tier.name.toLowerCase() + ' falls, the first time.\n' : 'Banished.\n') + '+' + out.gained + ' souls' + extra + '.', 6000);
     } else {
       say('It got away.', 3000);
     }
@@ -743,16 +856,20 @@ export function createAbilities(ctx) {
         const d = ctx.dragon && ctx.dragon.get();
         if (!d) return 'There is no dragon yet.\n(Take the egg from the Dragon card.)';
         if (d.stageIndex < 2) return 'Your dragon is too young.\nRaise it to a drake.';
-        return wreckReady();
+        if (ctx.reducedMotion) return 'Too much motion.\n(Reduce motion is on.)';
+        return document.querySelector('.breath-wash') ? 'It is still breathing.' : null;
       },
+      // Drawn over the screen, not from a picture of it: it never needs the
+      // screen-recording permission (Slash and the effects do).
       cast: async () => {
         const d = ctx.dragon.get();
         ctx.dragon.breathAcross();
-        await new Promise((r) => setTimeout(r, 650));
-        const effect = { ember: 'burn', frost: 'shatter', shadow: 'vortex', storm: 'glitch' }[d.element];
-        const how = await wreck(effect);
-        if (how === 'nogl') say('Its breath fades.\n(This computer can’t draw it.)', 4000);
-        else say({ ember: 'Scorched.', frost: 'Frozen. Shattered.', shadow: 'Swallowed by shadow.', storm: 'Thunderstruck.' }[d.element], 3000);
+        await new Promise((r) => setTimeout(r, 450));
+        const wash = el('div', 'breath-wash is-' + d.element);
+        if (d.element === 'storm') for (let i = 0; i < 3; i++) wash.appendChild(el('i', 'breath-flash'));
+        document.body.appendChild(wash);
+        setTimeout(() => wash.remove(), 2600);
+        say({ ember: 'Scorched.', frost: 'Frozen.', shadow: 'Swallowed by shadow.', storm: 'Thunderstruck.' }[d.element], 3000);
       }
     },
     {
@@ -1012,6 +1129,10 @@ export function createAbilities(ctx) {
     hourglass: byId.hourglass,
     raven: byId.raven,
     get hunting() { return !!hunt; },
+    // A wraith: one the rules raised (the dragon called it), and a burst on it.
+    startWraith,
+    burstWraith,
+    get wraithing() { return !!(hunt && hunt.wraith); },
     // A dragon's burst in a hunt: the loose ghosts near a point are frozen
     // (they hang still for `ms`), or struck (caught at once). How many.
     freezeNear(x, y, r, ms) {

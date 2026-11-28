@@ -3,7 +3,7 @@
 // effects are; the page decides that from the cursor position sent from here.
 import {
   app, BrowserWindow, Tray, Menu, ipcMain, screen, powerMonitor, Notification,
-  globalShortcut, nativeImage, desktopCapturer, shell, safeStorage, clipboard
+  globalShortcut, nativeImage, desktopCapturer, shell, safeStorage, clipboard, systemPreferences
 } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -633,6 +633,13 @@ function wireIpc() {
   // needs Screen Recording permission; without it the picture is blank or
   // wallpaper only, and the page falls back to a plain slash.
   ipcMain.handle('capture', async (_e, opts = {}) => {
+    // What macOS says of the permission, each time (capture.log in the app's
+    // data folder): 'granted' with a prompt anyway is macOS's own periodic
+    // re-confirmation; anything else means the permission is not holding.
+    try {
+      const status = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'n/a';
+      fs.appendFileSync(path.join(app.getPath('userData'), 'capture.log'), new Date().toISOString() + ' screen=' + status + ' version=' + app.getVersion() + '\n');
+    } catch {}
     try {
       const display = currentDisplay();
       const scale = display.scaleFactor || 1;

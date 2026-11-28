@@ -243,8 +243,8 @@ try {
   }
   await page.waitForTimeout(500);
   const won = await page.evaluate(() => window.__reaper.crypt.get());
-  check('struck 12 times, it is banished: souls, and a skeleton rises', (await page.textContent('#bubble')).includes('Banished') &&
-    won.souls >= soulsBefore + 60 && won.skeletons === 2, await page.textContent('#bubble'));
+  check('struck 12 times, the first wraith falls: souls, and the next tier is up', /falls/.test(await page.textContent('#bubble')) &&
+    won.souls >= soulsBefore + 40 && won.wraiths.beaten === 1, await page.textContent('#bubble'));
 
   // With no workers, Summon is never for nothing: the soil gives a first one.
   page = await open({ wander: false, muted: true, soul: 100 });
@@ -836,6 +836,8 @@ try {
   }));
   const breathed = await page.evaluate(() => window.__reaper.abilities.cast('dragonbreath'));
   check('Dragonbreath: a storm dragon breathes lightning across the screen', breathed.ok !== false && (await bolts) >= 3, JSON.stringify(breathed));
+  await page.waitForTimeout(500);
+  check('and washes it in its element, drawn over it: no picture of the screen is taken', !!(await page.$('.breath-wash.is-storm')) && !(await page.$('.fx-canvas')));
 
   // Treasure: something shiny drifts by; sent after it, the dragon catches it and starts a hoard.
   await page.waitForTimeout(1500);
@@ -934,6 +936,70 @@ try {
     check('in a hunt, a Storm burst strikes the ghosts where it is aimed', fired.ok && fired.inHunt && fired.hit >= 1,
       JSON.stringify({ loose0, fired, said }));
     check('no errors with the burst', bp.errors.length === 0 && hp.errors.length === 0, bp.errors.concat(hp.errors).join('; '));
+  }
+
+  // Wraith fights: called by the dragon, by tier, and the dragon's help.
+  {
+    const strike = async (pg, times) => {
+      for (let i = 0; i < times; i++) {
+        const w = await pg.$eval('.wraith', (n) => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
+        if (!w) return;
+        await pg.mouse.click(w.x, w.y);
+        await pg.waitForTimeout(30);
+      }
+    };
+    const drake = (extra = {}) => ({ element: 'ember', stage: 3, xp: 1200, bond: 60, energy: 100, lineage: 0, burstAt: 0, at: Date.now(), caredAt: Date.now(), ...extra });
+    // A drake calls one from its ring: the first tier answers a Groundskeeper.
+    const wp = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 0, at: Date.now(), dragon: drake() } });
+    await wp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await wp.waitForTimeout(1700);
+    for (let i = 0; i < 6 && !(await visible(wp, '#ring')); i++) { await wp.click('#body', { force: true }); await wp.waitForTimeout(260); }
+    await wp.click('.ring-btn[data-id="dragon"]', { force: true });
+    await wp.waitForTimeout(250);
+    await wp.click('.ring-btn[data-id="dragon-wraith"]', { force: true });
+    await wp.waitForTimeout(400);
+    check('the dragon calls a wraith from its ring; it answers, with a bar of strength', !!(await wp.$('.wraith.is-tier-0')) && !!(await wp.$('.score .wraith-bar')) &&
+      /WRAITH/.test(await wp.textContent('.score')));
+    // A burst at it: Ember wounds it.
+    const bar0 = await wp.$eval('.wraith-bar', (n) => Number(getComputedStyle(n).getPropertyValue('--hp')));
+    const wbox = await wp.$eval('.wraith', (n) => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const fired = await wp.evaluate(({ x, y }) => window.__reaper.dragon.fireBurst(x, y), wbox);
+    const bar1 = await wp.$eval('.wraith-bar', (n) => Number(getComputedStyle(n).getPropertyValue('--hp'))).catch(() => 0);
+    check('a burst at a wraith: Ember wounds it', fired.ok && fired.onWraith && bar1 < bar0, JSON.stringify({ fired, bar0, bar1 }));
+    await strike(wp, 12);
+    await wp.waitForFunction(() => !document.querySelector('.wraith:not(.is-banished)'), null, { timeout: 4000 }).catch(() => {});
+    await wp.waitForTimeout(400);
+    const after = await wp.evaluate(() => window.__reaper.crypt.get());
+    check('beaten the first time: scales and a relic for the dragon', after.wraiths.beaten === 1 && after.dragon.scales >= 1 && after.dragon.hoard.relics.some((r) => r.level > 0) &&
+      /falls/.test(await wp.textContent('#bubble')), await wp.textContent('#bubble'));
+    check('and it cannot call another straight away', await wp.evaluate(() => window.__reaper.dragon.ringItems().find((i) => i.id === 'dragon-wraith').off));
+
+    // A Grave wraith phases: strikes go through it while it does.
+    const gp = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 0, rank: 3, at: Date.now(), wraiths: { beaten: 2 }, dragon: drake() } });
+    await gp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await gp.waitForTimeout(1700);
+    const called = await gp.evaluate(() => window.__reaper.dragon.callWraith());
+    check('a higher rank meets a higher tier: the Grave wraith', called.ok && called.wraith.name === 'Grave wraith' && !!(await gp.$('.wraith.is-tier-2')), JSON.stringify(called).slice(0, 120));
+    await gp.waitForSelector('.wraith.is-phased', { timeout: 6000 }).catch(() => {});
+    const before = await gp.$eval('.wraith-bar', (n) => getComputedStyle(n).getPropertyValue('--hp'));
+    await gp.$eval('.wraith', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    check('a Grave wraith phases now and then', !!(await gp.$('.wraith.is-phased')));
+    check('and a strike then goes through it, doing no harm', (await gp.$eval('.wraith-bar', (n) => getComputedStyle(n).getPropertyValue('--hp'))) === before);
+
+    // A knight calls shades that heal it; caught, they do not.
+    const kp = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 0, rank: 4, at: Date.now(), wraiths: { beaten: 3 },
+      dragon: drake({ branch: 'trickster' }) } });
+    await kp.evaluate(() => window.__reaper.dragon.setFinding(false));
+    await kp.waitForTimeout(1700);
+    await kp.evaluate(() => window.__reaper.dragon.callWraith());
+    await kp.waitForTimeout(900);
+    check('a trickster dragon taunts it: five seconds more', /taunts/.test(await kp.textContent('#bubble')), await kp.textContent('#bubble'));
+    await kp.waitForSelector('.shade', { timeout: 9000 }).catch(() => {});
+    const shade = !!(await kp.$('.shade'));
+    if (shade) await kp.$eval('.shade', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await kp.waitForTimeout(400);
+    check('the knight calls a shade; caught, it is gone', shade && !(await kp.$('.shade:not(.is-caught)')));
+    check('no errors in wraith fights', wp.errors.length === 0 && gp.errors.length === 0 && kp.errors.length === 0, wp.errors.concat(gp.errors, kp.errors).join('; '));
   }
 
   // His Arts: souls spent on him, from his ring; and his robes.
