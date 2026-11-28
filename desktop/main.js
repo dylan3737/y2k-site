@@ -380,6 +380,10 @@ function rebuildMenu() {
       label: 'Abilities',
       submenu: abilities.map((a) => ({ label: a.name, click: () => send('command', 'cast:' + a.id) }))
     },
+    ...(process.platform === 'darwin' ? [{
+      label: 'Screen access…',
+      click: () => shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+    }] : []),
     {
       label: 'Mind',
       submenu: [
@@ -632,14 +636,24 @@ function wireIpc() {
   // A picture of this display's work area, for Scythe Slash. On macOS this
   // needs Screen Recording permission; without it the picture is blank or
   // wallpaper only, and the page falls back to a plain slash.
+  let screenTried = false;
   ipcMain.handle('capture', async (_e, opts = {}) => {
     // What macOS says of the permission, each time (capture.log in the app's
     // data folder): 'granted' with a prompt anyway is macOS's own periodic
     // re-confirmation; anything else means the permission is not holding.
+    let status = 'n/a';
     try {
-      const status = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'n/a';
+      status = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'n/a';
       fs.appendFileSync(path.join(app.getPath('userData'), 'capture.log'), new Date().toISOString() + ' screen=' + status + ' version=' + app.getVersion() + '\n');
     } catch {}
+    // macOS answers 'denied' both when it was refused and when it was never
+    // asked, so one try each launch (which lets macOS ask, and puts him in
+    // the Settings list); after that, no picture and no asking again.
+    if (status === 'restricted') return null;
+    if (status === 'denied') {
+      if (screenTried) return null;
+      screenTried = true;
+    }
     try {
       const display = currentDisplay();
       const scale = display.scaleFactor || 1;
