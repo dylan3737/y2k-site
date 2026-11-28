@@ -748,6 +748,7 @@ export function createAbilities(ctx) {
     }
   }
 
+  let blindHinted = false;
   // The ring entry for a screen effect: what he says when it's done.
   function wrecker(id, name, cost, school, blurb, done, blind) {
     return {
@@ -758,8 +759,13 @@ export function createAbilities(ctx) {
         if (how === 'nogl') {
           soul.gain(cost);
           say('My magic fails here.\n(This computer can’t draw it.)', 5000);
+        } else if (how === 'seen') {
+          say(done, 2500);
         } else {
-          say(how === 'seen' ? done : blind, how === 'seen' ? 2500 : 5000);
+          // Once a session: switched on in Settings while he runs, it counts
+          // only once he is reopened.
+          say(blind + (blindHinted ? '' : '\nAllowed it already? Quit and reopen me.'), 6000);
+          blindHinted = true;
         }
       }
     };

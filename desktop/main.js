@@ -636,10 +636,16 @@ function wireIpc() {
     // What macOS says of the permission, each time (capture.log in the app's
     // data folder): 'granted' with a prompt anyway is macOS's own periodic
     // re-confirmation; anything else means the permission is not holding.
+    let status = 'n/a';
     try {
-      const status = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'n/a';
+      status = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('screen') : 'n/a';
       fs.appendFileSync(path.join(app.getPath('userData'), 'capture.log'), new Date().toISOString() + ' screen=' + status + ' version=' + app.getVersion() + '\n');
     } catch {}
+    // Denied (or not allowed by a policy): no picture, and no asking. Asking
+    // only happens when macOS has never been asked; a permission switched on
+    // while he runs only counts once he is reopened, and until then every
+    // try would ask again.
+    if (status === 'denied' || status === 'restricted') return null;
     try {
       const display = currentDisplay();
       const scale = display.scaleFactor || 1;
