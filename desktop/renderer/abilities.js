@@ -762,9 +762,9 @@ export function createAbilities(ctx) {
         } else if (how === 'seen') {
           say(done, 2500);
         } else {
-          // Once a session: switched on in Settings while he runs, it counts
-          // only once he is reopened.
-          say(blind + (blindHinted ? '' : '\nAllowed it already? Quit and reopen me.'), 6000);
+          // Once a session: where to allow it, and that it counts only once
+          // he is reopened.
+          say(blind + (blindHinted ? '' : '\nTray menu: Screen access…, then reopen me.'), 6000);
           blindHinted = true;
         }
       }
@@ -821,7 +821,7 @@ export function createAbilities(ctx) {
       id: 'slash', name: 'Slash', cost: 20, school: 'death', blurb: 'Cut the screen in two. Only a picture is cut.',
       cast: async () => {
         const { cut } = await slash();
-        say(cut ? 'Cut.' : 'Cut.\n(Give me screen access to cut deeper.)', cut ? 2500 : 5000);
+        say(cut ? 'Cut.' : 'Cut.\n(Give me screen access to cut deeper:\ntray menu, Screen access…, then reopen me.)', cut ? 2500 : 6000);
       }
     },
     wrecker('shatter', 'Shatter', 25, 'death', 'The screen breaks like glass where your cursor is, falls away, and comes back together.',
