@@ -23,6 +23,8 @@ export const HELP = [
   '• find resume',
   '• prs / issues / did ci pass / notifications (GitHub)',
   '• how\'s my dragon / pet the dragon / feed the dragon a snail / train the dragon to hunt',
+  '• call a wraith / burst (the dragon\'s breath)',
+  '• arts / learn long reach (or keen scythe, deep hood, quiet rest) / robes / wear the midnight robe / buy the gold robe',
   '• guide (a quick tour of how I work)',
   '• work on yourself: make the ghosts slower (or: work on yourself with Claude: …)',
   '• slash, shatter, glitch, vortex, burn, melt, soul rip, summon, hum, vanish'
@@ -288,6 +290,29 @@ function reaching(text, original) {
   if (/^(feed|give)( my| the)? dragon( a)? snail$|^feed( my| the)? dragon$/.test(text)) return dr({ action: 'snail' }, () => 'Crunch. Its favourite.');
   const tr = /^train( my| the)? dragon( to| in)? (hunt|hunting|garden|gardening|tricks?)$/.exec(text);
   if (tr) return dr({ action: 'train', kind: tr[3].startsWith('hunt') ? 'hunt' : tr[3].startsWith('garden') ? 'garden' : 'tricks' }, (d) => 'Trained. Energy ' + d.energy + '.');
+  if (/^(call|summon)( a| the)? wraith$/.test(text)) return dr({ action: 'wraith' }, (r) => 'A ' + r.called.toLowerCase() + ' answers. Strike it ' + r.strikes + ' times.');
+  if (/^((the |my )?dragon('s)? )?(burst|breath burst|breathe)$/.test(text)) return dr({ action: 'burst' }, (r) => (r.breathedOn ? 'It breathes on the wraith.' : 'Click where it should breathe.'));
+  // His Arts and robes.
+  const art = (input, line) => async ({ tool }) => {
+    const out = await tool('arts', input);
+    return out.ok ? line(out.result) : out.error || 'Not now.';
+  };
+  if (/^((show|list)\s+)?(my\s+|your\s+|his\s+)?arts\??$/.test(text)) {
+    return art({ action: 'status' }, (r) => r.arts.map((x) => '• ' + x.name + ' ' + x.level + ': ' + x.now + (x.nextCost === null ? ' (done)' : ', next ' + x.nextCost + ' souls')).join('\n'));
+  }
+  if (/^((show|list)\s+)?(my\s+|your\s+|his\s+)?robes\??$/.test(text)) {
+    return art({ action: 'status' }, (r) => r.robes.map((x) => '• ' + x.name + (x.worn ? ' (worn)' : x.owned ? ' (owned)' : ': ' + x.cost + ' souls')).join('\n'));
+  }
+  const learn = /^(learn|buy|upgrade|get)\s+(the\s+|a\s+)?(keen\s+scythe|scythe|deep\s+hood|hood|quiet\s+rest|rest|long\s+reach|reach)$/.exec(text);
+  if (learn) {
+    const id = learn[3].split(/\s+/).pop();
+    return art({ action: 'learn', art: id }, (r) => r.learned + ', level ' + r.level + '. ' + plural(r.souls, 'soul') + ' left.');
+  }
+  const robe = /^(wear|put on|buy|get)\s+(the\s+|my\s+|a\s+)?(crimson|midnight|bone|moss|gold|void)(\s+robe)?$/.exec(text);
+  if (robe) {
+    const buying = robe[1] === 'buy' || robe[1] === 'get';
+    return art({ action: buying ? 'buy_robe' : 'wear', robe: robe[3] }, (r) => 'The ' + r.wearing + ' robe. ' + plural(r.souls, 'soul') + ' left.');
+  }
   // GitHub, read only: anything that changes it goes through a mind, and asks.
   const gh = (input, line) => async ({ tool }) => {
     const out = await tool('github_read', input);

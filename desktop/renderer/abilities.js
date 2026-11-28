@@ -1066,13 +1066,56 @@ export function createAbilities(ctx) {
           const d = ctx.dragon.get();
           return { ok: true, result: d ? { ...d, perks: d.perks.map((p) => p.name + ' ' + p.level + '/' + p.max) } : { dragon: 'none yet: there is an egg to take' } };
         }
-        if (!what) return { ok: false, error: 'action must be status, pet, feed (with souls 1-1000), snail, train (with kind), ascend, perk (with perk) or adopt' };
+        if (a === 'wraith') {
+          if (!ctx.dragon.get()) return { ok: false, error: 'There is no dragon yet.' };
+          const out = await ctx.dragon.callWraith();
+          return out && out.ok ? { ok: true, result: { called: out.wraith.name, strikes: out.wraith.hp, seconds: Math.round(out.wraith.ms / 1000) } } : { ok: false, error: (out && out.error) || 'It could not.' };
+        }
+        if (a === 'burst') {
+          const d = ctx.dragon.get();
+          if (!d || d.stageIndex < 2) return { ok: false, error: 'Only a drake or older has a burst.' };
+          if (d.hoard.burst < 100) return { ok: false, error: 'Its breath is still building: ' + d.hoard.burst + '%.' };
+          const w = document.querySelector('.wraith:not(.is-banished)');
+          if (hunt && hunt.wraith && w) {
+            const r = w.getBoundingClientRect();
+            const out = await ctx.dragon.fireBurst(r.left + r.width / 2, r.top + r.height / 2);
+            return out && out.ok ? { ok: true, result: { breathedOn: 'the wraith', said: out.said } } : { ok: false, error: (out && out.error) || 'It could not.' };
+          }
+          ctx.dragon.aimBurst();
+          return { ok: true, result: { aiming: 'the user now clicks where it should breathe (Esc to stop)' } };
+        }
+        if (!what) return { ok: false, error: 'action must be status, pet, feed (with souls 1-1000), snail, train (with kind), ascend, perk (with perk), adopt, wraith or burst' };
         const out = await companion.crypt({ dragon: what });
         if (out.crypt) ctx.crypt.update(out.crypt, { gained: out.gained });
         const d = ctx.dragon.get();
         return out.ok
           ? { ok: true, result: { did: a, stage: d && d.stage, xp: d && d.xp, nextAt: d && d.nextAt, bond: d && d.bond, energy: d && d.energy, grew: out.grew, hatched: out.hatched, scales: d && d.scales } }
           : { ok: false, error: out.error };
+      }
+      // His Arts and robes: what they are, and buying or wearing one when asked.
+      case 'arts': {
+        const a = input.action;
+        if (a === 'status') {
+          const out = await companion.crypt();
+          ctx.crypt.update(out.crypt);
+          const c = out.crypt;
+          return { ok: true, result: { souls: c.souls, arts: c.arts.map((x) => ({ id: x.id, name: x.name, level: x.level + '/' + x.max, now: x.now, nextCost: x.cost })),
+            robes: c.robes.map((r) => ({ id: r.id, name: r.name, cost: r.cost, owned: r.owned, worn: r.worn })) } };
+        }
+        let what = null;
+        if (a === 'learn' && ['scythe', 'hood', 'rest', 'reach'].includes(input.art)) what = { art: input.art };
+        if ((a === 'buy_robe' || a === 'wear') && typeof input.robe === 'string') {
+          const robe = ((ctx.crypt.get() || {}).robes || []).find((r) => r.id === input.robe);
+          if (!robe) return { ok: false, error: 'No such robe.' };
+          if (a === 'wear' && !robe.owned) return { ok: false, error: 'He does not own the ' + robe.name + ' robe yet: it costs ' + robe.cost + ' souls. Ask before buying it.' };
+          what = { robe: input.robe };
+        }
+        if (!what) return { ok: false, error: 'action must be status, learn (with art), buy_robe or wear (with robe)' };
+        const out = await companion.crypt(what);
+        if (out.crypt) ctx.crypt.update(out.crypt);
+        if (!out.ok) return { ok: false, error: out.error };
+        sound.chime();
+        return { ok: true, result: what.art ? { learned: out.name, level: out.level, souls: out.crypt.souls } : { wearing: out.name, souls: out.crypt.souls } };
       }
       // GitHub: reading is free; any change is asked, in the words the app gives.
       case 'github_read':

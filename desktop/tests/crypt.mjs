@@ -139,6 +139,22 @@ got = await heard('milestones', { ok: true, result: { milestonesReached: '3 of 1
 check('"milestones" says how many and what is next', got && /3 of 17 milestones reached/.test(got.reply) && /Feed him a file/.test(got.reply), got && got.reply);
 got = await heard('my name is Sam, remember that', { ok: true, result: { id: 'm1' } });
 check('"..., remember that" keeps the note', got && got.name === 'remember' && got.note === 'My name is Sam' && got.reply === 'Kept.', JSON.stringify(got));
+got = await heard('learn long reach', { ok: true, result: { learned: 'Long reach', level: 1, souls: 30 } });
+check('"learn long reach" learns that Art', got && got.name === 'arts' && got.action === 'learn' && got.art === 'reach' && /Long reach, level 1\. 30 souls left/.test(got.reply), JSON.stringify(got));
+got = await heard('buy the keen scythe', { ok: false, error: 'Not enough souls.' });
+check('"buy the keen scythe" finds the scythe', got && got.art === 'scythe' && got.reply === 'Not enough souls.', JSON.stringify(got));
+got = await heard('arts', { ok: true, result: { arts: crypt.view(blank(T0)).arts.map((x) => ({ name: x.name, level: x.level + '/' + x.max, now: x.now, nextCost: x.cost })) } });
+check('"arts" lists his Arts with prices', got && got.action === 'status' && /Keen scythe 0\/3: \+0 ghost a reaping, next 400 souls/.test(got.reply), got && got.reply);
+got = await heard('robes', { ok: true, result: { robes: crypt.view(blank(T0)).robes } });
+check('"robes" lists them, the worn one marked', got && /Crimson \(worn\)/.test(got.reply) && /Midnight: 500 souls/.test(got.reply), got && got.reply);
+got = await heard('put on the midnight robe', { ok: true, result: { wearing: 'Midnight', souls: 2 } });
+check('"put on the midnight robe" wears it (never buys)', got && got.action === 'wear' && got.robe === 'midnight' && /The Midnight robe/.test(got.reply), JSON.stringify(got));
+got = await heard('buy the gold robe', { ok: false, error: 'Not enough souls.' });
+check('"buy the gold robe" is a purchase', got && got.action === 'buy_robe' && got.robe === 'gold', JSON.stringify(got));
+got = await heard('call a wraith', { ok: true, result: { called: 'Hollow wraith', strikes: 18, seconds: 22 } });
+check('"call a wraith" asks the dragon', got && got.name === 'dragon' && got.action === 'wraith' && /hollow wraith answers\. Strike it 18 times/.test(got.reply), JSON.stringify(got));
+got = await heard('burst', { ok: true, result: { aiming: 'click' } });
+check('"burst" readies its breath', got && got.name === 'dragon' && got.action === 'burst' && /Click where/.test(got.reply), JSON.stringify(got));
 got = await heard('summon', { ok: true, result: 'cast' });
 check('"summon" is still the ghost game', got && got.name === 'cast' && got.ability === 'summon');
 

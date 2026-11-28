@@ -501,6 +501,15 @@ try {
   check('a silly feeding is refused', !out.ok);
   out = await tool('dragon', { action: 'train', kind: 'hunt' });
   check('an egg cannot be trained, and Speak says why', !out.ok && /hatched/.test(out.error), JSON.stringify(out));
+  // Speak and his Arts and robes.
+  out = await tool('arts', { action: 'status' });
+  check('Speak can read his Arts and robes', out.ok && out.result.arts.length === 4 && out.result.robes.some((r) => r.id === 'crimson' && r.worn), JSON.stringify(out).slice(0, 200));
+  out = await tool('arts', { action: 'learn', art: 'scythe' });
+  check('Speak cannot learn an Art without the souls', !out.ok && /Not enough souls/.test(out.error), JSON.stringify(out));
+  out = await tool('arts', { action: 'wear', robe: 'void' });
+  check('and wearing a robe never buys it', !out.ok && /does not own/.test(out.error), JSON.stringify(out));
+  out = await tool('dragon', { action: 'wraith' });
+  check('an egg cannot call a wraith', !out.ok && /drake/.test(out.error), JSON.stringify(out));
   await page.evaluate(() => window.__companion.emit('settings', { minions: false }));
   check('skeletons can be kept off the screen', (await page.$$('.field .digger')).length === 0);
   // Shut for two hours with one skeleton and sharper shovels: 3.75 souls, told on the way in.
@@ -962,10 +971,9 @@ try {
       /WRAITH/.test(await wp.textContent('.score')));
     // A burst at it: Ember wounds it.
     const bar0 = await wp.$eval('.wraith-bar', (n) => Number(getComputedStyle(n).getPropertyValue('--hp')));
-    const wbox = await wp.$eval('.wraith', (n) => { const r = n.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-    const fired = await wp.evaluate(({ x, y }) => window.__reaper.dragon.fireBurst(x, y), wbox);
+    const fired = await wp.evaluate(() => window.__reaper.abilities.runTool('dragon', { action: 'burst' }));
     const bar1 = await wp.$eval('.wraith-bar', (n) => Number(getComputedStyle(n).getPropertyValue('--hp'))).catch(() => 0);
-    check('a burst at a wraith: Ember wounds it', fired.ok && fired.onWraith && bar1 < bar0, JSON.stringify({ fired, bar0, bar1 }));
+    check('a burst at a wraith, asked through Speak: Ember wounds it', fired.ok && fired.result.breathedOn === 'the wraith' && bar1 < bar0, JSON.stringify({ fired, bar0, bar1 }));
     await strike(wp, 12);
     await wp.waitForFunction(() => !document.querySelector('.wraith:not(.is-banished)'), null, { timeout: 4000 }).catch(() => {});
     await wp.waitForTimeout(400);
@@ -978,8 +986,8 @@ try {
     const gp = await open({ wander: false, muted: true, soul: 100, crypt: { souls: 0, skeletons: 0, rank: 3, at: Date.now(), wraiths: { beaten: 2 }, dragon: drake() } });
     await gp.evaluate(() => window.__reaper.dragon.setFinding(false));
     await gp.waitForTimeout(1700);
-    const called = await gp.evaluate(() => window.__reaper.dragon.callWraith());
-    check('a higher rank meets a higher tier: the Grave wraith', called.ok && called.wraith.name === 'Grave wraith' && !!(await gp.$('.wraith.is-tier-2')), JSON.stringify(called).slice(0, 120));
+    const called = await gp.evaluate(() => window.__reaper.abilities.runTool('dragon', { action: 'wraith' }));
+    check('a higher rank meets a higher tier (called through Speak): the Grave wraith', called.ok && called.result.called === 'Grave wraith' && !!(await gp.$('.wraith.is-tier-2')), JSON.stringify(called).slice(0, 120));
     await gp.waitForSelector('.wraith.is-phased', { timeout: 6000 }).catch(() => {});
     const before = await gp.$eval('.wraith-bar', (n) => getComputedStyle(n).getPropertyValue('--hp'));
     await gp.$eval('.wraith', (n) => n.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
@@ -1030,6 +1038,12 @@ try {
     await ap.waitForSelector('#body');
     await ap.waitForTimeout(400);
     check('and still wears it after a restart', (await ap.getAttribute('#reaper', 'data-robe')) === 'midnight');
+    // And through Speak: an Art learned, a robe changed.
+    let said = await ap.evaluate(() => window.__reaper.abilities.runTool('arts', { action: 'learn', art: 'rest' }));
+    check('Speak can teach him an Art when asked', said.ok && said.result.learned === 'Quiet rest' && said.result.souls === 400, JSON.stringify(said));
+    said = await ap.evaluate(() => window.__reaper.abilities.runTool('arts', { action: 'wear', robe: 'crimson' }));
+    await ap.waitForTimeout(200);
+    check('and put him back in his own robe', said.ok && (await ap.getAttribute('#reaper', 'data-robe')) === 'crimson', JSON.stringify(said));
     check('no errors with his arts', ap.errors.length === 0, ap.errors.join('; '));
   }
 
