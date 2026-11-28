@@ -85,6 +85,10 @@ try {
       return false;
     };
 
+    // The X server's pointer sits still at its default spot, which is beside
+    // the doorway he walks in by; near the cursor he stops to look at it. So
+    // the app is told the pointer is far off, in the far corner of the last monitor.
+    await app.evaluate(({ screen }) => { screen.getCursorScreenPoint = () => ({ x: 4070, y: 1910 }); });
     check('he starts on the primary monitor', (await onMonitor()) === 0, JSON.stringify(await bounds()));
     const seen = await page.evaluate(() => window.__reaper.doors);
     check('the page knows the door to the next monitor', seen.length === 1 && seen[0].side === 'right' && seen[0].from === 420 && seen[0].to === 1500, JSON.stringify(seen));
