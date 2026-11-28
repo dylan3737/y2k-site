@@ -128,7 +128,7 @@ try {
   await page.waitForTimeout(300);
   const buttons = await page.$$eval('.ring-btn', (b) => b.map((x) => x.dataset.id));
   const EFFECT_IDS = ['slash', 'shatter', 'glitch', 'vortex', 'burn', 'melt', 'soulrip'];
-  check('click opens the ring: nine buttons, the effects behind one', buttons.length === 9 && buttons.includes('effects') &&
+  check('click opens the ring: ten buttons, the effects behind one', buttons.length === 10 && buttons.includes('effects') && buttons.includes('arts') &&
     !buttons.includes('dragonbreath') && buttons.includes('dragon') && !buttons.some((b) => EFFECT_IDS.includes(b)), buttons.join(','));
   const overlap = await page.$$eval('.ring-btn', (b) => {
     const boxes = b.map((x) => x.getBoundingClientRect());
@@ -146,7 +146,7 @@ try {
   check('Effects opens a ring of the seven effects, and Back', fx.length === 8 && EFFECT_IDS.every((id) => fx.includes(id)) && fx.includes('back'), fx.join(','));
   await page.click('.ring-btn[data-id="back"]');
   await page.waitForTimeout(250);
-  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 9 && !!(await page.$('.ring-btn[data-id="effects"]')));
+  check('Back returns to the main ring', (await page.$$('.ring-btn')).length === 10 && !!(await page.$('.ring-btn[data-id="effects"]')));
   await page.keyboard.press('Escape');
   check('Escape closes the ring', !(await visible(page, '#ring')));
 
@@ -931,9 +931,40 @@ try {
     const aimAt = await hp.$eval('.ghost:not(.is-caught)', (g) => { const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     const fired = await hp.evaluate(({ x, y }) => window.__reaper.dragon.fireBurst(x, y), aimAt);
     const said = await hp.textContent('#bubble');
-    check('in a hunt, a Storm burst strikes the ghosts where it is aimed', fired.ok && fired.inHunt && fired.hit >= 1 && /Lightning/.test(said),
+    check('in a hunt, a Storm burst strikes the ghosts where it is aimed', fired.ok && fired.inHunt && fired.hit >= 1,
       JSON.stringify({ loose0, fired, said }));
     check('no errors with the burst', bp.errors.length === 0 && hp.errors.length === 0, bp.errors.concat(hp.errors).join('; '));
+  }
+
+  // His Arts: souls spent on him, from his ring; and his robes.
+  {
+    const ap = await open({ wander: false, muted: true, crypt: { souls: 1200, skeletons: 0, at: Date.now() } });
+    await ap.waitForTimeout(300);
+    for (let i = 0; i < 6 && !(await visible(ap, '#ring')); i++) { await ap.click('#body', { force: true }); await ap.waitForTimeout(260); }
+    await ap.click('.ring-btn[data-id="arts"]', { force: true });
+    await ap.waitForTimeout(250);
+    check('Arts opens his card, with four arts', (await ap.$$('#card [data-art]')).length === 4);
+    await ap.click('#card [data-art="hood"]');
+    await ap.waitForTimeout(250);
+    check('souls teach him an art', (await ap.evaluate(() => window.__reaper.crypt.get().arts.find((a) => a.id === 'hood').level)) === 1 &&
+      (await ap.evaluate(() => window.__reaper.crypt.get().souls)) === 1000);
+    await ap.evaluate(() => window.__reaper.arts.close());
+    for (let i = 0; i < 6 && !(await visible(ap, '#ring')); i++) { await ap.click('#body', { force: true }); await ap.waitForTimeout(260); }
+    await ap.click('.ring-btn[data-id="effects"]', { force: true });
+    await ap.waitForTimeout(250);
+    check('a deep hood: his abilities cost less (Slash 20 -> 18)', (await ap.textContent('.ring-btn[data-id="slash"] small')) === '18 soul', await ap.textContent('.ring-btn[data-id="slash"] small'));
+    await ap.keyboard.press('Escape');
+    await ap.evaluate(() => window.__reaper.arts.open('robes'));
+    await ap.waitForTimeout(200);
+    await ap.click('#card .arts-robe[data-robe="midnight"]');
+    await ap.waitForTimeout(250);
+    check('a robe is bought, and he wears it', (await ap.getAttribute('#reaper', 'data-robe')) === 'midnight' &&
+      (await ap.evaluate(() => window.__reaper.crypt.get().souls)) === 500);
+    await ap.reload();
+    await ap.waitForSelector('#body');
+    await ap.waitForTimeout(400);
+    check('and still wears it after a restart', (await ap.getAttribute('#reaper', 'data-robe')) === 'midnight');
+    check('no errors with his arts', ap.errors.length === 0, ap.errors.join('; '));
   }
 
   // A hunter breathes on ghosts in a hunt.

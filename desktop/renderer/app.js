@@ -7,6 +7,7 @@ import { createSpeak } from './speak.js';
 import { createCrypt } from './crypt.js';
 import { createDragon } from './dragon.js';
 import { createGuide } from './guide.js';
+import { createArts } from './arts.js';
 
 const $ = (id) => document.getElementById(id);
 const reaper = $('reaper');
@@ -265,6 +266,8 @@ const ctx = {
 const crypt = createCrypt(ctx);
 ctx.crypt = crypt;
 ctx.dragon = createDragon(ctx);
+// His Arts and robes.
+ctx.arts = createArts(ctx);
 // The first-run guide (started from start(), or by Speak).
 ctx.guide = createGuide(ctx, { ringOpen: () => !ring.hidden });
 ctx.dragon.update(crypt.get().dragon);
@@ -318,7 +321,8 @@ function openRing(group = null) {
     btn.type = 'button';
     btn.className = 'ring-btn hit';
     btn.dataset.id = a.id;
-    btn.dataset.cost = a.cost || 0;
+    const price = abilities.priceOf(a);
+    btn.dataset.cost = price;
     if ('folder' in a) btn.classList.add('is-folder');
     if (a.off) btn.dataset.off = '1';
     btn.setAttribute('role', 'menuitem');
@@ -332,7 +336,7 @@ function openRing(group = null) {
     btn.innerHTML = '<span></span><small></small>';
     btn.firstChild.textContent = a.name;
     const folderNote = { effects: EFFECTS.length + ' more', dragon: ctx.dragon.get() ? ctx.dragon.get().stage : '' };
-    btn.lastChild.textContent = 'folder' in a ? (folderNote[a.folder] || '') : a.run ? a.note : active ? 'stop' : (a.cost ? a.cost + ' soul' : 'free');
+    btn.lastChild.textContent = 'folder' in a ? (folderNote[a.folder] || '') : a.run ? a.note : active ? 'stop' : (price ? price + ' soul' : 'free');
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       if ('folder' in a) openRing(a.folder);
@@ -770,7 +774,8 @@ let tick = 0;
 setInterval(() => {
   tick++;
   if (mode === 'rest') {
-    soul.gain(6);
+    // (Quiet rest: a quarter faster a level.)
+    soul.gain(6 * (1 + 0.25 * ctx.arts.level('rest')));
     if (soulLevel >= 100) {
       setMode('wander');
       waitUntil = performance.now() + 3000;
@@ -886,7 +891,7 @@ window.__reaper = {
   pos, cursor, get doors() { return doors; }, get crossing() { return crossing; }, cross,
   // Forget where he was going and choose again now.
   retarget() { target = null; waitUntil = 0; },
-  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, guide: ctx.guide, say,
+  get mode() { return mode; }, get soul() { return soulLevel; }, abilities, speak, crypt, dragon: ctx.dragon, guide: ctx.guide, arts: ctx.arts, say,
   // Why he is (not) walking, for a test that fails to say so.
   why: () => ({ mode, pos: { x: Math.round(pos.x), y: Math.round(pos.y) }, target, waitIn: Math.round(waitUntil - performance.now()),
     cursor: { x: cursor.x, y: cursor.y }, near: dist(cursor, center()) < 150, wander: settings.wander, ring: !ring.hidden, card: !card.hidden,

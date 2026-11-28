@@ -655,8 +655,9 @@ export function createCrypt(ctx) {
   function update(next, event = {}) {
     const before = now;
     now = { ...now, ...next };
-    // The dragon lives in the garden's state.
+    // The dragon lives in the garden's state; so does his robe.
     if (ctx.dragon && 'dragon' in next) ctx.dragon.update(next.dragon);
+    if (ctx.arts) { ctx.arts.dress(now.robe); ctx.arts.refresh(); }
     paint();
     // Souls for a deed pop over the reaper; what the garden gathered, over them.
     if (event.gained) ctx.pop('+' + event.gained, 'is-souls');

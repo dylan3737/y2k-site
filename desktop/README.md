@@ -160,7 +160,7 @@ Points add up to a **score** that climbs ranks. Each new rank pays souls once:
 | Soul warden | 1,000 | 120 |
 | Shade hunter | 5,000 | 300 |
 | Wraith lord | 14,000 | 800 |
-| The Reaper's hand | 60,000 | 2,500 |
+| The Reaper's hand | 70,000 | 2,500 |
 
 **Summon is the Gathering**: he calls every moss sprite, snail and frog at once. All of them burst into their ghosts, with one more ghost for each sprite past the first, for one big hunt, and all leave seeds that sprout back in 30 minutes. So the choice is a snack or a feast: reap one now, for free, or let them grow and pay 40 of his soul to gather them all. About one Gathering in four (never more than four in a row without one), something else answers the call: once the hunt is over a **wraith** rises. Strike it 12 times in 20 seconds and it pays souls (more at higher ranks), and a moss sprite sprouts too. With no sprites yet, Summon plants the first one; with every sprite still a seed, he says how long until the first sprouts.
 
@@ -192,6 +192,19 @@ Open **Dragon** from his ring. An egg turns up in the garden: take it, and raise
 | **Warm roots** | 5 | The whole garden gathers 10% more and grows 10% faster a level |
 | **Gleam** | 3 | A glow, then an aura, then a blazing one |
 | **Lore** | 3 | Tricks only an ascended line learns: it dives at a wraith (three strikes), then lights up finished hourglasses, then fetches a ghost that would get away |
+
+### His Arts
+
+Souls can be spent on the reaper himself, too: **Arts** on his ring.
+
+| Art | Levels | What each level does | Costs |
+|---|---|---|---|
+| **Keen scythe** | 3 | A sprout he reaps by hand gives one more ghost | 400, 2,000, 8,000 |
+| **Deep hood** | 3 | His abilities cost 10% less soul | 200, 800, 3,200 |
+| **Quiet rest** | 3 | Resting, his soul comes back 25% faster | 100, 400, 1,600 |
+| **Long reach** | 3 | Ghosts linger 15% longer before they get away | 120, 500, 2,000 |
+
+The card's **Robes** tab dresses him: **Crimson** is his own; **Midnight** (500 souls), **Bone** (1,500), **Moss** (4,000), **Gold** (12,000) and **Void** (30,000) are bought once and worn whenever you like.
 
 ### Upgrades
 
